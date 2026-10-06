@@ -24,7 +24,9 @@ def main():
         os.environ['AKOCHAN_DIR'] = cfg['akochan']['dir']
         os.environ['AKOCHAN_TACTICS'] = cfg['akochan']['tactics']
     else:
-        state = torch.load(cfg['champion']['state_file'], weights_only=True, map_location=torch.device('cpu'))
+        # weights_only=False: trainer-saved checkpoints carry numpy scalars that
+        # torch>=2.6 safe-load rejects; we only ever load our own checkpoints
+        state = torch.load(cfg['champion']['state_file'], weights_only=False, map_location=torch.device('cpu'))
         cham_cfg = state['config']
         version = cham_cfg['control'].get('version', 1)
         conv_channels = cham_cfg['resnet']['conv_channels']
@@ -47,7 +49,7 @@ def main():
             name = cfg['champion']['name'],
         )
 
-    state = torch.load(cfg['challenger']['state_file'], weights_only=True, map_location=torch.device('cpu'))
+    state = torch.load(cfg['challenger']['state_file'], weights_only=False, map_location=torch.device('cpu'))
     chal_cfg = state['config']
     version = chal_cfg['control'].get('version', 1)
     conv_channels = chal_cfg['resnet']['conv_channels']
