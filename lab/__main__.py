@@ -105,6 +105,9 @@ def _base_row(args, cfg, run_id, test_name, family, nonce_start, n_sets):
         'challenger': _engine_record(args.challenger),
         'champion': _engine_record(args.champion),
         'utility': cfg['utility'],
+        'arm': getattr(args, 'arm', None),
+        'package': getattr(args, 'package', None),
+        'horizon': getattr(args, 'horizon', None),
         'amp': bool(cfg['arena']['enable_amp'] and not args.no_amp),
         'calibrated': bool(cfg['gsprt']['calibrated']),
         'lab_config': registry.lab_config_hash(),
@@ -269,6 +272,10 @@ def main():
         p.add_argument('--no-amp', action='store_true',
                        help='FP32 inference (no TF32) with deterministic cuDNN (used by the deterministic A/A: '
                             'AMP numerics depend on batch composition and flip near-tie argmaxes)')
+        # 02 §9: what produced the challenger, for RL checkpoints
+        p.add_argument('--arm', default=None, choices=['P0', 'P1', 'V', 'H'], help='engine arm (05 §2.1)')
+        p.add_argument('--package', default=None, choices=['K1', 'K2', 'K3'], help='discovery package (05 §5.1)')
+        p.add_argument('--horizon', default=None, choices=['K', 'H'], help='return horizon (05 §3.1)')
 
     p = sub.add_parser('run')
     engines(p)
