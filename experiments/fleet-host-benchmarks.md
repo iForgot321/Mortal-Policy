@@ -170,6 +170,64 @@ or shorten what the main thread does per step (03 §6 items 7–8).
   the contended host again.
 - Only three batches per setting: the ±% is rough.
 
+## 2026-10-06: multi-process actors and the reduced inference matrix (EPYC 9684X)
+
+`tools/fleet/bench_matrix.sh` via `box_bench.sh … matrix`; contract 54533688, machine 117856
+(California, $0.464/h, 32 vCPU at a 30.7-CPU quota); commit `b3f46b7` (clean); pilot A decides in
+every run; 2,000 concurrent games per chunk; steady = chunks after the first. Results:
+`workdir/fleet/20261006-vast-4090-epyc9684x-matrix/box/matrix/`. Cost $0.62.
+
+### Several actor processes per box
+
+| Processes | Total hanchan/h | vs 1 process | CPU busy (box) | GPU | $ per 1M hanchan |
+|---|---|---|---|---|---|
+| 1 | 52,581 | 1.00× | 17.8 | 11% | 8.8 |
+| 2 | **77,796** | **1.48×** | 26.5 | 16% | 6.0 |
+| 3 | **85,262** | **1.62×** | 29.0 (quota 30.7) | 17% | **5.4** |
+
+- Each process plays different seeds (`--nonce-offset`); 3 chunks each, run concurrently.
+- The single-process figure repeats the first 9684X box (49,741) within 6%, on another machine.
+- At 3 processes the CPU quota is nearly used up, so a 4th would add little. A box that also runs
+  the learner (single-box P0) has room for about 2 actor processes.
+- For P0 this means 2–3 `client.py` processes per actor box (each with its own `train_play` dirs);
+  the client/server protocol already takes several clients.
+
+### Network size (shadow pricing, AMP) and torch.compile
+
+`--shadow bNcM`: pilot A still decides, and a random-init network of that size runs first on every
+batch, so the games stay fixed while the per-step cost grows with the network.
+
+| Shadow network | Params | Shadow run, hanchan/h | Estimated real actor of that size* |
+|---|---|---|---|
+| b6c128 | 2.1M | 42,110 | ~53,000 |
+| b8c192 | 3.6M | 41,869 | 52,581 (measured, no shadow) |
+| b12c256 | 6.8M | 40,733 | ~50,800 |
+| b16c256 | 8.5M | 40,036 | ~49,700 |
+| b24c512 | 42.1M | 32,064 (GPU 41%) | ~38,000 |
+
+\* 1/real_X ≈ 1/52,581 + (1/shadow_X − 1/shadow_b8c192): swap the b8c192 forward for X's.
+
+- **torch.compile** (CUDA graphs, batch buckets 256…8192) on the shadow network: b16c256 44,290
+  (+11% over its AMP row), b24c512 34,639 (+8%). The first chunk pays the compile (36.0K and 28.5K);
+  only one steady chunk each, so these are rough.
+- **The shadow mechanism itself costs ~20%:** the b6c128 and b8c192 rows match, so most of the gap
+  to 52.6K is not network compute. The likely cause is the second `np.stack` and host-to-device
+  copy of the observation batch (~137 KB per decision in fp32) on the main thread, which suggests
+  the observation path is a bigger share of the step than py-spy's 2% (py-spy lost 77% of its
+  samples).
+
+### Reading
+
+- **Biggest lever:** run 2–3 actor processes per box. +48–62% games per box for no extra rent:
+  ~$5.4–6.0 per million hanchan on a Zen 4 4090 box, about a third of the plan's $18 (`03` §9).
+- **Actor size (speed side only; D31 picks from learning curves):** up to b16c256 costs ≤ ~6%
+  throughput against b8c192; b24c512 costs ~28% under AMP, and torch.compile wins back part of
+  that (+8% on its shadow run). The estimate formula isn't used for the compiled rows: compiling
+  also trims the shadow's own overhead, which would inflate them. TensorRT isn't needed at these
+  sizes.
+- **Cheap engineering targets** besides the Rust step loop: the observation path (fp16 or a
+  contiguous batch straight from Rust, pinned memory) and compiling the actor network.
+
 ## Featurization rate (2026-10-06, workstation)
 
 `tools/fleet/bench_featurize.py` (sha256 `c8620e57…`, commit `dd052e7`): 256 games sampled evenly
