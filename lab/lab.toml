@@ -1,0 +1,72 @@
+# Evaluation-lab configuration (docs/reference/02_evaluation_lab.md). FROZEN for
+# Phases 1–2 once calibrated (05 §1 item 5); record every change in
+# docs/reference/08_decision_log.md first.
+
+# D2: matched to riichi.dev's Plackett–Luce update at equal strength; sums to 0.
+utility = [0.90, 0.50, -0.10, -1.30]
+# Secondary metric only: Houou 7-dan pt, comparable with Mortal's tables.
+display_pts = [90, 45, 0, -135]
+
+[gsprt]
+# §4: first look after min_sets, then every look_every sets.
+min_sets = 5000
+look_every = 500
+# s² is floored at floor_frac · sigma_set² (D36).
+floor_frac = 0.25
+# Per-set SD measured by A/A′ (02 §6): pilot quick students A vs B, 20K sets
+# on family A (run 20261005-124255-measure). The §4 planning value was 0.42;
+# duplicate play removes 37.7% of the unpaired variance.
+sigma_set = 0.3277
+sigma_set_source = "A/A' run 20261005-124255-measure (20K sets, family A, block aa-prime)"
+# Calibrated 2026-10-05 by the §4.1 simulation (D44): with the A/A′ set-score
+# distribution and its sparse / skew-left / skew-right / heavy variants, the
+# nominal Wald boundaries keep every false-pass and false-fail rate <= 5% for
+# every test type. Reports: lab/registry/calibration-20261005-*.json.
+calibrated = true
+
+# H0 -> H1 bounds on Δu and caps in sets (§4 table). "pass" always means
+# LLR >= upper: H1 accepted for superiority, the regression rejected for
+# T-smoke / T-NI. Hitting the cap is inconclusive, which counts as a fail.
+[gsprt.tests.T-smoke]
+# calibrated: worst false pass 0.40%, worst false fail 0.40% (10,000 simulated tests per variant).
+mu0 = -0.02
+mu1 = 0.0
+cap = 20_000
+lower = -2.944
+upper = 2.944
+
+[gsprt.tests.T-NI]
+# calibrated: worst false pass 3.03%, worst false fail 3.28% (10,000 simulated tests per variant).
+mu0 = -0.01
+mu1 = 0.0
+cap = 60_000
+lower = -2.944
+upper = 2.944
+
+[gsprt.tests.T-std]
+# calibrated: worst false pass 3.03%, worst false fail 3.28% (10,000 simulated tests per variant).
+mu0 = 0.0
+mu1 = 0.01
+cap = 100_000
+lower = -2.944
+upper = 2.944
+
+[gsprt.tests.T-fine]
+# calibrated: worst false pass 4.60%, worst false fail 4.77% (40,000 simulated tests per variant). Thin margin: rerun the calibration if sigma_set or the score distribution changes.
+mu0 = 0.0
+mu1 = 0.005
+cap = 250_000
+lower = -2.944
+upper = 2.944
+
+[confirm]
+# T-confirm (§4, D36): fixed N on fresh family-C nonces; pass if the 95%
+# set-level bootstrap lower bound > 0 (superiority) or > -delta (NI).
+level = 0.95
+bootstrap_resamples = 10_000
+
+[arena]
+# Sets per arena call: 500 sets = 2,000 concurrent games.
+chunk_sets = 500
+enable_amp = true
+enable_rule_based_agari_guard = true

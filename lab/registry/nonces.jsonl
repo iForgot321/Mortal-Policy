@@ -1,0 +1,8 @@
+{"family": "A", "start": 0, "count": 500, "run_id": "20261003-014550-A/A", "purpose": "deterministic A/A", "block": "aa-shanten-greedy", "time": "2026-10-03T01:45:50-07:00"}
+{"family": "A", "start": 0, "count": 500, "run_id": "20261003-014642-A/A", "purpose": "deterministic A/A", "block": "aa-shanten-greedy", "time": "2026-10-03T01:46:42-07:00", "reused": true}
+{"family": "A", "start": 500, "count": 500, "run_id": "20261003-014722-A/A", "purpose": "deterministic A/A", "block": "aa-harness-nn", "time": "2026-10-03T01:47:22-07:00"}
+{"family": "A", "start": 500, "count": 500, "run_id": "20261003-020344-AA", "purpose": "deterministic A/A", "block": "aa-harness-nn", "time": "2026-10-03T02:03:44-07:00", "reused": true}
+{"family": "A", "start": 500, "count": 500, "run_id": "20261003-022054-AA", "purpose": "deterministic A/A", "block": "aa-harness-nn", "time": "2026-10-03T02:20:54-07:00", "reused": true}
+{"family": "A", "start": 1000, "count": 20000, "run_id": "20261005-124255-measure", "purpose": "A/A' noise floor (02 §6)", "block": "aa-prime", "time": "2026-10-05T12:42:55-07:00"}
+{"family": "B", "start": 1000000000, "count": 100000, "run_id": "20261005-163506-T-std", "purpose": "T-std verdict", "block": null, "time": "2026-10-05T16:35:06-07:00"}
+{"family": "B", "start": 1000100000, "count": 60000, "run_id": "20261005-173018-T-NI", "purpose": "T-NI verdict", "block": null, "time": "2026-10-05T17:30:18-07:00"}

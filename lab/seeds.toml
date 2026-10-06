@@ -1,0 +1,29 @@
+# Seed families (docs/reference/02_evaluation_lab.md §3). FROZEN for Phases 1–2
+# (05 §1 item 5): changing a key or range invalidates every verdict made with it.
+#
+# An arena seed is (nonce, key). Each family has its own 64-bit master key and
+# a disjoint nonce range, and lab/registry/nonces.jsonl records every
+# allocation so no range is ever reused across runs or roles:
+#   A: fixed named blocks may be reused (tracking runs compare like with like).
+#   B: every GSPRT run draws a fresh range sized to its cap.
+#   C: every confirmation draws a fresh range; a used range is retired (D36).
+#
+# Keys generated 2026-10-03 with secrets.randbits(64).
+
+[families.A]
+role = "tracking evaluations and checkpoint selection"
+key = 0x7af6fcc42935baad
+nonce_start = 0
+nonce_end = 1_000_000_000
+
+[families.B]
+role = "GSPRT verdicts on patches"
+key = 0x41ac2b927f6b1dc2
+nonce_start = 1_000_000_000
+nonce_end = 2_000_000_000
+
+[families.C]
+role = "held-out confirmation at gates, ablation-table numbers, publication"
+key = 0x7d084d21baa2535a
+nonce_start = 2_000_000_000
+nonce_end = 3_000_000_000

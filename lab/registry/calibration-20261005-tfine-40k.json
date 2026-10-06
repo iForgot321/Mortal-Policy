@@ -1,0 +1,74 @@
+{
+ "time": "2026-10-05T16:24:33-07:00",
+ "source": "workdir/lab/20261005-124255-measure/games.npz",
+ "n_tests": 40000,
+ "results": [
+  {
+   "test": "T-fine",
+   "n_tests": 40000,
+   "base": {
+    "name": "20261005-124255-measure",
+    "mean": 0.0015300000000000083,
+    "sd": 0.3276662312475913,
+    "atoms": 30
+   },
+   "sigma_set": 0.3276744232105724,
+   "nominal": {
+    "lower": -2.944,
+    "upper": 2.944,
+    "rows": [
+     {
+      "variant": "20261005-124255-measure",
+      "false_pass": 0.04065,
+      "false_fail": 0.04057500000000003,
+      "inconclusive_h0": 0.0,
+      "inconclusive_h1": 0.0,
+      "mean_sets_h0": 24870.0375,
+      "mean_sets_h1": 24993.1375
+     },
+     {
+      "variant": "sparse",
+      "false_pass": 0.046025,
+      "false_fail": 0.03562500000000002,
+      "inconclusive_h0": 0.0,
+      "inconclusive_h1": 0.0,
+      "mean_sets_h0": 24936.9625,
+      "mean_sets_h1": 24615.0875
+     },
+     {
+      "variant": "skew-left",
+      "false_pass": 0.037925,
+      "false_fail": 0.04774999999999996,
+      "inconclusive_h0": 0.0,
+      "inconclusive_h1": 0.0,
+      "mean_sets_h0": 24844.975,
+      "mean_sets_h1": 24894.35
+     },
+     {
+      "variant": "skew-right",
+      "false_pass": 0.03735,
+      "false_fail": 0.044300000000000006,
+      "inconclusive_h0": 0.0,
+      "inconclusive_h1": 0.0,
+      "mean_sets_h0": 24870.2375,
+      "mean_sets_h1": 25054.55
+     },
+     {
+      "variant": "heavy",
+      "false_pass": 0.04205,
+      "false_fail": 0.040224999999999955,
+      "inconclusive_h0": 0.0,
+      "inconclusive_h1": 0.0,
+      "mean_sets_h0": 24854.375,
+      "mean_sets_h1": 24884.475
+     }
+    ],
+    "accepted": true
+   },
+   "selected": {
+    "lower": -2.944,
+    "upper": 2.944
+   }
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+# Population panel (02 §4.2, D34). FROZEN at Phase 0: configurations, weights
+# and the severe-regression rule are pre-registered here; changing them needs a
+# decision-log entry. Used for tranche gates, G0–G2 and publication, never per
+# patch (the per-patch test is 1v3 duplicate GSPRT).
+#
+# Opponent roles are symbolic until bound for a given gate. A binding records
+# the checkpoint sha256 of every role in the run's registry row:
+#   pi_SL        the deployed SL student (incumbent at Phase 1)
+#   bc_prior     the BC teacher kept as tau_human (04 §5)
+#   older        a rotating older milestone champion
+#   older_res    an older checkpoint never used in training or tuning
+#   first_seek   style variant, u1 = [+1.30, +0.30, -0.30, -1.30] (05 §7.1)
+#   fourth_avoid style variant, u4 = [+0.60, +0.40, +0.20, -1.20]
+#   balanced     the champion's own lineage, balanced utility
+#   floor        builtin:shanten-greedy
+#
+# P-SL, P-OLD and P-FLR are 1v3 duplicate tables (lab arena today). The mixed
+# tables need an arena with three distinct opponents: NOT YET IMPLEMENTED
+# (libriichi OneVsThree takes one champion). Panel runs are fixed-N, about 20K
+# sets per configuration (02 §4.2).
+
+sets_per_config = 20_000
+
+[severe_regression]
+# Blocks promotion whatever the average: fixed-N Δu < -0.02 on any single
+# configuration with the 95% upper bound < 0.
+delta = -0.02
+level = 0.95
+
+[configs.P-SL]
+opponents = ["pi_SL", "pi_SL", "pi_SL"]
+weight = 0.3
+role = "baseline"
+
+[configs.P-MIX]
+opponents = ["pi_SL", "older", "first_seek"]
+weight = 0.3
+role = "mixed table"
+
+[configs.P-STY]
+opponents = ["first_seek", "fourth_avoid", "balanced"]
+weight = 0.2
+role = "style mix"
+
+[configs.P-OLD]
+opponents = ["older", "older", "older"]
+weight = 0.1
+role = "drift check"
+
+[configs.P-RES1]
+opponents = ["bc_prior", "fourth_avoid", "older_res"]
+weight = 0.05
+role = "reserved: confirmation only, never in training or routine tuning"
+reserved = true
+
+[configs.P-RES2]
+opponents = ["bc_prior", "first_seek", "older_res"]
+weight = 0.05
+role = "reserved: confirmation only, never in training or routine tuning"
+reserved = true
+
+[configs.P-FLR]
+opponents = ["floor", "floor", "floor"]
+weight = 0.0
+role = "floor; reported, not weighted (02 §10: checked monthly)"
