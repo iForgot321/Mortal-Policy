@@ -145,6 +145,8 @@ log "box info"
 # rsync -a keeps the workstation's uid, which git refuses to read as root without this
 git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$ROOT" \
     || git config --global --add safe.directory "$ROOT"
+# the workstation's git setting: some docs are CRLF in its working tree but LF in the commits
+git config --global core.autocrlf input
 # rsync changes inodes and mtimes; refresh the index so --dirty reflects content only
 git update-index -q --refresh || true
 {
