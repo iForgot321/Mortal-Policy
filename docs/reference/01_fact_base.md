@@ -261,39 +261,70 @@ LuckyJ 1,080 games; Suphx 500; NAGA 500; humans = the other seats at LuckyJ's ta
   - github.com/vivekjoshy/openskill.py; github.com/twu3202/riichi-eval
   - arXiv 2511.07312 (Ataraxos); arXiv 2104.03113 (Jones, scaling with board games); nature.com/articles/s41598-019-45619-9 (α-Rank)
 
-## 10. Cloud pricing and hardware performance (fetched 2026-10-01; re-verify before each phase)
+## 10. Cloud pricing and hardware performance (prices fetched 2026-10-06; re-verify before each phase)
+
+The previous snapshot (2026-10-01) is in git history. Rows not re-checked on 2026-10-06 say so.
 
 **Sources:**
-- getdeploying.com per-GPU aggregates (17–56 providers each);
-- the Vast.ai `bundles` API (a sample of up to ~64 offers per query);
-- Runpod, Lambda, Hyperstack and CoreWeave pricing pages;
-- instances.vantage.sh (AWS us-east-1);
-- gcloud-compute.com;
-- Hetzner's 2026-06-15 price list; ovhcloud.com bare-metal prices;
-- aime.info and lambdal/deeplearning-benchmark (ResNet-50 AMP).
+- getdeploying.com per-GPU summaries (19–57 providers each, data dated 2026-10-06);
+- the Vast.ai `bundles` API: the **complete** listing of rentable single-GPU offers, collected by bisecting price bands under the API's 64-offer cap. The 2026-10-01 figures came from one ≤ 64-offer sample per query, so the two snapshots are not strictly comparable. Offer counts moved by up to ±30% between queries minutes apart. On-demand medians were stable to ±$0.01; interruptible medians moved by up to $0.06.
+- Runpod, Lambda, Verda (formerly DataCrunch) and CloudRift pricing pages; Lium, TensorDock and Salad via getdeploying and gpus.io;
+- Hetzner's GEX131 press release (2025-12-11); gcloud-compute.com (updated 2026-10-04); instances.vantage.sh (AWS us-east-1, updated 2026-10-06);
+- B&H and bestvaluegpu.com (RTX 5090 purchase, October 2026);
+- aime.info and lambdal/deeplearning-benchmark (ResNet-50 AMP; not re-checked).
 
 ### GPU rental, $/GPU-hour
 
+"Cheapest" can come from a multi-GPU listing quoted per GPU.
+
 | GPU | Cheapest | Median on-demand | Spot median | vCPU per GPU |
 |---|---|---|---|---|
-| RTX 4090 | $0.32 (Vast) | $0.45 | $0.30 | Vast median 16 (27% of offers have ≥ 32, median $0.47); Runpod fixed at 6 |
-| RTX 5090 | $0.35 | $0.64 (Vast $0.52) | $0.45 | Vast median 24 (47% of offers have ≥ 32, median $0.57); Runpod fixed at 9 |
-| L40S | $0.38 | $1.40 | $0.98 | AWS g6e.8xlarge spot $1.68 with 32 vCPU |
-| A100 80GB | ~$0.79 (Vast SXM median) | $1.79 | $0.96 | 8–24 |
-| H100 SXM/PCIe | $1.30 (Lium) | $3.40 (Vast median $2.40; Runpod Secure SXM $2.69) | $2.00 | 16–26 |
-| H200 | $2.72 | $4.37 | $3.34 | ~22–24 |
-| B200 | $3.75 | $6.49 | $4.26 | 26–31 |
+| RTX 4090 | $0.33 (Salad, stock unverified); $0.34 in stock (GPU.ai, Runpod Community) | $0.44 | $0.34 | Vast median 18; 30% of 162 offers have ≥ 32 (median $0.50, lower quartile $0.43). Runpod fixed at 6. |
+| RTX 5090 | $0.35 (HyperAI) | $0.69 (Vast $0.63) | $0.48 | Vast median 24; 40% of 198 offers have ≥ 32 (median $0.67, lower quartile $0.60). Runpod fixed at 9. |
+| L40S | $0.55 (Novita) | $1.57 | $0.98 | 4 (AWS) to 32 (Vast); mostly 8–16 |
+| A100 80GB | $0.40 (Vast, 2× SXM listing) | $1.80 | $0.80 | 8–30 |
+| H100 SXM/PCIe | $1.30 (Lium) | $3.49 (Vast single SXM median $2.27, 3 offers; Runpod SXM $3.49 Secure / $2.69 Community) | $2.00 | 16–28 (Lambda 26, Verda 30) |
+| H200 | $2.09 (Beam, stock unverified); $3.29 in stock | $4.59 | $3.34 | 15–24 (Verda 44) |
+| B200 | $3.75 (Packet·ai) | $6.79 | $4.78 | 15–28 |
+
+**The planning price.** The `00` planning price ($0.55/h, the 2026-10-01 Vast median) now sits between today's ≥ 32-vCPU medians: 4090 $0.50, 5090 $0.67. A 5090 at the median is about 22% above plan. Changing the planning price is a budget change and needs an `08` entry first.
+
+### Consumer-GPU providers against the ≥ 32 vCPU actor requirement (`03` §2)
+
+| Provider | 1× 5090 $/h | vCPU per GPU | Tier | Notes |
+|---|---|---|---|---|
+| Vast.ai | Median $0.67 with ≥ 32 vCPU (4090: $0.50) | 32+ on 40% of offers | Marketplace | Interruptible ≥ 32-vCPU medians: 5090 $0.53, 4090 $0.40. Bandwidth priced per host (median $9/TB up, max $55/TB); storage median $0.27/GB-month, billed while stopped. Most offers are Docker containers; about 8% allow VMs. |
+| Vast.ai Secure Cloud | $0.67–1.30 (9 offers with ≥ 32 vCPU); 4090 $0.76–0.83 (3 offers) | 32–48 (EPYC Rome to Genoa) | Vetted datacenters (ISO 27001 and/or Tier 3/4) | Thin supply |
+| Lium | $0.58 (32 vCPU, 84 GB) | 32 | Decentralized marketplace (Bittensor) | |
+| Theta EdgeCloud | $0.70 | 32 | Community network | 31 GB RAM |
+| CloudRift | $0.65 ($0.55 on a 3-month reservation) | Not published | Datacenter | |
+| TensorDock | $1.23 (spot $0.48), plus $0.003 per vCPU-hour | Configurable | Marketplace | |
+| GPUhub; Nova Cloud | $0.46; $0.69 (spot $0.33) | 25; 22 | Datacenter | Below 32 |
+| Runpod | $0.69 Community, $0.99 Secure | 9 (4090: 6) | Both tiers | Below 32 |
+| Salad | $0.50 (spot $0.25) | 4 | Home machines | Below 32; not secure-tier |
+| HyperAI, Novita, SwissGPU, Beam, Sesterce | $0.35–0.72 | 12–16 | Mixed | Below 32 |
+
+### Secure-tier options for Tenhou-data work (D23)
+
+| Option | Price | CPU | Notes |
+|---|---|---|---|
+| Vast Secure Cloud, 1× 5090 | $0.67–1.30/h | 32–48 vCPU | See above |
+| Hetzner GEX131 (RTX PRO 6000 Blackwell Max-Q, 96 GB) | €889/mo or €1.42/h at launch (press release, 2025-12-11). A 2026-08 third-party review lists €1,199/mo + €599 setup; **current price not confirmed** | Xeon Gold 5412U, 24 cores / 48 threads; 256 GB | Hetzner-owned datacenters |
+| Verda | RTX PRO 6000 $2.08 (spot $1.04); H100 SXM $3.77 (spot $1.89) | 30 | SOC 2, EU |
+| Lambda | H100 PCIe $3.29; H100 SXM $4.29; GH200 $2.29 | 26; GH200 64 (ARM Grace) | GH200 would need an aarch64 build of libriichi |
+| Runpod Secure | 5090 $0.99; H100 SXM $3.49 | 9; 20 | 5090 below the CPU requirement |
 
 ### CPU (per SMT thread-hour)
 
 | Option | Price | $/thread-hour |
 |---|---|---|
-| OVH RISE-XL (EPYC Turin 9455, 96 threads) | $354/mo + $354 setup | **$0.0051** |
-| Hetzner AX162-1 (EPYC 9454P, 96 threads) | $722/mo + $359 setup; hourly billing at $1.16 capped at the monthly price | $0.0103 (LTD offer: $0.0053) |
-| GCP c3d-highcpu-180 spot | $1.64/h | $0.0091 |
-| AWS c7a.48xlarge spot | $3.47/h | $0.018 per *physical core* |
+| OVH RISE-XL (EPYC Turin 9455, 96 threads) | $354/mo + $354 setup (2026-10-01; not re-checked: the page renders prices client-side) | **$0.0051** |
+| Hetzner AX162-1 (EPYC 9454P, 96 threads) | $722/mo + $359 setup; hourly billing at $1.16 capped at the monthly price (2026-10-01; not re-checked: third-party listings conflict) | $0.0103 (LTD offer: $0.0053) |
+| GCP c3d-highcpu-180 spot, us-central1 | $1.64/h (on-demand $6.72) | $0.0091 |
+| GCP c3d-highcpu-180 spot, australia-southeast1 (cheapest region) | $0.76/h | **$0.0042** |
+| AWS c7a.48xlarge spot | $3.42/h | $0.018 per *physical core* (192 cores, no SMT) |
 
-### Training throughput relative to an RTX 4090 (ResNet-50 AMP, with torch.compile)
+### Training throughput relative to an RTX 4090 (ResNet-50 AMP, with torch.compile; not re-checked)
 
 | GPU | Relative throughput |
 |---|---|
@@ -305,17 +336,15 @@ LuckyJ 1,080 games; Suphx 500; NAGA 500; humans = the other seats at LuckyJ's ta
 | H200 | 3.85× |
 | B200 | No CNN gain over H200 |
 
-**Throughput per $/h:**
-- 4090 ≈ 4,160; 5090 ≈ 4,630.
-- A100 ≈ 1,620; H100 NVL ≈ 1,750; H200 ≈ 1,650.
-- So consumer GPUs give about **2.5× more training throughput per dollar**.
+**Throughput per $/h** [calc]: a 4090 = 1,872 images/s scaled by the factors above, divided by today's median on-demand price (H100 NVL: Vast median $2.90).
+- 4090 ≈ 4,250; 5090 ≈ 4,290.
+- A100 ≈ 1,610; H100 NVL ≈ 1,760; H200 ≈ 1,570.
+- So consumer GPUs still give about **2.5× more training throughput per dollar**.
 
 **Small, launch-bound Conv1d inference:** unverified. The estimate is that an H100 is about 1.0–1.3× a 4090, because the 4090 has higher clocks and the host's single-thread speed dominates.
 
 ### Purchase prices (2026 memory shortage)
 
-- RTX 5090: about **$7,000** new (MSRP $1,999).
-- RTX 4090: about $4,400 new, $3,200–4,300 used.
-- RTX PRO 6000: about $15,000.
-- DDR5 128 GB: $2,700–3,900.
-- **Renting a 5090 for 12 months, 24/7 (about $5K), is cheaper than buying one (about $7.5–10K plus power),** unless the card resells for $5K or more. This supports D21: cloud only.
+- RTX 5090: about **$5,000** new (B&H $4,999, October 2026; marketplace listings up to $9,500), about $3,800 used. MSRP $1,999. It was about $7,000 on 2026-10-01.
+- Not re-checked since 2026-10-01: RTX 4090 about $4,400 new, $3,200–4,300 used; RTX PRO 6000 about $15,000; DDR5 128 GB $2,700–3,900.
+- **Rent vs buy** [calc]: renting one 5090 box 24/7 for 12 months costs about $4.8K at the planning price or $5.9K at today's ≥ 32-vCPU median. Buying needs the card (about $5K) plus a host with ≥ 32 threads and RAM, plus power, offset by resale value. The 2026-10-01 version of this line assumed a $7K card, so the gap has narrowed. The D21 reopen trigger (purchase prices near MSRP) has not fired: $5K is 2.5× MSRP.
