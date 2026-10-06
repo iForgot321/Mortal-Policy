@@ -39,6 +39,7 @@ Guidance for Claude Code (and humans) working in this repository.
 | `lab/` | **Evaluation lab** (`02`): GSPRT, calibration simulator, nonce ledger, registry. `python -m lab --help` from the repo root |
 | `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
 | `tools/data/` | **Data pipeline** (`04a`): `download.py` → `convert.py` → `index.py` → `coverage.py` → `splits.py` → … ; `params.toml` is part of the dataset identity |
+| `tools/fleet/` | **Rented GPU boxes** (`03`): Vast.ai CLI how-to (`README.md`), `setup_box.sh`, the per-box driver `box_bench.sh`, benchmarks. Results in `experiments/fleet-host-benchmarks.md` |
 | `tests/` | Python tests (`pytest tests/`) |
 | `experiments/` | One markdown note per experiment; `experiments/configs/` holds the exact training configs (`MORTAL_CFG=...`) |
 | `~/mj-data/` (outside the repo) | Tenhou data: `raw/` (immutable snapshot), `mjai/`, `db/`, `meta/`, `splits/`, `names/`, `reports/` |
