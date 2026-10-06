@@ -1,0 +1,8 @@
+# Python packages for a rented box (tools/fleet/setup_box.sh), pinned to the workstation's
+# conda env `mortal`. torch 2.6.0+cu124 (with triton 3.2.0 and cuDNN 9.1.0.70) comes from the
+# image vastai/pytorch:2.6.0-cuda-12.4.1-py312-22.04; the script checks it, never installs it.
+numpy==2.4.4
+toml==0.10.2
+tqdm==4.67.3
+tensorboard==2.20.0
+pytest==9.1.1

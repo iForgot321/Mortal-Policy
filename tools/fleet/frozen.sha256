@@ -1,0 +1,3 @@
+15121432d2268ae7e755fe82e7f4bb0e97b3171a1fc9cf697bbdfbabaf68a284  workdir/pilot/qs-a/pilot-qs-a-final.pth
+b267c0267f1538c61ab962146750862fa9d4ae30bc9543ebd6f519d0a4272c3d  workdir/pilot/qs-b/pilot-qs-b-final.pth
+db28beaca25305b95eec7c74d6abe0441442fb6f7f0ba9bf3ee9a0d2875e9157  workdir/grp-v2/grp-v2-frozen.pth
