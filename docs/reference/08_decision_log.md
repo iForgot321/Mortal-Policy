@@ -442,6 +442,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Card:** `~/mj-data/reports/DATASET_CARD.md` (private).
 - **Reopen if:** a converter or quarantine defect is found that changes training labels. Then dataset-v2 with a new identity, and every comparison restarts on it.
 
+**D46 (2026-10-05): Behaviour probabilities travel in a per-game sidecar** (option A of `docs/design/behaviour-probs.md`). Implements 05 §3.4 and the D37 ordered-transition field; decided by the user.
+- **The gap:** mjai logs never show passes or claims overruled by a higher-priority claim, so their behaviour probabilities cannot be recovered from the log.
+- **Recorded by the arena:** for every reaction of an agent that reports one, the board keeps `(event_idx, actor, kan_select, label, prob, applied)`. This includes passes and overruled claims. `applied` says whether the board executed the reaction, or for a pass, whether nobody claimed.
+- **`prob`:** the probability that the engine's own sampler gave the emitted label: (1 − ε)·1[a = argmax] + ε·π(a). It is computed by the engine that samples, is 1 for forced moves, and is null when the emitted action was not drawn from the policy (the rule-based agari guard). A null keeps the entry out of ratio terms.
+- **Storage:** one gzipped JSON file of columns per game, with the same file name as the mjai log, in a separate directory (`OneVsThree(behaviour_dir=…)`). Not next to the log: actors, the server and the trainer treat every file in a log directory as a game log.
+- **The mjai logs are unchanged**, so the featurization and training paths stay hash-identical.
+- **Join:** the learner matches loader entries on (event_idx, seat, kan_select) and requires equal labels. A label mismatch is allowed only for a reaction the board did not apply; that entry gets no behaviour probability.
+- **Rejected:**
+  - B, recomputing from the last K parameter versions: an extra forward per sample, and unrecoverable beyond K.
+  - C, non-standard events in the mjai log: breaks every log consumer.
+- **Reopen if:** actors stop shipping mjai logs, for example in favour of featurized trajectories that can carry the probability inline.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

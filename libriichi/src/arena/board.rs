@@ -1,4 +1,4 @@
-use super::result::KyokuResult;
+use super::result::{BehaviourRecord, KyokuResult};
 use crate::array::Simple2DArray;
 use crate::consts::oracle_obs_shape;
 use crate::mjai::{Event, EventExt};
@@ -79,6 +79,10 @@ pub struct BoardState {
     paos: [Option<u8>; 4],
 
     log: Vec<EventExt>,
+    /// Kept only when `record_behaviour` is set; `event_idx` is relative to
+    /// this kyoku's log.
+    behaviour: Vec<BehaviourRecord>,
+    record_behaviour: bool,
 
     // For oracle_obs only
     dora_indicators_full: Vec<Tile>,
@@ -184,6 +188,50 @@ impl BoardState {
     #[inline]
     pub fn take_log(&mut self) -> Vec<EventExt> {
         mem::take(&mut self.log)
+    }
+
+    /// Keep a `BehaviourRecord` for every reaction that carries a `Behaviour`
+    /// (D46).
+    #[inline]
+    pub const fn set_record_behaviour(&mut self, record: bool) {
+        self.record_behaviour = record;
+    }
+
+    /// This kyoku's records, with `event_idx` relative to its log.
+    #[inline]
+    pub fn take_behaviour(&mut self) -> Vec<BehaviourRecord> {
+        mem::take(&mut self.behaviour)
+    }
+
+    /// Records the reactions to the last logged event, which is the event
+    /// every one of them decides on. Must run before `step` logs anything.
+    fn record_reactions(&mut self, reactions: &[EventExt; 4], applied: impl Fn(usize) -> bool) {
+        if !self.record_behaviour {
+            return;
+        }
+        let event_idx = self.log.len() as u32 - 1;
+        for (actor, reaction) in reactions.iter().enumerate() {
+            let Some(b) = reaction.behaviour else {
+                continue;
+            };
+            let record = BehaviourRecord {
+                event_idx,
+                actor: actor as u8,
+                kan_select: false,
+                label: b.label,
+                prob: b.prob,
+                applied: applied(actor),
+            };
+            self.behaviour.push(record);
+            if let Some((label, prob)) = b.kan_select {
+                self.behaviour.push(BehaviourRecord {
+                    kan_select: true,
+                    label,
+                    prob,
+                    ..record
+                });
+            }
+        }
     }
 
     #[inline]
@@ -516,6 +564,7 @@ impl BoardState {
 
         if self.accepted_riichis == 4 {
             // 四家立直
+            self.record_reactions(reactions, |_| false);
             self.abortive_ryukyoku();
             return Ok(Poll::End);
         }
@@ -532,9 +581,10 @@ impl BoardState {
                 })?;
         }
 
-        let ev = reactions
+        let (winner, ev) = reactions
             .iter()
-            .min_by_key(|ev| match ev.event {
+            .enumerate()
+            .min_by_key(|(_, ev)| match ev.event {
                 Event::Hora { .. } => 0,
                 Event::Daiminkan { .. } | Event::Pon { .. } => 1,
                 Event::None => 3,
@@ -542,7 +592,19 @@ impl BoardState {
             })
             .unwrap(); // Unwrap is safe because it is proven non-empty
 
-        if self.check_four_kan && !matches!(ev.event, Event::Hora { .. }) {
+        let four_kan_abort = self.check_four_kan && !matches!(ev.event, Event::Hora { .. });
+        self.record_reactions(reactions, |actor| {
+            !four_kan_abort
+                && match ev.event {
+                    // multi-ron applies every hora
+                    Event::Hora { .. } => matches!(reactions[actor].event, Event::Hora { .. }),
+                    // everyone passed
+                    Event::None => true,
+                    _ => actor == winner,
+                }
+        });
+
+        if four_kan_abort {
             // 四槓散了
             self.abortive_ryukyoku();
             return Ok(Poll::End);

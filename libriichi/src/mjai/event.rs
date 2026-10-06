@@ -134,6 +134,23 @@ pub struct EventExt {
     #[serde(flatten)]
     pub event: Event,
     pub meta: Option<Metadata>,
+    /// How the agent chose this reaction, for behaviour sidecars (D46). Never
+    /// serialized, so mjai logs are unchanged.
+    #[serde(skip)]
+    pub behaviour: Option<Behaviour>,
+}
+
+/// The behaviour policy's probability of the action an agent emitted, kept for
+/// RL importance ratios (05 §3.4, D46).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Behaviour {
+    /// Action index, `0..=45`.
+    pub label: u8,
+    /// `None` when the emitted action was not drawn from the policy (e.g. the
+    /// rule-based agari guard replaced it) or the engine reported nothing.
+    pub prob: Option<f32>,
+    /// For a kan (label 42), the kan-select decision: `(tile id, prob)`.
+    pub kan_select: Option<(u8, Option<f32>)>,
 }
 
 #[skip_serializing_none]
@@ -241,7 +258,11 @@ impl EventExt {
     #[inline]
     #[must_use]
     pub const fn no_meta(event: Event) -> Self {
-        Self { event, meta: None }
+        Self {
+            event,
+            meta: None,
+            behaviour: None,
+        }
     }
 }
 
@@ -334,5 +355,21 @@ mod test {
         let mut test_obj = obj;
         test_obj["kyoku"] = Value::Number(Number::from(5));
         json::from_value::<Event>(Value::Object(test_obj)).unwrap_err();
+    }
+
+    #[test]
+    fn behaviour_is_not_serialized() {
+        let mut ev = EventExt::no_meta(Event::Dahai {
+            actor: 1,
+            pai: Tile::try_from(4_u8).unwrap(),
+            tsumogiri: false,
+        });
+        let plain = json::to_string(&ev).unwrap();
+        ev.behaviour = Some(Behaviour {
+            label: 4,
+            prob: Some(0.25),
+            kan_select: None,
+        });
+        assert_eq!(json::to_string(&ev).unwrap(), plain);
     }
 }

@@ -1,6 +1,6 @@
 use super::{BatchAgent, InvisibleState};
 use crate::consts::ACTION_SPACE;
-use crate::mjai::{Event, EventExt, Metadata};
+use crate::mjai::{Behaviour, Event, EventExt, Metadata};
 use crate::state::PlayerState;
 use crate::{must_tile, tu8};
 use std::mem;
@@ -14,6 +14,7 @@ use numpy::{PyArray1, PyArray2};
 use parking_lot::Mutex;
 use pyo3::intern;
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 
 pub struct MortalBatchAgent {
     engine: PyObject,
@@ -28,6 +29,9 @@ pub struct MortalBatchAgent {
     q_values: Vec<[f32; ACTION_SPACE]>,
     masks_recv: Vec<[bool; ACTION_SPACE]>,
     is_greedy: Vec<bool>,
+    /// Probability of each sampled action under the engine's sampler; empty
+    /// when the engine does not report it (D46).
+    behaviour_probs: Vec<f32>,
     last_eval_elapsed: Duration,
     last_batch_size: usize,
 
@@ -100,6 +104,7 @@ impl MortalBatchAgent {
             q_values: vec![],
             masks_recv: vec![],
             is_greedy: vec![],
+            behaviour_probs: vec![],
             last_eval_elapsed: Duration::ZERO,
             last_batch_size: 0,
 
@@ -123,7 +128,13 @@ impl MortalBatchAgent {
         let start = Instant::now();
         self.last_batch_size = sync_fields.states.len();
 
-        (self.actions, self.q_values, self.masks_recv, self.is_greedy) = Python::with_gil(|py| {
+        (
+            self.actions,
+            self.q_values,
+            self.masks_recv,
+            self.is_greedy,
+            self.behaviour_probs,
+        ) = Python::with_gil(|py| {
             let states: Vec<_> = sync_fields
                 .states
                 .drain(..)
@@ -143,12 +154,25 @@ impl MortalBatchAgent {
             });
 
             let args = (states, masks, invisible_states);
-            self.engine
+            let ret = self
+                .engine
                 .bind_borrowed(py)
                 .call_method1(intern!(py, "react_batch"), args)
-                .context("failed to execute `react_batch` on Python engine")?
-                .extract()
-                .context("failed to extract to Rust type")
+                .context("failed to execute `react_batch` on Python engine")?;
+
+            // `(actions, q_values, masks, is_greedy[, behaviour_probs])`: an
+            // engine that samples reports the probability of each sampled
+            // action (D46).
+            let ret = ret
+                .downcast_into::<PyTuple>()
+                .map_err(PyErr::from)
+                .context("`react_batch` must return a tuple")?;
+            if ret.len() == 5 {
+                return ret.extract().context("failed to extract to Rust type");
+            }
+            let (actions, q_values, masks, is_greedy) =
+                ret.extract().context("failed to extract to Rust type")?;
+            Ok((actions, q_values, masks, is_greedy, vec![]))
         })?;
 
         self.last_eval_elapsed = Instant::now()
@@ -298,7 +322,19 @@ impl BatchAgent for MortalBatchAgent {
     ) -> Result<EventExt> {
         if self.enable_quick_eval {
             if let Some(ev) = self.quick_eval_reactions[index].take() {
-                return Ok(EventExt::no_meta(ev));
+                // The only legal action, so the behaviour probability is 1.
+                let label = match ev {
+                    Event::Dahai { pai, .. } => pai.as_u8(),
+                    _ => unreachable!("quick eval only discards"),
+                };
+                return Ok(EventExt {
+                    behaviour: Some(Behaviour {
+                        label,
+                        prob: Some(1.),
+                        kan_select: None,
+                    }),
+                    ..EventExt::no_meta(ev)
+                });
             }
         }
 
@@ -335,6 +371,8 @@ impl BatchAgent for MortalBatchAgent {
                 orig_action
             };
 
+        // (tile id, prob) of the kan-select decision, set when `action` is a kan
+        let mut kan_behaviour = None;
         let event = match action {
             0..=36 => {
                 ensure!(
@@ -505,6 +543,12 @@ impl BatchAgent for MortalBatchAgent {
                 } else {
                     kakan_candidates[0]
                 };
+                // Without a kan-select evaluation the tile is forced.
+                let kan_prob = match kan_select_idx {
+                    Some(kan_idx) => self.behaviour_probs.get(kan_idx).copied(),
+                    None => Some(1.),
+                };
+                kan_behaviour = Some((tile.deaka().as_u8(), kan_prob));
 
                 if cans.can_daiminkan {
                     let consumed = if tile.is_aka() {
@@ -585,9 +629,20 @@ impl BatchAgent for MortalBatchAgent {
         meta.batch_size = Some(self.last_batch_size);
         meta.kan_select = kan_select_idx.map(|kan_idx| Box::new(self.gen_meta(state, kan_idx)));
 
+        // The agari guard's replacement was not drawn from the policy.
+        let prob = if action == orig_action {
+            self.behaviour_probs.get(action_idx).copied()
+        } else {
+            None
+        };
         Ok(EventExt {
             event,
             meta: Some(meta),
+            behaviour: Some(Behaviour {
+                label: action as u8,
+                prob,
+                kan_select: kan_behaviour,
+            }),
         })
     }
 }

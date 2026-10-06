@@ -5,7 +5,7 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 
 ## Current position
 
-**Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes, plus the behaviour-probability design decision.
+**Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
 Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM); no cloud spend yet ($0 of $14.3K).
 
 | Phase 0 deliverable | State |
@@ -20,7 +20,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM); no cloud spend y
 | GRP-v2 on `train` | **Done, frozen**: `workdir/grp-v2/grp-v2-frozen.pth` (`db28beac…`), val acc 22.8% |
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
-| Interfaces (05 §3, D37) | Raw-logit head, fixed reward units (opt-in), ordered trajectories + GAE: **done with tests**. Stored behaviour probs: **open design question** (`docs/design/behaviour-probs.md`) |
+| Interfaces (05 §3, D37) | Raw-logit head, fixed reward units (opt-in), ordered trajectories + GAE: **done with tests**. Stored behaviour probs: **decided (D46) and done with tests** for actor sidecars + learner join; client/server transport and the trainer's ratio switch come with the P0/P1 wiring (`docs/design/behaviour-probs.md`) |
 | Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Client reconnect/backoff done; the rest needs cloud accounts and spend |
 
 ## 2026-10-03 — session 1 of v2
@@ -68,19 +68,26 @@ See the git diff / commits for code. Highlights:
 - D23 encryption of `~/mj-data` on the workstation: not a concern (user).
 - Commits go directly to `main` (this is a fork).
 
-**Open question for the user**
-- 05 §3.4 (stored behaviour probabilities): pass decisions emit no mjai event, so their behaviour probability never
-  reaches the logs the learner reads. Options in `docs/design/behaviour-probs.md`; decide before the P0/P1 arms.
+## 2026-10-05 — behaviour probabilities (D46)
+
+The user chose option A. Recorded as D46 and implemented; the design note now describes what was built.
+- **Engine:** `MortalEngine.sample` returns the probability that its own sampler gave each sampled action.
+- **Arena:** the arena keeps a record for every reaction, including passes and overruled claims. Records carry an `applied` flag, and the agari guard nulls the probability. `OneVsThree(behaviour_dir=…)` writes one sidecar per game, under the log's file name. `TrainPlayer` writes them to `log_dir + '_behaviour'`.
+- **Learner:** `trajectory.join_behaviour` matches loader entries on (event_idx, seat, kan_select).
+- **Mjai logs are unchanged:** `EventExt.behaviour` is never serialized, and a libriichi test checks this.
+
+**Verified:**
+- `cargo test` passes, clippy is still at the baseline 27 errors, and `pytest tests/` passes 35 tests (7 new, ~11 s).
+- First-minibatch ratio is 1 within 1e-4 (ε = 1, FP32).
+- 1,000-game stress check, pilot A vs pilot A: all 633K entries joined, covering multi-rons, four-riichi draws and kans. The 12 agari-guard replacements were exactly the 12 entries without a probability.
+- The lab's hobbled engine still runs.
+
+**Not done:** the actor→server→trainer transport (`client.py`/`server.py`), and switching `train_online.py`'s ratio from `Old_mortal` to the stored probabilities. Both belong to the P0/P1 wiring.
 
 ## Next steps
 
-**Chain finished 2026-10-05 16:23; L0 checks finished 18:35, both as required.**
+Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. When pilot A finishes (~2026-10-04 14:00): train pilot B (`MORTAL_CFG=../experiments/configs/pilot-qs-b.toml`), same ~27 h. A secure-tier cloud box (D23) with ≥ 32 vCPU would cut each to ~10 h.
-2. A/A′: `python -m lab measure --challenger <A best/final> --champion <B> --sets 20000 --family A --block aa-prime`
-   → σ_set, duplicate benefit, recipe noise, per-seat table (`panel.json`).
-3. `python -m lab calibrate --from workdir/lab/<A/A′ run>/games.npz` → record boundaries + error rates in
-   `lab/lab.toml` (`calibrated = true`, `sigma_set`) and in `08`.
-4. Hobbled patch: `lab run --challenger A.pth?hobble=0.1 --champion A.pth --test T-std` must fail;
-   A vs B T-NI must pass or be inconclusive → **L0**.
-6. Decide the behaviour-probability design (05 §3.4) before Phase 1 arms P0/P1.
+1. Fleet (03): cloud accounts, VPN, provisioning, benchmarks, Mahjax spike → Phase 0 exit.
+2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
+3. P0/P1 wiring: the ordered-trajectory loader in training, sidecar transport, and stored-probability ratios (D37, D46).

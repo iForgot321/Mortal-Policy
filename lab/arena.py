@@ -39,12 +39,14 @@ class HobbledEngine:
             setattr(self, attr, getattr(inner, attr))
 
     def react_batch(self, obs, masks, invisible_obs):
-        actions, q_out, masks_out, is_greedy = self.inner.react_batch(obs, masks, invisible_obs)
+        actions, q_out, masks_out, is_greedy, *_ = self.inner.react_batch(obs, masks, invisible_obs)
         for i, mask in enumerate(masks_out):
             if self.rng.random() < self.eps:
                 legal = np.flatnonzero(mask)
                 actions[i] = int(self.rng.choice(legal))
                 is_greedy[i] = False
+        # the replacements change the sampling distribution, so the inner
+        # engine's behaviour probabilities no longer hold (D46)
         return actions, q_out, masks_out, is_greedy
 
 

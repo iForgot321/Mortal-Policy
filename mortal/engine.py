@@ -63,15 +63,29 @@ class MortalEngine:
             case 2 | 3 | 4:
                 phi = self.brain(obs)
                 q_out = self.dqn(phi, masks)
-    
+
+        actions, is_greedy, behaviour_probs = self.sample(q_out)
+        return actions.tolist(), q_out.tolist(), masks.tolist(), is_greedy.tolist(), behaviour_probs.tolist()
+
+    def sample(self, q_out):
+        """Actions drawn from `behaviour_dist(q_out)`, whether each was the
+        greedy branch, and the probability of each drawn action (D46)."""
+        batch_size = q_out.shape[0]
         if self.explore_rate > 0:
             is_greedy = torch.full((batch_size,), 1-self.explore_rate, device=self.device).bernoulli().to(torch.bool)
             actions = torch.where(is_greedy, q_out.argmax(-1), Categorical(probs=q_out).sample())
         else:
             is_greedy = torch.ones(batch_size, dtype=torch.bool, device=self.device)
             actions = q_out.argmax(-1)
+        behaviour_probs = self.behaviour_dist(q_out).gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+        return actions, is_greedy, behaviour_probs
 
-        return actions.tolist(), q_out.tolist(), masks.tolist(), is_greedy.tolist()
+    def behaviour_dist(self, q_out):
+        """The distribution `sample` draws from (05 §3.4, D46):
+        (1 - ε)·1[a = argmax] + ε·π(a), with π normalized as Categorical does."""
+        q = q_out.float()
+        greedy = torch.nn.functional.one_hot(q.argmax(-1), q.shape[-1]).float()
+        return (1 - self.explore_rate) * greedy + self.explore_rate * q / q.sum(-1, keepdim=True)
 
 class ExampleMjaiLogEngine:
     def __init__(self, name: str):

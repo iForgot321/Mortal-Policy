@@ -109,6 +109,8 @@ class TrainPlayer:
         cfg = config['train_play'][profile]
         self.chal_version = config['control']['version']
         self.log_dir = path.abspath(cfg['log_dir'])
+        # behaviour sidecars, one per log under the same name (D46)
+        self.behaviour_dir = path.abspath(cfg.get('behaviour_dir', self.log_dir + '_behaviour'))
         self.train_key = secrets.randbits(64)
         self.train_seed = 10000
         self.explore_rate = cfg['explore_rate']
@@ -130,12 +132,14 @@ class TrainPlayer:
             name = 'trainee',
         )
 
-        if path.isdir(self.log_dir):
-            shutil.rmtree(self.log_dir)
+        for d in (self.log_dir, self.behaviour_dir):
+            if path.isdir(d):
+                shutil.rmtree(d)
 
         env = OneVsThree(
             disable_progress_bar = False,
             log_dir = self.log_dir,
+            behaviour_dir = self.behaviour_dir,
         )
         rankings = env.py_vs_py(
             challenger = engine_chal,

@@ -1,6 +1,6 @@
 # Design note: stored behaviour probabilities (05 §3.4, D37)
 
-**Status:** open — needs a decision before arms P0/P1 (Phase 1). Written 2026-10-03.
+**Status:** decided 2026-10-05: option A (D46), implemented. Written 2026-10-03.
 
 ## The requirement
 
@@ -35,8 +35,41 @@ Under A, `behaviour_prob` is the probability the actor's policy assigned to the 
 including exploration: with `explore_rate` ε, b(a) = (1 − ε)·1[a = argmax] + ε·π(a). Decisions altered
 after sampling by the rule-based agari guard must be flagged and excluded from ratio terms.
 
-## Tests (to add with the implementation)
+## Implementation (option A)
 
-- First-minibatch ratio is exactly 1.0 against the stored behaviour probability (05 §8 unit test).
-- Every trainee entry from the loader finds exactly one sidecar record, and vice versa.
-- Behaviour probs over a decision's legal actions sum to 1 within 1e-5.
+| Piece | Where |
+|---|---|
+| Engine reports the probability its sampler gave each sampled action, as a 5th return value of `react_batch` | `MortalEngine.sample` / `behaviour_dist` (`mortal/engine.py`) |
+| Agent attaches it to the reaction: 1 for forced moves (quick-eval discard, forced kan tile), `None` when the agari guard replaced the action | `EventExt.behaviour`, never serialized (`libriichi/src/agent/mortal.rs`, `mjai/event.rs`) |
+| Board records every reaction, with `applied` | `BoardState::record_reactions` (`arena/board.rs`) |
+| Per-game records with whole-log `event_idx` | `GameResult.behaviour`, `BatchGame.record_behaviour` (`arena/game.rs`, `result.rs`) |
+| Sidecar: gzipped JSON of columns `event_idx, actor, kan_select, label, prob, applied` | `OneVsThree(behaviour_dir=…)`; `TrainPlayer` writes to `train_play.<profile>.behaviour_dir`, default `log_dir + '_behaviour'` |
+| Join | `trajectory.load_behaviour` / `join_behaviour` |
+
+Two departures from the option-A sketch above:
+- **Separate directory, same file name**, not `<log>.bp.json.gz` next to the log. `TrainPlayer`, `client.py`, `server.py` and `train_online.py` treat every file in a log directory as a game log.
+- **The join key includes `kan_select`.** The loader emits a kan-select entry at the same `event_idx` as its kan.
+
+**Engines that don't report.** An engine that returns the old 4-tuple is still accepted; its network decisions get `prob = None`. `lab/arena.py`'s `HobbledEngine` returns the 4-tuple on purpose, because its random replacements change the sampling distribution.
+
+**Recording is opt-in.** Only `behaviour_dir` turns it on, so lab runs keep neither the records nor their memory.
+
+**Not done yet: transport and the learner, for Phase 1 arms P0/P1.**
+- `client.py` doesn't yet submit sidecars, and `server.py` doesn't buffer or drain them.
+- `train_online.py` still computes ratios against `Old_mortal`. The stored probabilities replace it when the ordered-trajectory loader is wired into training (05 §2).
+
+## Tests
+
+All in `tests/test_behaviour.py`:
+- **Ratio:** the first-minibatch ratio against the stored behaviour probability is 1 within 1e-4. Same weights, loader features, ε = 1, CPU FP32.
+- **Join:** every loader entry finds a record with the same label, and every applied record finds an entry.
+- **Distribution:** the behaviour distribution sums to 1 within 1e-5, and the sampler's empirical frequencies match it for ε ∈ {0, 0.3, 1}.
+- **Greedy seats** store 1.
+- **Disagreement:** the join rejects each kind of mismatch between log and sidecar.
+
+`libriichi` also tests that `behaviour` never reaches the serialized mjai event.
+
+**Stress check (2026-10-05, not committed):** 1,000 games of pilot A (ε = 1) vs pilot A (greedy, agari guard on).
+- All 633,347 loader entries joined.
+- Coverage: 66 multi-rons, 2 four-riichi draws, 870 kans (each with its kan-select record), 2,882 unapplied records.
+- The 12 agari-guard replacements were exactly the 12 entries without a probability.

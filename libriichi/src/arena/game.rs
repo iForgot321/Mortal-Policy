@@ -1,5 +1,5 @@
 use super::board::{Board, BoardState, Poll};
-use super::result::GameResult;
+use super::result::{BehaviourRecord, GameResult};
 use crate::agent::BatchAgent;
 use crate::mjai::EventExt;
 use std::time::Duration;
@@ -14,6 +14,8 @@ pub struct BatchGame {
     pub length: u8,
     pub init_scores: [i32; 4],
     pub disable_progress_bar: bool,
+    /// Fill `GameResult::behaviour` (D46).
+    pub record_behaviour: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -41,6 +43,8 @@ struct Game {
     kyotaku: u8,
     scores: [i32; 4],
     game_log: Vec<Vec<EventExt>>,
+    record_behaviour: bool,
+    behaviour: Vec<BehaviourRecord>,
 
     kyoku_started: bool,
     ended: bool,
@@ -84,6 +88,7 @@ impl Game {
             };
             next_board.init_from_seed(self.seed);
             self.board = next_board.into_state();
+            self.board.set_record_behaviour(self.record_behaviour);
             self.kyoku_started = true;
         }
 
@@ -122,6 +127,19 @@ impl Game {
                 let kyoku_result = self.board.end();
                 self.kyotaku = kyoku_result.kyotaku_left;
                 self.scores = kyoku_result.scores;
+
+                // Make the indexes relative to the dumped log, which starts
+                // with `start_game`.
+                let offset = 1 + self.game_log.iter().map(Vec::len).sum::<usize>() as u32;
+                let records = self
+                    .board
+                    .take_behaviour()
+                    .into_iter()
+                    .map(|r| BehaviourRecord {
+                        event_idx: r.event_idx + offset,
+                        ..r
+                    });
+                self.behaviour.extend(records);
 
                 let logs = self.board.take_log();
                 self.game_log.push(logs);
@@ -189,6 +207,7 @@ impl Game {
                 scores: self.scores,
                 seed: self.seed,
                 game_log: mem::take(&mut self.game_log),
+                behaviour: mem::take(&mut self.behaviour),
             };
 
             for idx in &self.indexes {
@@ -224,6 +243,7 @@ impl BatchGame {
             length: 8,
             init_scores: [25000; 4],
             disable_progress_bar,
+            record_behaviour: false,
         }
     }
 
@@ -259,6 +279,7 @@ impl BatchGame {
                     indexes: *idxs,
                     scores: self.init_scores,
                     oracle_obs_versions,
+                    record_behaviour: self.record_behaviour,
                     ..Default::default()
                 });
                 Ok((game_idx, game))

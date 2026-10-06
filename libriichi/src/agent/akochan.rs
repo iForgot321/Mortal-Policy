@@ -148,6 +148,7 @@ impl Agent for AkochanAgent {
                 shanten: Some(state.shanten()),
                 ..Default::default()
             }),
+            behaviour: None,
         })
     }
 

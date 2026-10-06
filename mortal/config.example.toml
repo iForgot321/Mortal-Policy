@@ -29,6 +29,8 @@ old_update_every = 400
 [train_play.default]
 games = 800
 log_dir = '/path/to/train_play'
+# behaviour sidecars (D46); defaults to log_dir + '_behaviour'
+# behaviour_dir = '/path/to/train_play_behaviour'
 repeats = 1
 #Using values between 0.0 and 1.0 is unconventional and may harm results,
 #but it could stabilize optimization if other hyperparameters are poorly configured.

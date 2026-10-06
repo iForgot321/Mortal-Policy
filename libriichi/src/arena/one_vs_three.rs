@@ -23,16 +23,25 @@ type GameRecord = (u64, u8, u8, [i32; 4]);
 pub struct OneVsThree {
     pub disable_progress_bar: bool,
     pub log_dir: Option<String>,
+    /// Where to write behaviour sidecars (D46), one per game under the same
+    /// file name as its log. Kept apart from `log_dir` because consumers treat
+    /// every file there as a game log.
+    pub behaviour_dir: Option<String>,
 }
 
 #[pymethods]
 impl OneVsThree {
     #[new]
-    #[pyo3(signature = (*, disable_progress_bar=false, log_dir=None))]
-    const fn new(disable_progress_bar: bool, log_dir: Option<String>) -> Self {
+    #[pyo3(signature = (*, disable_progress_bar=false, log_dir=None, behaviour_dir=None))]
+    const fn new(
+        disable_progress_bar: bool,
+        log_dir: Option<String>,
+        behaviour_dir: Option<String>,
+    ) -> Self {
         Self {
             disable_progress_bar,
             log_dir,
+            behaviour_dir,
         }
     }
 
@@ -163,7 +172,7 @@ impl OneVsThree {
         C: FnOnce(&[u8]) -> Result<Box<dyn BatchAgent>>,
         M: FnOnce(&[u8]) -> Result<Box<dyn BatchAgent>>,
     {
-        if let Some(dir) = &self.log_dir {
+        for dir in self.log_dir.iter().chain(&self.behaviour_dir) {
             fs::create_dir_all(dir)?;
         }
 
@@ -198,7 +207,8 @@ impl OneVsThree {
             new_challenger_agent(&challenger_player_ids)?,
             new_champion_agent(&champion_player_ids)?,
         ];
-        let batch_game = BatchGame::tenhou_hanchan(self.disable_progress_bar);
+        let mut batch_game = BatchGame::tenhou_hanchan(self.disable_progress_bar);
+        batch_game.record_behaviour = self.behaviour_dir.is_some();
 
         let mut challenger_idx = 0;
         let mut champion_idx = 0;
@@ -231,7 +241,7 @@ impl OneVsThree {
 
         let results = batch_game.run(&mut agents, &indexes, &seeds)?;
 
-        if let Some(dir) = &self.log_dir {
+        if self.log_dir.is_some() || self.behaviour_dir.is_some() {
             log::info!("dumping game logs");
 
             let bar = if self.disable_progress_bar {
@@ -250,14 +260,21 @@ impl OneVsThree {
                 .try_for_each(|(i, game_result)| {
                     let split_name = ["a", "b", "c", "d"][i % 4];
                     let (seed, key) = game_result.seed;
-                    let filename: PathBuf = [dir, &format!("{seed}_{key}_{split_name}.json.gz")]
-                        .iter()
-                        .collect();
+                    let name = format!("{seed}_{key}_{split_name}.json.gz");
+                    let write_gz = |dir: &str, content: String| {
+                        let filename: PathBuf = [dir, &name].iter().collect();
+                        let mut comp = GzEncoder::new(content.as_bytes(), Compression::best());
+                        let mut f = File::create(filename)?;
+                        io::copy(&mut comp, &mut f)?;
+                        anyhow::Ok(())
+                    };
 
-                    let log = game_result.dump_json_log()?;
-                    let mut comp = GzEncoder::new(log.as_bytes(), Compression::best());
-                    let mut f = File::create(filename)?;
-                    io::copy(&mut comp, &mut f)?;
+                    if let Some(dir) = &self.log_dir {
+                        write_gz(dir, game_result.dump_json_log()?)?;
+                    }
+                    if let Some(dir) = &self.behaviour_dir {
+                        write_gz(dir, game_result.dump_behaviour_json()?)?;
+                    }
 
                     anyhow::Ok(())
                 })?;

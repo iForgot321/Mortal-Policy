@@ -22,7 +22,14 @@ standardize=False); nothing here keeps running statistics.
 
 All inputs are one seat's arrays as GameplayLoader returns them (`at_kyoku`
 per decision) plus that seat's per-kyoku rewards; nothing crosses seats.
+
+Behaviour probabilities (05 §3.4, D46) come from the per-game sidecar the
+arena writes (`OneVsThree(behaviour_dir=...)`): `load_behaviour` reads it and
+`join_behaviour` attaches a probability to each of one seat's entries.
 """
+import gzip
+import json
+
 import numpy as np
 
 HORIZONS = ('K', 'H')
@@ -97,3 +104,73 @@ def monte_carlo_returns(reward, done, gamma=1.0):
     """Discounted returns to the end of each episode (GAE with λ = 1, V = 0)."""
     adv, _ = gae(reward, done, np.zeros(len(reward)), gamma=gamma, lam=1.0)
     return adv
+
+
+def load_behaviour(filename):
+    """One game's behaviour sidecar as numpy columns. `prob` is float32, NaN
+    where the emitted action was not drawn from the policy."""
+    with gzip.open(filename, 'rt') as f:
+        cols = json.load(f)
+    return {
+        'event_idx': np.asarray(cols['event_idx'], dtype=np.int64),
+        'actor': np.asarray(cols['actor'], dtype=np.int64),
+        'kan_select': np.asarray(cols['kan_select'], dtype=bool),
+        'label': np.asarray(cols['label'], dtype=np.int64),
+        'prob': np.array(cols['prob'], dtype=np.float64).astype(np.float32),
+        'applied': np.asarray(cols['applied'], dtype=bool),
+    }
+
+
+def join_behaviour(event_idx, actions, player_id, sidecar):
+    """Behaviour probability of each of one seat's loader entries.
+
+    `event_idx` and `actions` are the seat's GameplayLoader arrays, `sidecar`
+    is `load_behaviour`'s output for the same game. Entries are matched on
+    (event_idx, seat, kan_select); the loader emits a kan-select entry right
+    after its kan, at the same event_idx.
+
+    Returns float32 probabilities, NaN where the entry must stay out of ratio
+    terms: the emitted action was not drawn from the policy (agari guard), or
+    the board did not apply the reaction and the log implies another label
+    (e.g. a pon voided by a four-kan abortive draw).
+
+    Raises when the log and the sidecar disagree about decisions: an entry
+    without a record, a different label on an applied reaction, or an applied
+    record without an entry. Records the board did not apply may lack an entry,
+    since the log cannot show what a seat chose when a higher-priority claim
+    won. Kan-select records are not required to have entries, so this works
+    with `always_include_kan_select=False`.
+    """
+    event_idx = np.asarray(event_idx, dtype=np.int64)
+    actions = np.asarray(actions, dtype=np.int64)
+    kan_select = np.zeros(len(event_idx), dtype=bool)
+    kan_select[1:] = event_idx[1:] == event_idx[:-1]
+
+    seat = sidecar['actor'] == player_id
+    records = {}
+    for e, k, label, p, applied in zip(
+        sidecar['event_idx'][seat].tolist(),
+        sidecar['kan_select'][seat].tolist(),
+        sidecar['label'][seat].tolist(),
+        sidecar['prob'][seat].tolist(),
+        sidecar['applied'][seat].tolist(),
+    ):
+        if (e, k) in records:
+            raise ValueError(f'seat {player_id}: two records at event {e} (kan_select={k})')
+        records[e, k] = (label, p, applied)
+
+    prob = np.full(len(event_idx), np.nan, dtype=np.float32)
+    for i, key in enumerate(zip(event_idx.tolist(), kan_select.tolist())):
+        record = records.pop(key, None)
+        if record is None:
+            raise ValueError(f'seat {player_id}: no behaviour record for the entry at event {key[0]} (kan_select={key[1]})')
+        label, p, applied = record
+        if label == actions[i]:
+            prob[i] = p
+        elif applied:
+            raise ValueError(f'seat {player_id}: event {key[0]}: the log implies label {actions[i]}, the sidecar has {label}')
+
+    missing = sorted(e for (e, k), (_, _, applied) in records.items() if applied and not k)
+    if missing:
+        raise ValueError(f'seat {player_id}: applied reactions without a loader entry at events {missing}')
+    return prob
