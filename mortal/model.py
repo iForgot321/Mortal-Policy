@@ -199,10 +199,14 @@ class CategoricalPolicy(nn.Module):
         orthogonal_init(self.fc1)
         orthogonal_init(self.fc2)
 
-    def forward(self, phi,mask):
+    def logits(self, phi, mask):
+        """Masked raw logits (illegal actions at -inf). Losses, KL and ACH
+        should use these (D37); `forward` derives probabilities from them."""
         phi = torch.tanh(self.fc1(phi))
-        phi = self.fc2(phi).masked_fill(~mask, -torch.inf)
-        return torch.softmax(phi, dim=-1)
+        return self.fc2(phi).masked_fill(~mask, -torch.inf)
+
+    def forward(self, phi,mask):
+        return torch.softmax(self.logits(phi, mask), dim=-1)
 
 class DQN(nn.Module):
     def __init__(self, *, version=1):

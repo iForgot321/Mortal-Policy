@@ -1,4 +1,6 @@
+import os
 import random
+import logging
 import torch
 import numpy as np
 from torch.utils.data import IterableDataset
@@ -22,6 +24,9 @@ class FileDatasetsIter(IterableDataset):
         num_epochs = 1,
         enable_augmentation = False,
         augmented_first = False,
+        masks = None,
+        compute_advantage = True,
+        obs_fp16 = False,
     ):
         super().__init__()
         self.version = version
@@ -37,16 +42,27 @@ class FileDatasetsIter(IterableDataset):
         self.augmented_first = augmented_first
         self.iterator = None
         self.shared_stats = shared_stats 
+        # {log_id: (masked kyoku indices, masked seats)} from the dataset's
+        # masks.jsonl (04a §4: Q6 disconnect windows, Q8 bot seats). Rewards
+        # are still computed on the full game; masked decisions are skipped.
+        self.masks = masks or {}
+        # False for behaviour cloning: no GRP, every advantage is 0
+        self.compute_advantage = compute_advantage
+        # fp16 obs halve worker RAM; identical under AMP, whose first conv
+        # casts its input to fp16 anyway. Leave off for fp32 training.
+        self.obs_fp16 = obs_fp16
 
     def build_iter(self):
-        self.grp = GRP(**config['grp']['network'])
-        grp_state = torch.load(config['grp']['state_file'], weights_only=True, map_location=torch.device('cpu'))
-        self.grp.load_state_dict(grp_state['model'])
-        self.reward_calc = RewardCalculator(
-            self.grp,
-            self.pts,
-            shared_stats=self.shared_stats  
-        )
+        if self.compute_advantage:
+            self.grp = GRP(**config['grp']['network'])
+            grp_state = torch.load(config['grp']['state_file'], weights_only=True, map_location=torch.device('cpu'))
+            self.grp.load_state_dict(grp_state['model'])
+            self.reward_calc = RewardCalculator(
+                self.grp,
+                self.pts,
+                shared_stats=self.shared_stats,
+                standardize=config['env'].get('reward_standardization', True),
+            )
 
         for _ in range(self.num_epochs):
             yield from self.load_files(self.augmented_first)
@@ -81,9 +97,27 @@ class FileDatasetsIter(IterableDataset):
         self.buffer.clear()
 
     def populate_buffer(self, file_list):
-        data = self.loader.load_gz_log_files(file_list)
-        for file in data:
+        try:
+            data = self.loader.load_gz_log_files(file_list)
+            names = file_list
+        except RuntimeError:
+            # rare semantically-invalid logs (converter bugs, e.g. impossible
+            # aka counts) abort the whole batch; retry file-by-file and drop
+            # only the offenders
+            data = []
+            names = []
+            for filename in file_list:
+                try:
+                    data.extend(self.loader.load_gz_log_files([filename]))
+                    names.append(filename)
+                except RuntimeError as e:
+                    logging.warning(f'skipping bad log {filename}: {e}')
+        for filename, file in zip(names, data):
+            log_id = os.path.basename(filename).split('.', 1)[0]
+            masked_kyoku, masked_seats = self.masks.get(log_id, ((), ()))
             for game in file:
+                if game.take_player_id() in masked_seats:
+                    continue
                 # per move
                 obs = game.take_obs()
                 if self.oracle:
@@ -98,14 +132,19 @@ class FileDatasetsIter(IterableDataset):
 
                 game_size = len(obs)
 
-                grp_feature = grp.take_feature()
-                rank_by_player = grp.take_rank_by_player()
-                advantage = self.reward_calc.calc_delta_pt(player_id, grp_feature, rank_by_player)
-                assert len(advantage) >= at_kyoku[-1] + 1 
+                if self.compute_advantage:
+                    grp_feature = grp.take_feature()
+                    rank_by_player = grp.take_rank_by_player()
+                    advantage = self.reward_calc.calc_delta_pt(player_id, grp_feature, rank_by_player)
+                    assert len(advantage) >= at_kyoku[-1] + 1 
+                else:
+                    advantage = np.zeros(at_kyoku[-1] + 1 if game_size else 0)
 
                 for i in range(game_size):
+                    if at_kyoku[i] in masked_kyoku:
+                        continue
                     entry = [
-                        obs[i],
+                        obs[i].astype(np.float16) if self.obs_fp16 else obs[i],
                         actions[i],
                         masks[i],
                         advantage[at_kyoku[i]],
@@ -126,3 +165,15 @@ def worker_init_fn(*args, **kwargs):
     start = worker_info.id * per_worker
     end = start + per_worker
     dataset.file_list = dataset.file_list[start:end]
+
+
+def load_masks(path):
+    """Read a dataset masks.jsonl (tools/data/splits.py) into the form
+    FileDatasetsIter expects."""
+    import json
+    out = {}
+    with open(path) as f:
+        for line in f:
+            row = json.loads(line)
+            out[row['log_id']] = (frozenset(row['kyoku']), frozenset(row['seats']))
+    return out

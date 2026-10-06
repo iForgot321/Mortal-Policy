@@ -1,6 +1,7 @@
 import prelude
 
 import logging
+import random
 import socket
 import torch
 import numpy as np
@@ -9,8 +10,28 @@ import gc
 from os import path
 from model import Brain, CategoricalPolicy
 from player import TrainPlayer
-from common import send_msg, recv_msg
+from common import send_msg, recv_msg, UnexpectedEOF
 from config import config
+
+CONNECT_TIMEOUT = 10
+IO_TIMEOUT = 300
+MAX_BACKOFF = 60
+
+def request(remote, msg, map_location=None, expect_reply=True):
+    # One request/response with the server, retried with capped exponential
+    # backoff and jitter on network errors, so a stateless actor survives
+    # learner restarts and preemptions (03 §2).
+    delay = 1.0
+    while True:
+        try:
+            with socket.create_connection(remote, timeout=CONNECT_TIMEOUT) as conn:
+                conn.settimeout(IO_TIMEOUT)
+                send_msg(conn, msg)
+                return recv_msg(conn, map_location=map_location) if expect_reply else None
+        except (OSError, UnexpectedEOF) as e:
+            logging.warning(f'server {remote} unreachable ({e!r}); retrying in ~{delay:.0f}s')
+            time.sleep(delay * (0.5 + random.random()))
+            delay = min(delay * 2, MAX_BACKOFF)
 
 def main():
     remote = (config['online']['remote']['host'], config['online']['remote']['port'])
@@ -34,18 +55,15 @@ def main():
 
     while True:
         while True:
-            with socket.socket() as conn:
-                conn.connect(remote)
-                msg = {
-                    'type': 'get_param',
-                    'param_version': param_version,
-                }
-                send_msg(conn, msg)
-                rsp = recv_msg(conn, map_location=device)
-                if rsp['status'] == 'ok':
-                    param_version = rsp['param_version']
-                    break
-                time.sleep(3)
+            msg = {
+                'type': 'get_param',
+                'param_version': param_version,
+            }
+            rsp = request(remote, msg, map_location=device)
+            if rsp['status'] == 'ok':
+                param_version = rsp['param_version']
+                break
+            time.sleep(3)
         mortal.load_state_dict(rsp['mortal'])
         dqn.load_state_dict(rsp['dqn'])
         logging.info('param has been updated')
@@ -69,14 +87,12 @@ def main():
             with open(filename, 'rb') as f:
                 logs[path.basename(filename)] = f.read()
 
-        with socket.socket() as conn:
-            conn.connect(remote)
-            send_msg(conn, {
-                'type': 'submit_replay',
-                'logs': logs,
-                'param_version': param_version,
-            })
-            logging.info('logs have been submitted')
+        request(remote, {
+            'type': 'submit_replay',
+            'logs': logs,
+            'param_version': param_version,
+        }, expect_reply=False)
+        logging.info('logs have been submitted')
         gc.collect()
         torch.cuda.empty_cache()
         torch.cuda.synchronize()

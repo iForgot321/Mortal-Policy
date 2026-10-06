@@ -10,6 +10,7 @@ def train():
     import random
     import torch
     import math
+    import numpy as np
     from os import path
     from glob import glob
     from datetime import datetime
@@ -22,7 +23,7 @@ def train():
     from torch.utils.tensorboard import SummaryWriter
     from common import submit_param, parameter_count, drain, filtered_trimmed_lines, tqdm
     from player import TestPlayer
-    from dataloader import FileDatasetsIter, worker_init_fn
+    from dataloader import FileDatasetsIter, worker_init_fn, load_masks
     from lr_scheduler import LinearWarmUpCosineAnnealingLR
     from model import Brain, CategoricalPolicy
     from libriichi.consts import obs_shape
@@ -60,6 +61,17 @@ def train():
 
     awr_beta = config['policy']['awr_beta']
     awr_clip = config['policy']['awr_clip']
+    # 'awr' (default, upstream) or 'bc': uniform weights, no GRP needed
+    objective = config['policy'].get('objective', 'awr')
+    assert objective in ('awr', 'bc'), objective
+
+    # seeds the init, the file order and (through torch's RNG) the
+    # DataLoader worker seeds; unseeded runs keep upstream behaviour
+    if (seed := config['control'].get('seed')) is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        logging.info(f'seed: {seed}')
 
     mortal = Brain(version=version, **config['resnet'], Norm="GN").to(device)
     policy_net = CategoricalPolicy().to(device)
@@ -146,6 +158,7 @@ def train():
         nonlocal stats
 
         player_names = []
+        masks = None
         if online:
             player_names = ['trainee']
             dirname = drain()
@@ -157,6 +170,10 @@ def train():
                     player_names_set.update(filtered_trimmed_lines(f))
             player_names = list(player_names_set)
             logging.info(f'loaded {len(player_names):,} players')
+
+            if masks_file := config['dataset'].get('masks_file'):
+                masks = load_masks(masks_file)
+                logging.info(f'loaded masks for {len(masks):,} games')
 
             file_index = config['dataset']['file_index']
             if path.exists(file_index):
@@ -195,6 +212,9 @@ def train():
             num_epochs = num_epochs,
             enable_augmentation = enable_augmentation,
             augmented_first = augmented_first,
+            masks = masks,
+            compute_advantage = objective == 'awr',
+            obs_fp16 = config['dataset'].get('obs_fp16', False),
         )
         data_loader = iter(DataLoader(
             dataset = file_data,
@@ -225,10 +245,16 @@ def train():
             assert masks[range(batch_size), actions].all()
 
             with torch.autocast(device.type, enabled=enable_amp):
-                dist = Categorical(probs=policy_net(mortal(obs),masks))
-                exp_adv = torch.exp(advantage/awr_beta)
-                if awr_clip is not None:
-                    exp_adv = torch.clamp(exp_adv, max=awr_clip)
+                # raw logits in fp32 (D37): log-probs never pass through a
+                # possibly underflowed softmax
+                logits = policy_net.logits(mortal(obs), masks).float()
+                dist = Categorical(logits=logits)
+                if objective == 'bc':
+                    exp_adv = torch.ones_like(advantage)
+                else:
+                    exp_adv = torch.exp(advantage/awr_beta)
+                    if awr_clip is not None:
+                        exp_adv = torch.clamp(exp_adv, max=awr_clip)
                 log_prob = dist.log_prob(actions)
                 loss = -(exp_adv * log_prob).mean()
 

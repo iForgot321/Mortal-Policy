@@ -72,11 +72,12 @@ def collate(batch):
         rank_by_players.append(rank_by_player)
 
     lengths = torch.tensor(lengths)
-    rank_by_players = torch.tensor(rank_by_players, dtype=torch.int64, pin_memory=True)
+    # no pin_memory here: this runs in a forked DataLoader worker, where CUDA
+    # (already initialized in the parent) cannot be re-initialized
+    rank_by_players = torch.tensor(rank_by_players, dtype=torch.int64)
 
     padded = pad_sequence(inputs, batch_first=True)
     packed_inputs = pack_padded_sequence(padded, lengths, batch_first=True, enforce_sorted=False)
-    packed_inputs.pin_memory()
 
     return packed_inputs, rank_by_players
 
@@ -107,7 +108,17 @@ def train():
     else:
         steps = 0
 
-    lr = cfg['optim']['lr']
+    # Optional piecewise-constant schedule [[from_step, lr], ...] (from_step
+    # written as a float for the toml parser) and step
+    # limit, so a run is reproducible from its config instead of by manual
+    # restarts with edited `lr` (grp-v1 was annealed by hand).
+    lr_steps = sorted(cfg['optim'].get('lr_steps', [[0, cfg['optim']['lr']]]))
+    max_steps = cfg['control'].get('max_steps')
+
+    def lr_at(step):
+        return [lr for start, lr in lr_steps if start <= step][-1]
+
+    lr = lr_at(steps)
     optimizer.param_groups[0]['lr'] = lr
 
     file_index = cfg['dataset']['file_index']
@@ -187,6 +198,10 @@ def train():
 
         steps += 1
         pb.update(1)
+        if lr_at(steps) != lr:
+            lr = lr_at(steps)
+            optimizer.param_groups[0]['lr'] = lr
+            logging.info(f'lr -> {lr} at step {steps:,}')
 
         if steps % save_every == 0:
             pb.close()
@@ -233,6 +248,9 @@ def train():
                 'timestamp': datetime.now().timestamp(),
             }
             torch.save(state, state_file)
+            if max_steps is not None and steps >= max_steps:
+                logging.info(f'reached max_steps {max_steps:,}')
+                break
             pb = tqdm(total=save_every, desc='TRAIN')
     pb.close()
 

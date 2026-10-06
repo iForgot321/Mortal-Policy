@@ -3,13 +3,17 @@ import numpy as np
 from multiprocessing import Manager, Value
 
 class RewardCalculator:
-    def __init__(self, grp=None, pts=None, uniform_init=False, shared_stats=None):
+    def __init__(self, grp=None, pts=None, uniform_init=False, shared_stats=None, standardize=True):
         self.device = torch.device('cpu')
         self.grp = grp.to(self.device).eval() if grp is not None else None
         self.uniform_init = uniform_init
 
         pts = pts or [3, 1, -1, -3]
         self.pts = torch.tensor(pts, dtype=torch.float64, device=self.device)
+        # False: raw GRP-Δ in `pts` units, the same label for the same replay
+        # whenever it is read (D37 fixed reward units). True (upstream):
+        # standardized by running statistics shared across workers.
+        self.standardize = standardize
 
         if shared_stats is None:
             manager = Manager()
@@ -49,7 +53,7 @@ class RewardCalculator:
         reward = exp_pts[1:] - exp_pts[:-1]
         reward_np = reward.cpu().numpy()
 
-        if len(reward_np) == 0:
+        if len(reward_np) == 0 or not self.standardize:
             return reward_np
 
         batch_count = len(reward_np)
