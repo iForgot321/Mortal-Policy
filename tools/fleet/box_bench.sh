@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Drive one rented Vast box end to end (03 §3.1): wait for it, rsync the repo and the frozen
 # inputs, run setup_box.sh (with tests) and the 15-min eval-mode benchmark, optionally a py-spy
-# profile and P0 throughput at 800- and 2,000-game actor batches, copy the results back to
+# profile and P0 throughput at 800- and 2,000-game actor batches (full), or bench_matrix.sh in
+# place of the 15-min benchmark (matrix), copy the results back to
 # workdir/fleet/<date>-vast-<label>/, and destroy the instance.
 #
 # Destroy always runs (EXIT trap), and a watchdog destroys the box after HARD_LIMIT seconds
@@ -14,7 +15,7 @@
 # Needs: the vastai CLI with an API key, ~/.ssh/vast_ed25519 registered with Vast, and a clean
 # commit (the box gets the working tree as is).
 #
-# Usage: tools/fleet/box_bench.sh <instance_id> <label> <none|full>
+# Usage: tools/fleet/box_bench.sh <instance_id> <label> <none|full|matrix>
 set -uo pipefail
 ID=$1; LABEL=$2; EXTRAS=${3:-none}
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -22,7 +23,7 @@ OUT=$REPO/workdir/fleet/$(date -u +%Y%m%d)-vast-$LABEL
 LOG=$OUT/driver.log
 KEY=$HOME/.ssh/vast_ed25519
 PY=/venv/main/bin/python
-HARD_LIMIT=7200
+HARD_LIMIT=${HARD_LIMIT:-7200}   # seconds; raise it for long extras (matrix: 10800)
 mkdir -p "$OUT"
 log() { echo "$(date -u +%T) [$LABEL] $*" | tee -a "$LOG"; }
 
@@ -99,8 +100,15 @@ log "synced $(git describe --always --dirty --abbrev=12)"
 rc=$(step setup 30 "tools/fleet/setup_box.sh"); log "setup: $rc"
 [[ $rc == 0 ]] || exit 1
 
-# 4. eval-mode benchmark, 15 min
-rc=$(step bench 25 "$PY tools/fleet/bench_1v3.py --model workdir/pilot/qs-a/pilot-qs-a-final.pth --minutes 15 --out workdir/box/bench-eval.json"); log "bench: $rc"
+# 4. eval-mode benchmark, 15 min (the matrix has its own baseline)
+if [[ $EXTRAS != matrix ]]; then
+    rc=$(step bench 25 "$PY tools/fleet/bench_1v3.py --model workdir/pilot/qs-a/pilot-qs-a-final.pth --minutes 15 --out workdir/box/bench-eval.json"); log "bench: $rc"
+fi
+
+# matrix: multi-process actors and the reduced inference matrix (bench_matrix.sh)
+if [[ $EXTRAS == matrix ]]; then
+    rc=$(step matrix 110 "PY=$PY tools/fleet/bench_matrix.sh"); log "matrix: $rc"
+fi
 
 # 5. extras: py-spy profile; P0 throughput at 800- and 2,000-game actor batches
 if [[ $EXTRAS == full ]]; then
