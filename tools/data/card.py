@@ -48,7 +48,8 @@ def main():
 
     manifest_id = open(os.path.join(mj, 'raw', 'MANIFEST.id')).read().split()[0]
     revision = open(os.path.join(mj, 'raw', 'HF_REVISION')).read().strip()
-    commit = git('rev-parse', 'HEAD')
+    # the last commit that changed the pipeline, so unrelated commits don't change the identity
+    commit = git('log', '-1', '--format=%H', '--', 'tools/data')
     dirty = bool(git('status', '--porcelain', '--', 'tools/data', 'libriichi', 'mortal/dataloader.py'))
     params_path = os.path.join(HERE, 'params.toml')
     params = open(params_path, 'rb').read()
