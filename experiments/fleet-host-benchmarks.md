@@ -9,10 +9,13 @@
 
 ## Hosts
 
-| Date | Host | GPU | CPU | vCPU (quota) | RAM | $/h | Eval mode, hanchan/h | P0 actor, hanchan/h | ≥ 25K/h |
-|---|---|---|---|---|---|---|---|---|---|
-| 2026-10-06 | Vast machine 137569, California | RTX 4090 (driver 580.119, CUDA 13.0) | EPYC 9684X (Zen 4) | 32 (30.7) | 108 GB | 0.464 | **49,741** | **31,680** | yes |
-| reference | Workstation | RTX 3060 12 GB | i5-12600KF | 16 | 15 GB | — | ~22,000 (A/A′ run timing, 2026-10-05) | — | — |
+| Date | Host | GPU | CPU | vCPU (quota) | RAM | $/h | Eval mode, hanchan/h | $ per 1M hanchan | P0 actor, hanchan/h | ≥ 25K/h |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-06 | Vast machine 42443, Washington | RTX 4090 | Ryzen 9 7950X (Zen 4 desktop) | 32 (no quota) | 124 GB | 0.713 | **51,421** | 13.9 | — | yes |
+| 2026-10-06 | Vast machine 137569, California | RTX 4090 | EPYC 9684X (Zen 4 server) | 32 (30.7) | 108 GB | 0.464 | **49,741** | **9.3** | **31,680** | yes |
+| 2026-10-06 | Vast machine 48161, Arizona | RTX 4090 | EPYC 7742 (Zen 2 server) | 32 (30.7) | 503 GB | 0.487 | **30,895** | 15.8 | — | yes |
+| 2026-10-06 | Vast machines 27649 (Ontario) and 28903 (Thailand) | RTX 4090 | Ryzen 9 5950X; EPYC 7713 (Zen 3) | — | — | 0.387; 0.413 | not measured: both still pulling the image after 25 min, destroyed by the driver | — | — | — |
+| reference | Workstation | RTX 3060 12 GB | i5-12600KF | 16 | 15 GB | — | ~22,000 (A/A′ run timing, 2026-10-05) | — | — | — |
 
 - **Eval mode:** `tools/fleet/bench_1v3.py`. One checkpoint on both sides, argmax, AMP, 500 sets
   (2,000 concurrent games) per arena call, the way the lab plays. Steady median over chunks 2+.
@@ -31,6 +34,9 @@
    `tools/fleet/setup_box.sh`), then run `tools/fleet/setup_box.sh` in tmux.
 4. Copy the results back to `workdir/fleet/…`, then **destroy the instance at once**:
    `vastai destroy instance <id> -y`.
+
+Steps 3–4 plus the benchmarks are automated in `tools/fleet/box_bench.sh` (one detached driver
+per instance; it always destroys its box, with a 2-hour watchdog and a 25-minute limit on startup).
 
 **Gotchas found on the first box:**
 - **Offer IDs change** when hosts relist, and `vastai search offers 'id=<offer>'` matches nothing
@@ -94,3 +100,69 @@
   (~2,800 samples/s at this actor rate), but not 03's fleet scale of 6–8K samples/s.
 - **Policy lag:** ~2 versions without `force_sequential`, against the fleet soak's p95 ≤ 2
   versions (03 §3.7): borderline.
+
+## 2026-10-06: CPU classes, all on RTX 4090 (4 boxes in parallel, `box_bench.sh`)
+
+- **Code:** commit `dd052e7` (clean); `bench_1v3.py` `e0f735c5…`; pilot A. Setup and tests
+  pass on both boxes that started (55 passed, 3 skipped).
+- **Ryzen 9 7950X** (contract 54521468): 7 chunks, 50,420–52,513 hanchan/h, steady median
+  **51,421**; GPU ~11%. This box has no cgroup CPU quota, so the CPU-busy figure is missing.
+- **EPYC 7742** (contract 54521465): 4 chunks, 29,912–31,190 hanchan/h, steady median **30,895**;
+  17.1 cores busy (of a 30.7-CPU quota), GPU ~7%.
+- **Ryzen 9 5950X and EPYC 7713** (contracts 54521454, 54521461): still `loading` (pulling the
+  image) after 25 min; destroyed unmeasured. The py-spy profile and the 2,000-game P0 test were
+  planned on the 5950X, so they did not run.
+- Cost of the round: $0.48 (the two boxes that never started cost little or nothing).
+
+### Reading
+
+- **Per-core speed decides the actor rate.** At the same ~17–18 busy cores (both EPYCs) and a near-idle GPU,
+  Zen 4 (server 2.5–3.7 GHz or desktop 4.5–5.7 GHz) gives ~50K/h and Zen 2 gives ~31K/h. That
+  fits the serial step loop being the bottleneck: newer cores help, higher desktop clocks add
+  only ~3% over Zen 4 server cores.
+- **Value:** the Zen 4 EPYC 9684X costs $9.3 per million hanchan, about half the plan's $18 (`03`
+  §9). The 7950X is as fast but costs more per hour. Zen 2 clears the 25K/h bar but costs ~70%
+  more per hanchan than the 9684X.
+- **Allowlist rule (provisional):** prefer Zen 4 hosts (EPYC 9xx4, Ryzen 7000/9000) and rank
+  them by $/hanchan; accept Zen 2 only when it is much cheaper per hour. Zen 3 is still untested.
+
+## Featurization rate (2026-10-06, workstation)
+
+`tools/fleet/bench_featurize.py` (sha256 `c8620e57…`, commit `dd052e7`): 256 games sampled evenly
+from `quick500k` (2020–2025), i5-12600KF (6 performance + 4 efficiency cores, 16 threads, WSL2).
+Results: `workdir/fleet/20261006-workstation-featurize/featurize.json`.
+
+**Loader only** (`GameplayLoader.load_gz_log_files`: parse + obs v4, all four seats, ~670
+samples per game), one fresh process per rayon thread count:
+
+| Threads | Samples/s | Per thread | Peak RSS |
+|---|---|---|---|
+| 1 | 825 | 825 | 1.4 GB |
+| 2 | 1,580 | 790 | 1.5 GB |
+| 4 | 2,791 | 698 | 1.5 GB |
+| 8 | 4,398 | 550 | 2.3 GB |
+| 16 | 5,743 | 359 | 3.8 GB |
+
+**SL input pipeline** (`FileDatasetsIter` + `DataLoader` as `train_offline_phase1.py` builds them:
+BC, fp16 obs, Q6/Q8 masks, `file_batch_size` 20, batch 2048, no GPU):
+
+| Workers | Samples/s | Peak RSS (workers) |
+|---|---|---|
+| 1 | 3,927 | 3.9 GB |
+| 2 | 4,241 | 3.7 GB |
+
+The 2-worker rate matches the pilot students' training rate (4.2K/s, `pilot-qs-a.toml`).
+
+### Reading (03 §4.2 teacher-hardware rule)
+
+- The rule needs (vCPU × samples/s per vCPU) ≥ 80% of the GPU's training rate. Here the pipeline
+  gives **~265 samples/s per thread**: the loader scales sublinearly past the 6 performance cores,
+  and the per-sample Python loop in `populate_buffer` caps the pipeline at ~74% of the loader.
+- Using `03` §4.2's estimates for b24c512 (~8K samples/s on a 4090, ~35–55K/s on an H100) [calc]:
+  an H100 would need well over 100 threads, against the 16–26 vCPU H100 instances come with, so
+  the H100 is out for the teachers. A 4090 or 5090 needs ~6.4K/s or more, i.e. a box with ≥ 48 vCPU
+  *if* the pipeline keeps scaling with more workers. That needs a large-RAM box to test (this
+  workstation can't run more than 2 workers), and the per-sample Python loop is the first thing to
+  optimize if it doesn't.
+- Per-thread rates here come from a hybrid desktop CPU; server cores will differ. Re-measure on the
+  teacher box (secure tier only: Tenhou data, D23).
