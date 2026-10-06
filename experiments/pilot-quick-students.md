@@ -30,6 +30,13 @@
   0.510 at 80K, 0.495 at 120K, 0.489 at 156K. Still edging down at the end of the cosine.
 - Throughput: ~1.75 steps/s steady (~3.6K samples/s), CPU-bound featurization. No errors, no skipped logs.
 
-### Pilot B (seed 2)
+### Pilot B (seed 2), 2026-10-04 11:20 → 2026-10-05 12:42 (25.4 h)
 
-Started 2026-10-04 11:20 by `experiments/run_pilot_chain.sh`; expected to finish ≈ 2026-10-05 12:00.
+- Started by `experiments/run_pilot_chain.sh`; last checkpoint step 156,000, like A.
+- Frozen: `workdir/pilot/qs-b/pilot-qs-b-final.pth` (read-only, sha256 prefix `b267c0267f1538c6`).
+- BC loss: 0.826 at 2K, 0.566 at 10K, 0.543 at 20K, 0.526 at 40K, 0.509 at 80K, 0.497 at 120K, 0.489 at 156K.
+
+### A vs B
+
+A/A′ over 20K sets gives Δu = +0.0015 [−0.0031, +0.0061] and σ_set = 0.328. A vs B under T-NI passes at
+6K sets. Details: `experiments/lab-harness.md`, D44.

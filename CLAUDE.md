@@ -1,78 +1,100 @@
-# CLAUDE.md — Mortal-Policy Fork (Riichi Mahjong AI)
+# CLAUDE.md
 
-Read this in full at the start of every session. Detailed plans live in the four reference documents listed below; this file is the standing brief.
+Guidance for Claude Code (and humans) working in this repository.
 
-## What this project is
+## What this is
 
-A single-person fork of [Mortal-Policy](https://github.com/Nitasurin/Mortal-Policy) (itself a policy-based fork of [Mortal](https://github.com/Equim-chan/Mortal)). Goal: produce an agent competitive with publicly deployed Mortal weights, with measurable algorithmic contributions, on a single high-end consumer GPU (RTX 3090/4090 class). Not chasing Suphx-level state of the art.
+- A fork of [Nitasurin/Mortal-Policy](https://github.com/Nitasurin/Mortal-Policy) at `cf1f08e`, itself a fork of [Equim-chan/Mortal](https://github.com/Equim-chan/Mortal).
+- **Goal:** the strongest open, verifiable Riichi Mahjong AI, evaluated on **riichi.dev**.
+- **The plan lives in `docs/reference/`.** Read `00_ROADMAP.md` first (sequencing, gates, budget); facts are in `01_fact_base.md`, decisions in `08_decision_log.md`. If a change contradicts the plan, stop and ask. Changes to goals, gates, utility, metric, phase order or budget need a dated `08` entry *before* the docs are edited.
+- `docs/outdated/` holds the superseded v1 plan and the previous CLAUDE.md. Don't follow them.
 
-Stack: Rust (`libriichi` simulator, rules, mjai protocol, arena) + Python (PyTorch network and training loop). Inherits the simulator, replay parsing, mjai protocol layer, parameter server, replay buffer, and GPU inference engine from upstream Mortal-Policy.
+## Start of every session
 
-## Current state
+1. **Read `STATUS.md`**: what's done, in progress and next. Update it at the end of the session (date, what changed, verified vs attempted, next step).
+2. **Check the state** before changing anything:
 
-**The repo is a clean fork of Mortal-Policy with no changes made yet.** Stage 0 (baseline reproduction) has not started. No trained weights, no curated dataset, no validation sets frozen.
+   ```bash
+   git status --short && git log --oneline -10
+   tail -5 lab/registry/runs.jsonl                    # last lab runs
+   ls ~/mj-data/splits/SPLITS.sha256                 # dataset frozen?
+   find libriichi/src -name '*.rs' -newer mortal/libriichi.so | head   # output = stale .so
+   nvidia-smi; free -g; ps aux | grep -E 'python|train' | grep -v grep # anything running?
+   ```
 
-## Reference documents (read before doing anything substantive)
+3. Report the state in a few lines before proposing work. If the state is ambiguous, ask.
 
-- `docs/reference/00-project-overview.md` — top-level project context, substrate facts, build-sequence summary.
-- `docs/reference/01-dataset-curation.md` — Stage 1 plan, validation protocol, suit-symmetry architecture verification.
-- `docs/reference/02-improvements-plan.md` — Stage 1.5 algorithmic stack with per-step validation criteria.
-- `docs/reference/03-hybrid-architecture.md` — deferred Stage 2 architecture design.
+## Machine
 
-When the user asks anything about Stage X, read the corresponding doc first rather than reasoning from this summary.
+- **RTX 3060 12 GB, 16 cores, ~15 GB RAM, WSL2.** Not the 4090/5090 fleet the plan budgets for; that is cloud, later (D21).
+- **RAM is the binding constraint.** Never run an arena/lab job concurrently with training: the OOM killer takes a dataloader worker and silently wedges the trainer. Featurized samples are ~137 KB each (fp32); keep worker buffers small, or use `dataset.obs_fp16` with AMP.
+- Conda env `mortal` (Python 3.12, torch 2.6 cu124). **The base conda Python is 3.13**, so always build with `PYO3_PYTHON` set (below) or the `.so` won't import.
 
-## Core strategic rules (do not violate without explicit user consent)
+## Layout
 
-1. **Algorithm before architecture.** The hybrid transformer is Stage 2, conditional on Stage 1.5 evidence. Cross-domain evidence (Mortal author, Tjong, Suphx, Kanachan) is that the RL recipe and data dominate final strength; architectures converge to similar ceilings under the same recipe. Do not bundle architectural and algorithmic changes — it makes deltas unattributable.
-2. **One variable at a time.** Every Stage 1 / Stage 1.5 change is ablated against the previous best baseline. Each step must show a measurable improvement at the validation layer specified for that step, or be reverted, before the next is stacked on top.
-3. **Validation sets are frozen at the start of Stage 1 and never changed.** Held-out-by-player set, held-out-by-time set, and the golden set of stable-rank-9 decisions. Changing them mid-project invalidates all prior comparisons.
-4. **Curation has a hard ceiling of ~2 weeks.** The first week of curation is one of the highest-leverage weeks in the project; the fourth would be one of the lowest. If a fifth curation idea appears, that's avoidance of Stage 1.5, not progress.
-5. **Instrumentation is non-optional.** The most common self-play RL failure is silent regression for two weeks. Every experiment logs win rate vs. frozen previous baseline, KL to SL prior, per-action-type entropy, value calibration (once distributional head is in), league Nash payoffs (once league is in), belief MI (once belief loop is in).
+| Path | What's there |
+|---|---|
+| `libriichi/` (Rust, PyO3) | Rules engine, mjai, obs encoding (`state/obs_repr.rs`, v4 = 1012×34), dataset loader (`dataset/gameplay.rs`), duplicate arena (`arena/`), agents (`agent/`, incl. our `shanten_greedy.rs`) |
+| `mortal/` (Python, flat imports, run from here) | `model.py`, `train_offline_phase1.py` (AWR/BC), `train_online.py` (PPO), `train_grp.py`, `dataloader.py`, `reward_calculator.py`, `server.py`/`client.py`, `engine.py`, `one_vs_three.py` |
+| `lab/` | **Evaluation lab** (`02`): GSPRT, calibration simulator, nonce ledger, registry. `python -m lab --help` from the repo root |
+| `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
+| `tools/data/` | **Data pipeline** (`04a`): `download.py` → `convert.py` → `index.py` → `coverage.py` → `splits.py` → … ; `params.toml` is part of the dataset identity |
+| `tests/` | Python tests (`pytest tests/`) |
+| `experiments/` | One markdown note per experiment; `experiments/configs/` holds the exact training configs (`MORTAL_CFG=...`) |
+| `~/mj-data/` (outside the repo) | Tenhou data: `raw/` (immutable snapshot), `mjai/`, `db/`, `meta/`, `splits/`, `names/`, `reports/` |
+| `workdir/` (ignored) | Checkpoints, tensorboard, lab game logs |
 
-## Verified substrate facts (do not re-derive from memory)
+## Setup and build
 
-- **Default network in upstream Mortal-Policy:** 1D-ResNet, `conv_channels=512`, `num_blocks=24` (b24c512), ~40–50M params. The Mortal author's *actual* online RL substrate is a lighter network; **this project uses the lighter variant as the fixed substrate for Stage 1.5**, since throughput matters more than parameter count for self-play.
-- **Tile-axis layout** (from `libriichi/src/tile.rs`):
-  ```
-  [0..9]   1m..9m   [9..18]  1p..9p   [18..27] 1s..9s
-  [27..31] E,S,W,N  [31..34] P,F,C
-  ```
-- **Suit equivariance is partial and emergent, not enforced.** The shared Conv1d weights give translation equivariance along the 34-tile axis, but the kernel sees meaningless cross-suit windows (e.g. 8m–9m–1p) and the round/seat winds are written at wind-tile positions in `obs_repr.rs` lines 196–197. Explicit suit-permutation augmentation is therefore **not redundant** with the architecture; effective dataset multiplier is ~1.2–2× in the filtered-data regime, not literal 6×.
-- **Released `config.example.toml` values are dummy placeholders per the upstream author.** Do not treat them as tuned. `enable_amp = false` and `enable_compile = false` in defaults — turn on for ~2× speedup.
-- **No public stock Mortal weights exist.** The "evaluate against stock Mortal" check from the original strategic framing is impossible. Replacement portfolio: action-agreement on golden set (primary), periodic `mjai.app` arena submissions if active, akochan as floor check, heuristic shanten-greedy baseline, drift-detector classifier. See the curation plan's "No Public Stock Mortal" section.
+```bash
+export PYO3_PYTHON=$HOME/miniconda3/envs/mortal/bin/python LD_LIBRARY_PATH=$HOME/miniconda3/envs/mortal/lib
+cargo build -p libriichi --lib --release
+cp target/release/libriichi.so mortal/libriichi.so.new && mv mortal/libriichi.so.new mortal/libriichi.so
+```
 
-## Build sequence (summary; the strategic-plan doc has ablation details)
+- **Install the `.so` by rename, never `cp` over it**: a running process has it mapped, and overwriting in place can crash it.
+- Re-install after every Rust change; a stale `.so` is the most common silent bug.
+- Training scripts run from `mortal/` (`config.toml` there, or `MORTAL_CFG=/path/to.toml`).
 
-| Stage | Description | Time | Status |
-|---|---|---|---|
-| 0 | Baseline reproduction: NikkeTryHard 2020–2024 mjai archive + lighter ResNet + AWR. Establish measured numbers. | ~1 wk | not started |
-| 1 | Data curation: player filter, suit-symmetry aug, hygiene, decision-weighting. Freeze validation sets. Produce `dataset-v1`. | ~1 wk (cap 2) | not started |
-| 1.5a | Distributional value head (IQN) added during SL pretraining (critical: must be in SL, not just RL). | ~1 wk | not started |
-| 1.5b | V-trace + prioritized replay in PPO. | 2–3 wk | not started |
-| 1.5c | League training (main agents + main/league exploiters). | 2–3 wk | not started |
-| 1.5d | Belief-state loop: feed auxiliary opponent-prediction outputs back as policy input (stop-gradient on belief features). | ~2 wk | not started |
-| 1.5e | EMA-teacher self-distillation. | ~2 d | not started |
-| 2 | Hybrid transformer swap, single-variable test vs. hardened Stage 1.5 recipe. **Conditional.** | weeks | conditional |
-| 3 | Tier 2: oracle distillation, search-at-decision-time. **Optional.** | weeks | optional |
+## Before committing
 
-Hobbyist-compute subset if budget is tight: Stage 0 + 1 + 1.5a + 1.5c + 1.5d. ~7–8 weeks total.
+```bash
+cargo fmt --all --check
+cargo clippy -p libriichi --lib --all-features -- -Dwarnings   # 28 errors pre-exist (newer toolchain lints); add none
+cargo test --workspace --release --no-default-features --features flate2/zlib
+~/miniconda3/envs/mortal/bin/python -m pytest tests/ -q
+```
 
-## Realistic targets
+Commit only when asked. Small, single-purpose commits.
 
-- End of Stage 1 vs. unfiltered baseline: +1 to +3 pp discard accuracy on held-out, 52–55% duplicate-hanchan win rate. Numbers much larger → suspect train/val leak. Much smaller → suspect curation isn't actually applying (silent feature-extraction failure is the usual culprit).
-- End of Stage 1.5: measurably stronger than the Stage 1 baseline by every layer of the validation protocol, with action-agreement on the golden set monotonically improving.
-- End of Stage 2 (if attempted): competitive with publicly deployed Mortal in `mjai.app` arena. Beating it is plausible, not the headline goal.
+## Project rules
 
-## Conventions
+1. **No strength claim without a lab verdict.** Every behaviour change is an experiment with a registry row, labelled *exploratory* or *confirmed*. Loss curves and test_play numbers are not verdicts. Rows made while `lab.toml` says `calibrated = false` are provisional.
+2. **Frozen items need a decision-log entry to change:** utility vector, GRP checkpoint, observation schema (v4), rules config, seed families (`lab/seeds.toml`), lab test definitions (`lab/lab.toml`), data splits (`~/mj-data/splits`). Any featurizer change must keep arena and training paths hash-identical.
+3. **Utility:** `env.pts = [90, 50, -10, -130]` (u × 100, D2). Never the repo default `[6, 4, 2, 0]`. `[90, 45, 0, -135]` is display-only.
+4. **Masks must be identical** in actor, learner, KL, entropy and any loss. `CategoricalPolicy.forward` returns probabilities; use `CategoricalPolicy.logits` (masked raw logits) for losses, KL and ACH.
+5. **Reward units.** Upstream `RewardCalculator` standardizes with running statistics; the plan uses fixed units for RL (D37). Know which path you're touching.
+6. **Oracle observations stay out of play.** `Invisible`, `oracle=True`, `trust_seed=True` are for critics, labels and lab diagnostics only.
+7. **Tenhou data** (D13, D23): never committed, never on community/peer cloud hosts, never redistributed. Only the recipe (`tools/data/`, `params.toml`, aggregate reports) and hashes are publishable. Known bot accounts live in `~/mj-data/names/excludes_bots.txt`.
+8. **`server.py` has no authentication.** Private/VPN interfaces only.
+9. **AGPL-3.0.** Keep license headers; publish the source of any deployed bot.
+10. **Ethics.** Bots play only on riichi.dev. No features aimed at evading bot detection.
 
-- **Code locations:** Rust simulator and feature extraction in `libriichi/`. Python network/training in `mortal/`. Feature extraction lives in `libriichi/src/state/obs_repr.rs` — the cleanest place to add per-zone tensors if/when Stage 2 starts.
-- **Dataset format:** mjai JSON throughout. Suit-symmetry augmentation should happen at the mjai JSON level — preserves dora indicator handling automatically. The `obs_repr.rs`-level alternative is more invasive and must permute dora indicators explicitly.
-- **Dataset versioning:** the curated output of Stage 1 is `dataset-v1`, regenerable deterministically from raw logs. Tag dataset version + code commit hash in every experiment log.
-- **Experiment logging:** one log file per experiment with full hyperparameters, dataset version, commit hash. Future comparisons happen months apart; rigorous bookkeeping now is what makes them possible.
+## Gotchas
 
-## When in doubt
+- `Brain(..., Norm=...)` defaults to `"BN"`, but every script builds `Norm="GN"`. Always pass it and match the checkpoint.
+- **Reduced-precision inference is batch-composition dependent.** In 1v3, challenger and champion run separate batches, so AMP (and TF32, which Ampere uses for "FP32" cuDNN convs by default) flip argmax at near-ties: 21/500 sets diverged under AMP, 2/500 under TF32, 0/500 in true FP32. That's zero-mean noise for A/B tests, but the **deterministic A/A must run with `--no-amp`** (D43).
+- Set scores are summed in integer hundredths of u, so an A/A set is exactly 0 (in floats, 0.9 + 0.5 − 0.1 − 1.3 ≠ 0).
+- `train_online.py`: the PPO ratio uses an `Old_mortal` snapshot, not stored behaviour log-probs; online mode exits after `test_play` (known hang) and `main()` respawns it.
+- `optim.max_grad_norm = 0` means no clipping.
+- `dataloader.py` shuffles individual decisions; every decision in a kyoku gets the kyoku's advantage (no ordered trajectories or critic yet, D37).
+- `Tile::augment` swaps manzu↔pinzu only, deliberately (ryuuiisou).
+- `GameplayLoader.validate_gz_log_files` replays all seats without featurizing (~3K games/s) and checks label legality. Full loading featurizes and is ~1000× slower.
+- The NikkeTryHard converter omits the 4th `reach_accepted` in four-riichi abortive draws (quarantine code `Q4s`, kept).
+- Upstream weights, tuned hyperparameters, opponent pools, replay buffers and multi-GPU code were never released.
 
-- Pause and ask before bundling changes, deviating from the staged plan, or starting Stage 2 work.
-- If a result looks too good (e.g. +10 pp discard accuracy from one curation step), assume train/val leak before believing it.
-- If Stage 1.5 plateaus below the Stage 1 baseline, debug the recipe before changing anything else — that's the documented failure mode the staged plan exists to prevent.
-- The bottleneck is patience and engineering rigour, not algorithmic novelty. Treat decisions accordingly.
+## Working style
+
+- Match the surrounding style: `rustfmt` + clippy for Rust; flat-module Python in `mortal/`.
+- Prefer new modules (`lab/`, `tools/`, `tests/`) over large rewrites of upstream files, so rebasing stays easy.
+- Never overwrite a checkpoint, dataset snapshot, split or registry. Frozen artifacts are made read-only.
