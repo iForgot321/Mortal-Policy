@@ -425,6 +425,23 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Caveat:** T-fine's margin is thin.
 - **Reopen if:** σ_set or the set-score shape changes materially (e.g. control variates adopted, a much stronger agent, a different action-selection mode). Then rerun §4.1. For T-fine, also reopen if any recalibration exceeds 5%; widen its boundaries or switch it to a bounded-score method.
 
+**D45 (2026-10-05): dataset-v1 is frozen.** Records the 04a §8 identity; the splits are a frozen item (05 §1).
+- **Identity:** `7c6a9e60457e7eb9fe441e17a2a2db55d3d3f789176d6e7bf4c483c297959c6b` = sha256(MANIFEST.id `37d36e49…` ‖ pipeline commit `5cffb71` ‖ params.toml `e289e646…`). HF revision `6450bb58`.
+- **Contents:** 2,512,433 games; 22 dropped by quarantine. Q6 masks: 215,206 games. Q8: 4 bot accounts.
+- **Splits** (`SPLITS.sha256`, leak tests pass):
+
+  | Split | Games |
+  |---|---|
+  | train | 1,805,376 (2015-01 → 2025-06) |
+  | heldout_time | 102,054 (2025-07-01 → 2026-01-23) |
+  | heldout_game | 48,388 |
+
+- **Default held-out window kept:** no D14b. Its 7 months are complete, though the source DBs end mid-October 2025.
+- **Golden set:** 164 players, 120K decisions.
+- **Determinism test:** passed.
+- **Card:** `~/mj-data/reports/DATASET_CARD.md` (private).
+- **Reopen if:** a converter or quarantine defect is found that changes training labels. Then dataset-v2 with a new identity, and every comparison restarts on it.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
