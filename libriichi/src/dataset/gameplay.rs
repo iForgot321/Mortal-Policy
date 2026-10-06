@@ -8,7 +8,7 @@ use std::io;
 use std::mem;
 
 use ahash::AHashSet;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use derivative::Derivative;
 use flate2::read::GzDecoder;
 use ndarray::prelude::*;
@@ -36,6 +36,12 @@ pub struct GameplayLoader {
     always_include_kan_select: bool,
     #[pyo3(get)]
     augmented: bool,
+    /// When false, entries carry everything except observations (no `obs`,
+    /// no `invisible_obs`), with masks from `PlayerState::action_mask`, and a
+    /// label outside its mask is an error. Orders of magnitude faster; used
+    /// for dataset hygiene and tagging.
+    #[pyo3(get)]
+    featurize: bool,
 
     #[derivative(Debug = "ignore")]
     player_names_set: AHashSet<String>,
@@ -56,6 +62,8 @@ pub struct Gameplay {
     pub apply_gamma: Vec<bool>,
     pub at_turns: Vec<u8>,
     pub shantens: Vec<i8>,
+    /// Index into the game's event list of the event each entry decides on.
+    pub event_idx: Vec<u32>,
 
     // per game
     pub grp: Grp, // actually per kyoku though
@@ -69,6 +77,7 @@ struct LoaderContext<'a> {
 
     state: PlayerState,
     kyoku_idx: usize,
+    event_idx: usize,
 
     // fields below are only used for oracle
     opponent_states: [PlayerState; 3],
@@ -89,7 +98,9 @@ impl GameplayLoader {
         trust_seed = false,
         always_include_kan_select = true,
         augmented = false,
+        featurize = true,
     ))]
+    #[allow(clippy::too_many_arguments)] // Python keyword arguments
     fn new(
         version: u32,
         oracle: bool,
@@ -98,6 +109,7 @@ impl GameplayLoader {
         trust_seed: bool,
         always_include_kan_select: bool,
         augmented: bool,
+        featurize: bool,
     ) -> Self {
         let player_names = player_names.unwrap_or_default();
         let player_names_set = player_names.iter().cloned().collect();
@@ -111,6 +123,7 @@ impl GameplayLoader {
             trust_seed,
             always_include_kan_select,
             augmented,
+            featurize,
             player_names_set,
             excludes_set,
         }
@@ -132,6 +145,33 @@ impl GameplayLoader {
     #[pyo3(name = "load_gz_log_files")]
     fn load_gz_log_files_py(&self, gzip_filenames: Vec<String>) -> Result<Vec<Vec<Gameplay>>> {
         self.load_gz_log_files(gzip_filenames)
+    }
+
+    /// Replays all four seats of each log through the same code path as
+    /// `load_gz_log_files` with `featurize = false`, which checks that every
+    /// label is legal under its mask. Returns `(error, decisions)`
+    /// per file, where `decisions` counts entries over all four seats. Used
+    /// for dataset hygiene: a file that fails here is unfit for training.
+    fn validate_gz_log_files(&self, gzip_filenames: Vec<String>) -> Vec<(Option<String>, usize)> {
+        let validator = Self {
+            version: self.version,
+            oracle: false,
+            player_names: vec![],
+            excludes: vec![],
+            trust_seed: false,
+            always_include_kan_select: self.always_include_kan_select,
+            augmented: self.augmented,
+            featurize: false,
+            player_names_set: AHashSet::new(),
+            excludes_set: AHashSet::new(),
+        };
+        gzip_filenames
+            .into_par_iter()
+            .map(|f| match validator.load_gz_log_files([f]) {
+                Ok(games) => (None, games.iter().flatten().map(|g| g.actions.len()).sum()),
+                Err(e) => (Some(format!("{e:#}")), 0),
+            })
+            .collect()
     }
 
     fn __repr__(&self) -> String {
@@ -226,6 +266,10 @@ impl Gameplay {
     fn take_shantens(&mut self) -> Vec<i8> {
         mem::take(&mut self.shantens)
     }
+    #[inline]
+    fn take_event_idx(&mut self) -> Vec<u32> {
+        mem::take(&mut self.event_idx)
+    }
 
     fn take_grp(&mut self) -> Grp {
         mem::take(&mut self.grp)
@@ -256,6 +300,7 @@ impl Gameplay {
             invisibles,
             state: PlayerState::new(player_id),
             kyoku_idx: 0,
+            event_idx: 0,
             // end_state: EndState::Passive,
             opponent_states: array::from_fn(|i| PlayerState::new((player_id + i as u8 + 1) % 4)),
             from_rinshan: false,
@@ -265,7 +310,8 @@ impl Gameplay {
 
         // It is guaranteed that there are at least 4 events.
         // tsumo/dahai -> ryukyoku/hora -> end kyoku -> end game
-        for wnd in events.windows(4) {
+        for (i, wnd) in events.windows(4).enumerate() {
+            ctx.event_idx = i;
             data.extend_from_event_window(&mut ctx, wnd.try_into().unwrap())?;
         }
 
@@ -289,6 +335,7 @@ impl Gameplay {
             from_rinshan,
             yama_idx,
             rinshan_idx,
+            ..
         } = ctx;
 
         let cur = &wnd[0];
@@ -411,17 +458,33 @@ impl Gameplay {
         };
 
         if let Some(label) = label_opt {
-            self.add_entry(ctx, false, label);
+            self.add_entry(ctx, false, label)?;
             if let Some(kan) = kan_select {
-                self.add_entry(ctx, true, kan);
+                self.add_entry(ctx, true, kan)?;
             }
         }
         Ok(())
     }
 
-    fn add_entry(&mut self, ctx: &LoaderContext<'_>, at_kan_select: bool, label: usize) {
-        let (feature, mask) = ctx.state.encode_obs(ctx.config.version, at_kan_select);
-        self.obs.push(feature);
+    fn add_entry(
+        &mut self,
+        ctx: &LoaderContext<'_>,
+        at_kan_select: bool,
+        label: usize,
+    ) -> Result<()> {
+        let mask = if ctx.config.featurize {
+            let (feature, mask) = ctx.state.encode_obs(ctx.config.version, at_kan_select);
+            self.obs.push(feature);
+            mask
+        } else {
+            let mask = ctx.state.action_mask(at_kan_select);
+            ensure!(
+                mask[label],
+                "label {label} is illegal (at_kan_select = {at_kan_select}): {}",
+                ctx.state.brief_info(),
+            );
+            Array1::from(mask.to_vec())
+        };
         self.actions.push(label as i64);
         self.masks.push(mask);
         self.at_kyoku.push(ctx.kyoku_idx as u8);
@@ -429,7 +492,11 @@ impl Gameplay {
         self.apply_gamma.push(label <= 37);
         self.at_turns.push(ctx.state.at_turn());
         self.shantens.push(ctx.state.shanten());
+        self.event_idx.push(ctx.event_idx as u32);
 
+        if !ctx.config.featurize {
+            return Ok(());
+        }
         if let Some(invisibles) = ctx.invisibles {
             let invisible_obs = invisibles[ctx.kyoku_idx].encode(
                 &ctx.opponent_states,
@@ -439,5 +506,6 @@ impl Gameplay {
             );
             self.invisible_obs.push(invisible_obs);
         }
+        Ok(())
     }
 }

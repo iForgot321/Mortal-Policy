@@ -1,5 +1,5 @@
 mod board;
-mod game;
+pub(crate) mod game;
 mod one_vs_three;
 mod result;
 mod two_vs_two;

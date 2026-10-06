@@ -3,6 +3,7 @@ use crate::algo::agari::AgariCalculator;
 use crate::algo::point::Point;
 use crate::algo::shanten;
 use crate::algo::sp::{InitState, SPCalculator};
+use crate::consts::ACTION_SPACE;
 use crate::tile::Tile;
 use crate::vec_ops::vec_add_assign;
 use crate::{must_tile, t, tu8, tuz};
@@ -16,6 +17,65 @@ impl PlayerState {
     #[must_use]
     pub fn kans_count(&self) -> usize {
         self.minkans.len() + self.ankans.len()
+    }
+
+    /// Used by rule-based `Agent` impls. Counts of each tile kind visible to
+    /// the player, including its own hand.
+    #[inline]
+    #[must_use]
+    pub const fn tiles_seen(&self) -> [u8; 34] {
+        self.tiles_seen
+    }
+
+    /// Used by rule-based `Agent` impls, for `shanten::calc_all`.
+    #[inline]
+    #[must_use]
+    pub const fn tehai_len_div3(&self) -> u8 {
+        self.tehai_len_div3
+    }
+
+    /// The legal-action mask `encode_obs` returns, computed without encoding
+    /// the observation. Used to validate dataset labels cheaply; the state
+    /// tests assert it is identical to the mask from `encode_obs`.
+    #[must_use]
+    pub fn action_mask(&self, at_kan_select: bool) -> [bool; ACTION_SPACE] {
+        let cans = self.last_cans;
+        let mut mask = [false; ACTION_SPACE];
+
+        if at_kan_select {
+            if cans.can_daiminkan
+                && let Some(tile) = self.last_kawa_tile
+            {
+                mask[tile.deaka().as_usize()] = true;
+            }
+            if cans.can_ankan {
+                for tile in self.ankan_candidates {
+                    mask[tile.as_usize()] = true;
+                }
+            }
+            if cans.can_kakan {
+                for tile in self.kakan_candidates {
+                    mask[tile.as_usize()] = true;
+                }
+            }
+            return mask;
+        }
+
+        if cans.can_discard {
+            for (t, &c) in self.discard_candidates_aka().iter().enumerate() {
+                mask[t] |= c;
+            }
+        }
+        mask[37] = cans.can_riichi;
+        mask[38] = cans.can_chi_low;
+        mask[39] = cans.can_chi_mid;
+        mask[40] = cans.can_chi_high;
+        mask[41] = cans.can_pon;
+        mask[42] = cans.can_kan();
+        mask[43] = cans.can_agari();
+        mask[44] = cans.can_ryukyoku;
+        mask[ACTION_SPACE - 1] = cans.can_pass();
+        mask
     }
 
     /// Used by `Agent` impls, must be called at 3n+2.

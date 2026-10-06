@@ -58,9 +58,11 @@ impl PlayerState {
         assert_eq!(self.doras_owned[0], self.num_doras_in_hand());
         if self.last_cans.can_act() {
             for version in 1..=MAX_VERSION {
-                let _encoded = self.encode_obs(version, false);
+                let (_, mask) = self.encode_obs(version, false);
+                assert_eq!(mask.as_slice().unwrap(), self.action_mask(false));
                 if self.last_cans.can_kakan || self.last_cans.can_ankan {
-                    let _encoded = self.encode_obs(version, true);
+                    let (_, mask) = self.encode_obs(version, true);
+                    assert_eq!(mask.as_slice().unwrap(), self.action_mask(true));
                 }
             }
         }

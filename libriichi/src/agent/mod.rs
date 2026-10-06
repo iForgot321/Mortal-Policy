@@ -4,6 +4,7 @@ mod defs;
 mod mjai_log;
 mod mortal;
 mod py_agent;
+mod shanten_greedy;
 mod tsumogiri;
 
 pub use akochan::AkochanAgent;
@@ -12,4 +13,5 @@ pub use defs::{Agent, BatchAgent, InvisibleState};
 pub use mjai_log::MjaiLogBatchAgent;
 pub use mortal::MortalBatchAgent;
 pub use py_agent::new_py_agent;
+pub use shanten_greedy::ShantenGreedy;
 pub use tsumogiri::Tsumogiri;

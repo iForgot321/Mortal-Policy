@@ -14,6 +14,10 @@ use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
+/// `(seed, challenger_seat, challenger_rank, final_scores)`, see
+/// `OneVsThree::py_vs_py_games`.
+type GameRecord = (u64, u8, u8, [i32; 4]);
+
 #[pyclass]
 #[derive(Clone, Default)]
 pub struct OneVsThree {
@@ -58,6 +62,41 @@ impl OneVsThree {
                 rankings[rank as usize] += 1;
             }
             Ok(rankings)
+        })
+    }
+
+    /// Like `py_vs_py`, but returns one record per game instead of aggregated
+    /// rankings, so callers can score each duplicate set. Records are in seed
+    /// order, 4 per seed, with the challenger at seat `i % 4` in game `i`.
+    ///
+    /// Each record is `(seed, challenger_seat, challenger_rank, final_scores)`,
+    /// where `challenger_rank` is 0-based.
+    pub fn py_vs_py_games(
+        &self,
+        challenger: PyObject,
+        champion: PyObject,
+        seed_start: (u64, u64),
+        seed_count: u64,
+        py: Python<'_>,
+    ) -> Result<Vec<GameRecord>> {
+        py.allow_threads(move || {
+            let results = self.run_batch(
+                |player_ids| new_py_agent(challenger, player_ids),
+                |player_ids| new_py_agent(champion, player_ids),
+                seed_start,
+                seed_count,
+            )?;
+
+            let records = results
+                .iter()
+                .enumerate()
+                .map(|(i, result)| {
+                    let seat = (i % 4) as u8;
+                    let rank = result.rankings().rank_by_player[seat as usize];
+                    (result.seed.0, seat, rank, result.scores)
+                })
+                .collect();
+            Ok(records)
         })
     }
 
