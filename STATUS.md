@@ -20,7 +20,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM); no cloud spend y
 | GRP-v2 on `train` | **Done, frozen**: `workdir/grp-v2/grp-v2-frozen.pth` (`db28beac…`), val acc 22.8% |
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
-| Interfaces (05 §3, D37) | Raw-logit head, fixed reward units (opt-in), ordered trajectories + GAE: **done with tests**. Stored behaviour probs: **decided (D46) and done with tests** for actor sidecars + learner join; client/server transport and the trainer's ratio switch come with the P0/P1 wiring (`docs/design/behaviour-probs.md`) |
+| Interfaces (05 §3, D37) | **Done with tests** (2026-10-06): raw-logit head, fixed reward units, ordered trajectories + GAE, stored behaviour probs end to end (sidecars → server → trainer). Arms **P0/P1 are wired and smoke-tested** locally: `experiments/configs/p0.toml`, K1 critic + B0 warm-up mode (`docs/design/rl-wiring-handoff.md`) |
 | Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Client reconnect/backoff done; the rest needs cloud accounts and spend |
 
 ## 2026-10-03 — session 1 of v2
@@ -84,10 +84,49 @@ The user chose option A. Recorded as D46 and implemented; the design note now de
 
 **Not done:** the actor→server→trainer transport (`client.py`/`server.py`), and switching `train_online.py`'s ratio from `Old_mortal` to the stored probabilities. Both belong to the P0/P1 wiring.
 
+## 2026-10-06 — RL wiring for arms P0/P1 (hand-off M1–M6)
+
+Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
+
+**Built**
+- **M1 transport:** `client.py` submits each log's sidecar. `server.py` buffers and drains sidecars under the log's name, in `buffer_dir + '_behaviour'` / `drain_dir + '_behaviour'`; `buffer_size` still counts logs only. The drain reply also carries each log's parameter version and the server's current version (`common.drain_msg`). Clients without sidecars still work.
+- **M2 data:** `mortal/rl_dataset.py`:
+  - per trainee seat: GRP rewards in fixed **u units** (pts / 100; written down in the module docstring and `p0.toml`), `tj.build`, `tj.join_behaviour`;
+  - P0 (`targets = 'mc'`): Monte-Carlo returns, shuffled only afterwards;
+  - P1 (`targets = 'gae'`): whole-trajectory chunks with the critic's privileged channels;
+  - logs without a sidecar are skipped and counted; a seat whose log and sidecar disagree is skipped with an error.
+  - `FileDatasetsIter` (the SL path) is unchanged.
+- **M3 trainer:** `mortal/ppo.py` holds the dual-clip loss on masked raw logits in fp32. In `train_online.py`, new config keys whose defaults keep upstream: `policy.ratio_reference = 'stored'`, `dataset.ordered`, `policy.horizon`, `policy.advantage_norm`. Entries with a NaN `b` get weight 0. Tensorboard `ppo/*` logs ratio mean/p99/min/max, clip fraction, entropy, excluded fraction, policy lag (mean, max) and the first-minibatch ratio of each drain.
+- **Configs:** `experiments/configs/p0.toml` (05 §2.4; init = a *copy* of pilot A), plus `p0-smoke.toml` and `p1-smoke.toml`.
+- **M5 critic:** `mortal/critic.py`, a separate b8c128 on 1012 + 51 channels (opponents' hands; Invisible rows 0–50; wall order excluded). GAE runs on the learner per chunk before shuffling. MSE to λ-returns, with its own AdamW and LR schedule, saved in the checkpoint. `critic.warmup = true` is **B0**: the policy is frozen and only the critic steps. Diagnostics (`critic/*`): explained variance and 10-bin calibration against Monte-Carlo returns, measured before the critic trains on that data; the within/across-kyoku advantage variance ratio.
+- **M6:** `python -m lab … --arm/--package/--horizon` records them in registry rows (02 §9). Existing rows are untouched.
+- Tests: the arena fixture moved to `tests/conftest.py`. New: `test_transport.py`, `test_rl_dataset.py`, `test_ppo.py`, `test_critic.py`.
+
+**Verified**
+- `pytest tests/`: 58 pass (23 new), covering the 05 §8 items for these paths:
+  - first-minibatch ratio 1 within 1e-4 through the real dataset, collate and `ppo_loss` (CPU FP32);
+  - illegal-action probability exactly 0 (fp32/fp16/bf16 logits);
+  - bit-identical targets on recomputation;
+  - `done` matches the loader's kyoku ends (K) and the game end (H);
+  - no cross-seat targets (other seats' sidecar records scrambled → identical trajectory);
+  - reward statistics count stays 0;
+  - oracle-loader obs identical to the plain loader's;
+  - policy input exactly 1012 channels.
+- `cargo test` passes, clippy is at the baseline, `cargo fmt` is clean (no Rust changes).
+- **P0 smoke** (M4; `p0-smoke.toml`, 32 games per version, sequential): 3 versions trained in 116 s, no errors. 32/32 drained logs had same-named sidecars. First-minibatch ratio means 0.99993 / 1.00004 / 1.00005 (p99 ≈ 1.002, AMP). Excluded 0%. Policy lag 0 at drain, 1 after the mid-epoch submit. Peak RAM 5.7 GB.
+- **B0 → P1 smoke** (`p1-smoke.toml`, horizon H): B0 ran 2 versions (25 critic steps), and the policy stayed **bit-identical** to pilot A. P1 then restored the critic and ran 2 versions: ratio means 1.00002 / 1.00003, excluded 0%, all `critic/*` scalars logged, advantage variance ratio ≈ 0.1 (exactly 0 under P0). Peak RAM 6.8 GB.
+- Explained variance ≈ 0 at this scale is expected and says nothing about K1. These were plumbing runs: no registry rows, no strength claims. Run dirs: `workdir/p0-smoke/`, `workdir/p1-smoke/`.
+
+**Not done / open**
+- **P1 horizons:** how the two seeds split between K and H (user decision; handoff §5).
+- **K1 critic settings:** LR schedule, λ, loss and grad clip are placeholders in `p1-smoke.toml`. They need to be written down before P1 runs (05 §5.1). P1 has no non-smoke config yet.
+- B0 for real (0.3–0.5M hanchan ≈ 14–23 h here) and the arm runs: not started; they need the user's go-ahead.
+- Trainer gotcha (unchanged): pilot A restores `steps = 156,000` with a fresh optimizer, because the pilot's config was offline.
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
 1. Fleet (03): cloud accounts, VPN, provisioning, benchmarks, Mahjax spike → Phase 0 exit.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
-3. P0/P1 wiring: the ordered-trajectory loader in training, sidecar transport, and stored-probability ratios (D37, D46).
+3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.

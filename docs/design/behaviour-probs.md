@@ -54,9 +54,10 @@ Two departures from the option-A sketch above:
 
 **Recording is opt-in.** Only `behaviour_dir` turns it on, so lab runs keep neither the records nor their memory.
 
-**Not done yet: transport and the learner, for Phase 1 arms P0/P1.**
-- `client.py` doesn't yet submit sidecars, and `server.py` doesn't buffer or drain them.
-- `train_online.py` still computes ratios against `Old_mortal`. The stored probabilities replace it when the ordered-trajectory loader is wired into training (05 §2).
+**Transport and learner (2026-10-06, `docs/design/rl-wiring-handoff.md` M1–M5):**
+- `client.py` submits each log's sidecar as `'behaviour'`. `server.py` buffers and drains sidecars under the log's buffered name, in `buffer_dir + '_behaviour'` / `drain_dir + '_behaviour'`. The drain reply also carries each log's parameter version.
+- `rl_dataset.OrderedDatasetsIter` joins sidecars to the trainee's ordered trajectories. Logs without a sidecar are skipped and counted.
+- `train_online.py` with `policy.ratio_reference = 'stored'` takes ratios against the stored probabilities (`ppo.ppo_loss`). Entries with a NaN probability get weight 0 in the policy loss.
 
 ## Tests
 
