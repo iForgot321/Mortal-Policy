@@ -1,0 +1,27 @@
+# dataset-v1 parameters (04a §8). Part of the dataset identity:
+#   dataset-v1 = sha256(MANIFEST.id ‖ pipeline commit ‖ this file)
+# Changing anything here after the splits are frozen needs a decision-log entry.
+
+hf_repo = "nikketryhard/tenhou-houou-mjai"
+hf_revision = "6450bb584cef43ede3b514df48e301a832c6818b"
+
+[splits]
+# 04a §7 defaults. Moving the held-out window is D14b (08_decision_log.md).
+heldout_time_start = "2025-07-01"   # inclusive
+heldout_time_end = "2026-01-23"     # inclusive; end of the data
+train_start = "2015-01-01"
+ablate_start = "2009-01-01"         # train_ablate_2009 adds 2009–2014
+# heldout_game: int(sha1(salt + log_id)) mod 100 < 2, all four seats excluded
+heldout_game_mod = 100
+heldout_game_lt = 2
+# train halves for cross-fitted scoring: int(sha1(salt + log_id)) mod 2, 0 = E, 1 = O
+hash_salt = ""
+
+[quarantine]
+# Game-level drops (04a §4). Q6 kyoku masks and Q8 seat exclusions are applied
+# by the loader, not by dropping games; a Q6 row with kyoku -1 drops the game.
+drop_games = ["Q1", "Q2", "Q3", "Q5", "Q7"]
+# Q4 (unexplained score-continuity break): "drop" or "keep" (04a §4). Explained
+# breaks are coded Q4s (four-riichi abortive draw converter quirk, classified by
+# hand on 2009) and are kept.
+q4 = "drop"
