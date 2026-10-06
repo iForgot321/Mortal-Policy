@@ -13,6 +13,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-10-06 | Vast machine 42443, Washington | RTX 4090 | Ryzen 9 7950X (Zen 4 desktop) | 32 (no quota) | 124 GB | 0.713 | **51,421** | 13.9 | — | yes |
 | 2026-10-06 | Vast machine 137569, California | RTX 4090 | EPYC 9684X (Zen 4 server) | 32 (30.7) | 108 GB | 0.464 | **49,741** | **9.3** | **31,680** | yes |
+| 2026-10-06 | Vast machine 10447, Pennsylvania | RTX 4090 | EPYC 7V13 (Zen 3 server) | 32 (no quota visible) | 1 TB | 0.463 | **39,956** | 11.6 | 22,274 (800-game batches), 28,511 (2,000) | yes |
 | 2026-10-06 | Vast machine 48161, Arizona | RTX 4090 | EPYC 7742 (Zen 2 server) | 32 (30.7) | 503 GB | 0.487 | **30,895** | 15.8 | — | yes |
 | 2026-10-06 | Vast machines 27649 (Ontario) and 28903 (Thailand) | RTX 4090 | Ryzen 9 5950X; EPYC 7713 (Zen 3) | — | — | 0.387; 0.413 | not measured: both still pulling the image after 25 min, destroyed by the driver | — | — | — |
 | reference | Workstation | RTX 3060 12 GB | i5-12600KF | 16 | 15 GB | — | ~22,000 (A/A′ run timing, 2026-10-05) | — | — | — |
@@ -95,7 +96,8 @@ per instance; it always destroys its box, with a 2-hour watchdog and a 25-minute
 - **Bottleneck (03 §3.3):** neither CPU (18 of 31 cores) nor GPU (~10%) is saturated, so the limit
   is the serial step loop between libriichi and the engine, not raw compute. P0's 800-game batches
   run 36% slower than the lab's 2,000-game chunks; batch size is the first lever to test (it also
-  raises policy lag). A profile (`py-spy`) would settle it.
+  raises policy lag). A profile (`py-spy`) would settle it. *(Settled below: the Rust arena loop
+  on the main thread; 2,000-game batches give +28%.)*
 - **Learner capacity (03 §3.6):** ~3,750 samples/s covers the P0 arm's 1 learner + 2 actors
   (~2,800 samples/s at this actor rate), but not 03's fleet scale of 6–8K samples/s.
 - **Policy lag:** ~2 versions without `force_sequential`, against the fleet soak's p95 ≤ 2
@@ -124,7 +126,49 @@ per instance; it always destroys its box, with a 2-hour watchdog and a 25-minute
   §9). The 7950X is as fast but costs more per hour. Zen 2 clears the 25K/h bar but costs ~70%
   more per hanchan than the 9684X.
 - **Allowlist rule (provisional):** prefer Zen 4 hosts (EPYC 9xx4, Ryzen 7000/9000) and rank
-  them by $/hanchan; accept Zen 2 only when it is much cheaper per hour. Zen 3 is still untested.
+  them by $/hanchan; Zen 3 (~40K/h, see below) is a fair second; accept Zen 2 only when it is
+  much cheaper per hour.
+
+## 2026-10-06: Zen 3 retry with the extras (EPYC 7V13, contract 54525421)
+
+- **Box:** machine 10447, $0.463/h, 256 host threads with no cgroup quota visible, 1 TB RAM.
+  Code `dd052e7` plus uncommitted docs (the tree was synced before the notes were committed;
+  no code differs). Cost $0.45.
+- **Contended host:** `pytest` took 7 min 53 s here against 22–77 s on the other boxes, and setup
+  took 12 min, so other tenants were probably loading the machine. Treat this box's numbers as a
+  lower bound for Zen 3.
+- **Eval mode:** 5 chunks, 38,249–40,787 hanchan/h (rising), steady median **39,956**; GPU ~8%.
+
+### py-spy profile (`py-spy record --native --rate 50`, one 2,000-game chunk)
+
+py-spy samples the Python (main) thread only; 2,412 samples, and 8,062 more failed to unwind
+natively, so the shares below are indicative. Profiling also halved throughput (21,034/h).
+
+| Main-thread time | Share |
+|---|---|
+| Rust arena (libriichi), outside `react_batch` | **88.8%** (a quarter of it in `syscall`, i.e. waiting) |
+| Engine `react_batch` (torch forward, numpy, Python) | 2.3% |
+| Startup (`load_engine`) | 2.5% |
+| Other | 6.3% |
+
+**Reading:** the bottleneck is libriichi's arena step loop on the main thread (game logic, event
+handling, allocation), not Python and not inference. That matches the low GPU use, the partial CPU
+use, and the per-core-speed dependence across CPU generations. The lever is in Rust: parallelize
+or shorten what the main thread does per step (03 §6 items 7–8).
+
+### P0 throughput at 800- vs 2,000-game actor batches (same box, server + trainer + client)
+
+| Batch | Batches timed | Actor, hanchan/h | Learner busy per drain | Policy lag (mean / max) | First-minibatch ratio |
+|---|---|---|---|---|---|
+| 800 | 3 | 22,274 | 54 s of a 131 s cycle | 0.4 / 1 (one reading) | 0.995–1.005 |
+| 2,000 | 3 | **28,511** (+28%) | 158 s of a 256 s cycle | 2.2 / 4 | 1.000–1.003 |
+
+- Larger batches raise the actor rate by about 28% but raise policy lag past the fleet soak's
+  p95 ≤ 2 versions. The batch size is a tuning-allowance item for the P0 arm (05 §2.2), to be
+  written down before the runs.
+- The learner here trained ~2.4K samples/s (800-game drains), against 3.75K/s on the 9684X box:
+  the contended host again.
+- Only three batches per setting: the ±% is rough.
 
 ## Featurization rate (2026-10-06, workstation)
 

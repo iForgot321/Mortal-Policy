@@ -6,7 +6,7 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 ## Current position
 
 **Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
-Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $4.26 of $14.3K (benchmark boxes).
+Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $4.71 of $14.3K (benchmark boxes).
 
 | Phase 0 deliverable | State |
 |---|---|
@@ -21,7 +21,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
 | Interfaces (05 §3, D37) | **Done with tests** (2026-10-06): raw-logit head, fixed reward units, ordered trajectories + GAE, stored behaviour probs end to end (sidecars → server → trainer). Arms **P0/P1 are wired and smoke-tested** locally: `experiments/configs/p0.toml`, K1 critic + B0 warm-up mode (`docs/design/rl-wiring-handoff.md`) |
-| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). Open: Zen 3 hosts, bottleneck profile, P0 at 2,000-game batches, inference matrix, CPU-only test, VPN, Mahjax spike |
+| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 3 EPYC 7V13 40.0K ($11.6/M, contended host), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Bottleneck:** libriichi's arena loop on the main thread (~89% of main-thread samples; inference ~2%). P0 at 2,000-game batches +28% actor rate but lag mean ~2, max 4. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). Open: inference matrix, CPU-only test, VPN, Mahjax spike |
 
 ## 2026-10-03 — session 1 of v2
 
@@ -138,12 +138,13 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 **Later the same day**
 - Featurization rate measured on the workstation (`tools/fleet/bench_featurize.py`): loader 825 samples/s on 1 thread, 5.7K/s on 16; the SL pipeline gives 3.9K/s (1 worker) and 4.2K/s (2 workers). Reading for 03 §4.2: an H100 can't be fed (needs > 100 threads); a 4090/5090 teacher needs ≥ 48 vCPU *if* the pipeline scales with workers — untested beyond 2 workers (RAM).
 - Four CPU classes rented in parallel with `tools/fleet/box_bench.sh` (approved offers; boxes destroyed by the drivers): 7950X 51.4K/h, EPYC 7742 30.9K/h; the 5950X and EPYC 7713 never finished pulling the image (25-min limit) and were destroyed unmeasured, so the py-spy profile and the 2,000-game P0 test didn't run. $0.48.
+- Zen 3 retry with the extras (EPYC 7V13, $0.45): 40.0K hanchan/h eval mode on a visibly contended host. py-spy: the main thread spends ~89% in libriichi's arena loop and ~2% in the engine, so the actor bottleneck is Rust-side (03 §6 items 7–8), not Python or the GPU. P0 actor: 22.3K/h at 800-game batches, 28.5K/h at 2,000 (+28%), with policy lag rising to mean ~2, max 4. Driver and destroy worked unattended.
 - **Phase 0 exit, as `00` words it** (L0; σ_set, hanchan/h per box type and featurization samples/s logged with commit and config): all four are now logged. Still open among the 03 §10 Phase 0 deliverables: inference matrix, CPU-only verdict, Mahjax spike, VPN/health-check scripts, cost forecast through G1. Whether to declare exit now is the user's call.
 
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. Fleet (03): a Zen 3 host plus the py-spy profile and the 2,000-game P0 test (one box); then the inference matrix, CPU-only test, VPN and Mahjax spike. Decide whether these gate Phase 0 exit.
+1. Fleet (03): the inference matrix, CPU-only test, VPN and Mahjax spike; decide whether these gate Phase 0 exit. Optional throughput work: shorten libriichi's per-step main-thread work (the measured actor bottleneck).
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
