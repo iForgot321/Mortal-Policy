@@ -1,0 +1,36 @@
+# GRP-v2-nobye: ABLATION of grp-v2 (identical except train excludes every game with a BYE). Not frozen; for the disconnect question only.
+# (train_E + train_O) and validated on `heldout_game`, then FROZEN for
+# Phases 1–2. Replaces grp-v1, which trained on 2020–2024H1 of an older
+# revision (including games now in heldout_game). The schedule reproduces
+# grp-v1's hand annealing from config instead of manual restarts.
+#
+# Run from mortal/:  MORTAL_CFG=../experiments/configs/grp-v2.toml python train_grp.py
+# Index: python tools/data/make_index.py grp workdir/grp-v2-nobye/file_index.pth \
+#            --lists train_E train_O --val heldout_game
+# Notes: experiments/grp-v2.md
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2-nobye/grp.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2
+
+[grp.control]
+device = 'cuda:0'
+enable_cudnn_benchmark = false
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2-nobye/tb'
+batch_size = 512
+save_every = 2000
+val_steps = 400
+max_steps = 80000
+
+[grp.dataset]
+train_globs = []
+val_globs = []
+file_index = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2-nobye/file_index.pth'
+file_batch_size = 50
+
+[grp.optim]
+lr = 1e-3
+lr_steps = [[0.0, 1e-3], [40000.0, 1e-4], [60000.0, 1e-5]]  # floats: the toml lib rejects mixed int/float arrays
