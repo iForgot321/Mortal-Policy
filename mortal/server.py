@@ -19,6 +19,10 @@ from config import config
 class State:
     buffer_dir: str
     drain_dir: str
+    # behaviour sidecars (D46), under their log's name; kept out of buffer_dir,
+    # where every file counts as a log
+    behaviour_buffer_dir: str
+    behaviour_drain_dir: str
     capacity: int
     force_sequential: bool
     dir_lock: Lock
@@ -26,6 +30,8 @@ class State:
     # fields below are protected by dir_lock
     buffer_size: int
     submission_id: int
+    # param version each buffered log was played with, by its buffered name
+    buffer_versions: dict
     # fields below are protected by param_lock
     mortal_param: Optional[OrderedDict]
     dqn_param: Optional[OrderedDict]
@@ -76,11 +82,16 @@ class Handler(BaseRequestHandler):
         self.send_msg(buf.getbuffer(), packed=True)
 
     def handle_submit_replay(self, msg):
+        behaviour = msg.get('behaviour', {})  # older clients send none
         with S.dir_lock:
             for filename, content in msg['logs'].items():
-                filepath = path.join(S.buffer_dir, f'{S.submission_id}_{filename}')
-                with open(filepath, 'wb') as f:
+                name = f'{S.submission_id}_{filename}'
+                with open(path.join(S.buffer_dir, name), 'wb') as f:
                     f.write(content)
+                if filename in behaviour:
+                    with open(path.join(S.behaviour_buffer_dir, name), 'wb') as f:
+                        f.write(behaviour[filename])
+                S.buffer_versions[name] = msg['param_version']
             S.buffer_size += len(msg['logs'])
             S.submission_id += 1
             logging.info(f'total buffer size: {S.buffer_size}')
@@ -95,26 +106,31 @@ class Handler(BaseRequestHandler):
 
     def handle_drain(self):
         drained_size = 0
+        versions = {}
         with S.dir_lock:
             buffer_list = os.listdir(S.buffer_dir)
             raw_count = len(buffer_list)
             assert raw_count == S.buffer_size
             if (not S.force_sequential or raw_count >= S.capacity) and raw_count > 0:
-                old_drain_list = os.listdir(S.drain_dir)
-                for filename in old_drain_list:
-                    filepath = path.join(S.drain_dir, filename)
-                    os.remove(filepath)
-                for filename in buffer_list:
-                    src = path.join(S.buffer_dir, filename)
-                    dst = path.join(S.drain_dir, filename)
-                    shutil.move(src, dst)
+                for src_dir, dst_dir in ((S.buffer_dir, S.drain_dir), (S.behaviour_buffer_dir, S.behaviour_drain_dir)):
+                    for filename in os.listdir(dst_dir):
+                        os.remove(path.join(dst_dir, filename))
+                    for filename in os.listdir(src_dir):
+                        shutil.move(path.join(src_dir, filename), path.join(dst_dir, filename))
+                versions = S.buffer_versions
+                S.buffer_versions = {}
                 drained_size = raw_count
                 S.buffer_size = 0
                 logging.info(f'files transferred to trainer: {drained_size}')
                 logging.info(f'total buffer size: {S.buffer_size}')
+        with S.param_lock:
+            param_version = S.param_version
         self.send_msg({
             'count': drained_size,
             'drain_dir': S.drain_dir,
+            'behaviour_drain_dir': S.behaviour_drain_dir,
+            'param_versions': versions,
+            'param_version': param_version,
         })
 
     def send_msg(self, msg, packed=False):
@@ -133,15 +149,20 @@ class Server(ThreadingTCPServer):
 def main():
     global S
     cfg = config['online']['server']
+    buffer_dir = path.abspath(cfg['buffer_dir'])
+    drain_dir = path.abspath(cfg['drain_dir'])
     S = State(
-        buffer_dir = path.abspath(cfg['buffer_dir']),
-        drain_dir = path.abspath(cfg['drain_dir']),
+        buffer_dir = buffer_dir,
+        drain_dir = drain_dir,
+        behaviour_buffer_dir = path.abspath(cfg.get('behaviour_buffer_dir', buffer_dir + '_behaviour')),
+        behaviour_drain_dir = path.abspath(cfg.get('behaviour_drain_dir', drain_dir + '_behaviour')),
         capacity = cfg['capacity'],
         force_sequential = cfg['force_sequential'],
         dir_lock = Lock(),
         param_lock = Lock(),
         buffer_size = 0,
         submission_id = 0,
+        buffer_versions = {},
         mortal_param = None,
         dqn_param = None,
         param_version = 0,
@@ -149,12 +170,10 @@ def main():
     )
 
     bind_addr = (config['online']['remote']['host'], config['online']['remote']['port'])
-    if path.isdir(S.buffer_dir):
-        shutil.rmtree(S.buffer_dir)
-    if path.isdir(S.drain_dir):
-        shutil.rmtree(S.drain_dir)
-    os.makedirs(S.buffer_dir)
-    os.makedirs(S.drain_dir)
+    for d in (S.buffer_dir, S.drain_dir, S.behaviour_buffer_dir, S.behaviour_drain_dir):
+        if path.isdir(d):
+            shutil.rmtree(d)
+        os.makedirs(d)
 
     with Server(bind_addr, Handler, bind_and_activate=False) as server:
         server.allow_reuse_address = True

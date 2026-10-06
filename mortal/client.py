@@ -83,13 +83,23 @@ def main():
         logging.info(f'last {len(history)} sessions: {sum_rankings} ({ma_avg_rank:.6}, {ma_avg_pt:.6}pt)')
 
         logs = {}
+        behaviour = {}
         for filename in file_list:
+            name = path.basename(filename)
             with open(filename, 'rb') as f:
-                logs[path.basename(filename)] = f.read()
+                logs[name] = f.read()
+            # the game's behaviour sidecar (D46): same name, separate dir
+            sidecar = path.join(train_player.behaviour_dir, name)
+            if path.exists(sidecar):
+                with open(sidecar, 'rb') as f:
+                    behaviour[name] = f.read()
+        if len(behaviour) < len(logs):
+            logging.warning(f'{len(logs) - len(behaviour)} of {len(logs)} logs have no behaviour sidecar')
 
         request(remote, {
             'type': 'submit_replay',
             'logs': logs,
+            'behaviour': behaviour,
             'param_version': param_version,
         }, expect_reply=False)
         logging.info('logs have been submitted')

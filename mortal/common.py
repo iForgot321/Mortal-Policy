@@ -28,6 +28,12 @@ def iter_grads(parameters, take=False):
                 yield p.grad
 
 def drain():
+    return drain_msg()['drain_dir']
+
+def drain_msg():
+    """The server's drain reply: `drain_dir`, `behaviour_drain_dir` (D46
+    sidecars), `param_versions` (the version each drained log was played
+    with) and the server's current `param_version`."""
     remote = (config['online']['remote']['host'], config['online']['remote']['port'])
     while True:
         with socket.socket() as conn:
@@ -37,7 +43,7 @@ def drain():
         if msg['count'] == 0:
             time.sleep(5)
             continue
-        return msg['drain_dir']
+        return msg
 
 def submit_param(mortal, dqn, is_idle=False):
     remote = (config['online']['remote']['host'], config['online']['remote']['port'])
