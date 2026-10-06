@@ -3,7 +3,6 @@ distribution, and the arena sidecar joined to loader entries (05 §8: the
 first-minibatch ratio is 1 against the stored behaviour probability)."""
 import os
 import sys
-from glob import glob
 
 import numpy as np
 import pytest
@@ -14,18 +13,9 @@ sys.path.insert(0, os.path.join(ROOT, 'mortal'))
 
 import trajectory as tj  # noqa: E402
 from engine import MortalEngine  # noqa: E402
-from libriichi.arena import OneVsThree  # noqa: E402
 from libriichi.dataset import GameplayLoader  # noqa: E402
-from model import Brain, CategoricalPolicy  # noqa: E402
 
 CPU = torch.device('cpu')
-
-
-def make_engine(brain, policy, explore_rate, name):
-    return MortalEngine(
-        brain, policy, is_oracle=False, version=4, device=CPU, enable_amp=False,
-        enable_rule_based_agari_guard=True, explore_rate=explore_rate, name=name,
-    )
 
 
 @pytest.mark.parametrize('eps', [0.0, 0.3, 1.0])
@@ -49,27 +39,6 @@ def test_sampler_matches_behaviour_dist(eps):
     freq = torch.bincount(actions, minlength=46).double() / n
     sd = (dist[0].double() * (1 - dist[0].double()) / n).sqrt()
     assert ((freq - dist[0].double()).abs() <= 5 * sd + 1e-12).all()
-
-
-@pytest.fixture(scope='module')
-def arena_run(tmp_path_factory):
-    """Two duplicate sets with a small random network: a trainee that samples
-    (ε = 1) against the same network playing greedily."""
-    torch.manual_seed(0)
-    brain = Brain(version=4, conv_channels=32, num_blocks=1, Norm='GN').eval()
-    policy = CategoricalPolicy().eval()
-    root = tmp_path_factory.mktemp('behaviour')
-    env = OneVsThree(disable_progress_bar=True, log_dir=str(root / 'logs'),
-                     behaviour_dir=str(root / 'bp'))
-    env.py_vs_py(
-        challenger=make_engine(brain, policy, 1.0, 'trainee'),
-        champion=make_engine(brain, policy, 0.0, 'champion'),
-        seed_start=(0, 0x5eed),
-        seed_count=2,
-    )
-    logs = sorted(glob(str(root / 'logs' / '*.json.gz')))
-    assert len(logs) == 8
-    return root, logs, brain, policy
 
 
 def sidecar_of(root, log):

@@ -1,0 +1,124 @@
+# M4 smoke run of arm P0 (docs/design/rl-wiring-handoff.md §4): plumbing, not an experiment;
+# no registry rows, no strength claims. Identical to p0.toml except:
+#   - workdir/p0-smoke/ paths and port 5001;
+#   - train_play.games 32 and server capacity 32 with force_sequential, so collection and
+#     training alternate, one parameter version per drain;
+#   - save_every / submit_every 5 (a drain is ~10 batches), 1 worker, file_batch_size 8.
+#
+# Init: mkdir -p workdir/p0-smoke && cp workdir/pilot/qs-a/pilot-qs-a-final.pth workdir/p0-smoke/mortal.pth && chmod u+w workdir/p0-smoke/mortal.pth
+
+[control]
+version = 4
+online = true
+
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/mortal.pth'
+best_state_file = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/best.pth'
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/tb'
+
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+
+batch_size = 512
+opt_step_every = 1
+
+save_every = 5
+# test_play proves nothing (no verdict); evaluation is the lab's job. Also, the online
+# trainer exits after test_play and main() respawns it.
+test_every = 100_000_000
+submit_every = 5
+# unused with ratio_reference = 'stored'
+old_update_every = 400
+
+[train_play.default]
+games = 32
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/train_play'
+# behaviour sidecars (D46): log_dir + '_behaviour'
+repeats = 1
+explore_rate = 1.0
+
+[test_play]
+games = 1000
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/test_play'
+
+[dataset]
+# per-seat ordered trajectories joined to their behaviour sidecars (rl_dataset.py)
+ordered = true
+globs = []
+file_index = ''
+player_names_files = []
+# 1v3 logs carry one trainee seat: ~158 decisions, ~11 MB of fp16 obs per log
+file_batch_size = 8
+reserve_ratio = 0.0
+num_workers = 1
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+obs_fp16 = true
+
+[resnet]
+conv_channels = 192
+num_blocks = 8
+
+[env]
+# u x 100 (D2)
+pts = [90.0, 50.0, -10.0, -130.0]
+# the ordered dataset always uses fixed units; recorded for the checkpoint
+reward_standardization = false
+
+[policy]
+ratio_reference = 'stored'
+horizon = 'K'
+advantage_norm = true
+entropy_weight = 1e-3
+clip_ratio = 0.2
+dual_clip = 3.0
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.0
+max_grad_norm = 0.5
+
+[optim.scheduler]
+# constant: peak = final
+peak = 2e-5
+final = 2e-5
+warm_up_steps = 0
+max_steps = 0
+
+[baseline.train]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth'
+
+[baseline.test]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth'
+
+[online]
+history_window = 50
+# actor-side compile; the engine's batch sizes vary
+enable_compile = false
+
+[online.remote]
+host = '127.0.0.1'
+port = 5001
+
+[online.server]
+buffer_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/buffer'
+drain_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0-smoke/drain'
+# sidecars: buffer_dir + '_behaviour', drain_dir + '_behaviour'
+sample_reuse_rate = 0
+sample_reuse_threshold = 0
+capacity = 32
+force_sequential = true
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2

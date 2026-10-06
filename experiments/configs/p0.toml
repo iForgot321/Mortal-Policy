@@ -1,0 +1,136 @@
+# Arm P0 (05 §2.1, §2.4): the released policy recipe (dual-clip PPO on per-kyoku GRP
+# advantage) plus the D37/D46 correctness fixes: ratios against the stored behaviour
+# probabilities, fixed reward units, raw logits, the actor's masks. Values are 05 §2.4's
+# starting points.
+#
+# Init: COPY pilot A into the run directory; never write into workdir/pilot/:
+#   mkdir -p workdir/p0 && cp workdir/pilot/qs-a/pilot-qs-a-final.pth workdir/p0/mortal.pth && chmod u+w workdir/p0/mortal.pth
+# The trainer restores steps = 156,000 from it but, because the pilot's config was offline,
+# starts a fresh optimizer and scheduler (constant LR here, so the schedule doesn't care).
+#
+# Run from mortal/ (three processes; 03 for the fleet layout):
+#   MORTAL_CFG=../experiments/configs/p0.toml python server.py
+#   MORTAL_CFG=../experiments/configs/p0.toml python train_online.py
+#   MORTAL_CFG=../experiments/configs/p0.toml python client.py      # one per actor GPU
+#
+# Units: rewards are GRP-Δu in u units (pts / 100; rl_dataset.py). The policy sees only
+# advantages normalized per batch.
+# Horizon: K (kyoku-terminal surrogate), the upstream objective (05 §3.1).
+#
+# Frozen inputs: pilot A pilot-qs-a-final.pth (15121432…), GRP-v2 grp-v2-frozen.pth (db28beac…).
+
+[control]
+version = 4
+online = true
+
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/p0/mortal.pth'
+best_state_file = '/home/iforgot/projects/Mortal-Policy/workdir/p0/best.pth'
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0/tb'
+
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+
+batch_size = 512
+opt_step_every = 1
+
+save_every = 400
+# test_play proves nothing (no verdict); evaluation is the lab's job. Also, the online
+# trainer exits after test_play and main() respawns it.
+test_every = 100_000_000
+submit_every = 400
+# unused with ratio_reference = 'stored'
+old_update_every = 400
+
+[train_play.default]
+games = 800
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0/train_play'
+# behaviour sidecars (D46): log_dir + '_behaviour'
+repeats = 1
+explore_rate = 1.0
+
+[test_play]
+games = 1000
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0/test_play'
+
+[dataset]
+# per-seat ordered trajectories joined to their behaviour sidecars (rl_dataset.py)
+ordered = true
+globs = []
+file_index = ''
+player_names_files = []
+# 1v3 logs carry one trainee seat: ~158 decisions, ~11 MB of fp16 obs per log
+file_batch_size = 50
+reserve_ratio = 0.0
+num_workers = 2
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+obs_fp16 = true
+
+[resnet]
+conv_channels = 192
+num_blocks = 8
+
+[env]
+# u x 100 (D2)
+pts = [90.0, 50.0, -10.0, -130.0]
+# the ordered dataset always uses fixed units; recorded for the checkpoint
+reward_standardization = false
+
+[policy]
+ratio_reference = 'stored'
+horizon = 'K'
+advantage_norm = true
+entropy_weight = 1e-3
+clip_ratio = 0.2
+dual_clip = 3.0
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.0
+max_grad_norm = 0.5
+
+[optim.scheduler]
+# constant: peak = final
+peak = 2e-5
+final = 2e-5
+warm_up_steps = 0
+max_steps = 0
+
+[baseline.train]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth'
+
+[baseline.test]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth'
+
+[online]
+history_window = 50
+# actor-side compile; the engine's batch sizes vary
+enable_compile = false
+
+[online.remote]
+host = '127.0.0.1'
+port = 5000
+
+[online.server]
+buffer_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0/buffer'
+drain_dir = '/home/iforgot/projects/Mortal-Policy/workdir/p0/drain'
+# sidecars: buffer_dir + '_behaviour', drain_dir + '_behaviour'
+sample_reuse_rate = 0
+sample_reuse_threshold = 0
+capacity = 1600
+force_sequential = false
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2
