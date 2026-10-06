@@ -5,9 +5,11 @@
 # workdir/fleet/<date>-vast-<label>/, and destroy the instance.
 #
 # Destroy always runs (EXIT trap), and a watchdog destroys the box after HARD_LIMIT seconds
-# whatever state the driver is in. Launch it detached so it outlives the calling session, and
-# check the PID you wait on is this script (/proc/<pid>/cmdline):
-#     nohup tools/fleet/box_bench.sh <instance_id> 4090-7950x none > /tmp/drv.out 2>&1 &
+# whatever state the driver is in. Launch it in its own session so it outlives the calling one,
+# then look up its PID (backgrounding `a && b &` backgrounds the whole list, and `setsid` forks
+# when it is already a session leader, so `$!` is easy to get wrong):
+#     setsid -f tools/fleet/box_bench.sh <instance_id> 4090-7950x none > /tmp/drv.out 2>&1 < /dev/null
+#     pgrep -o -f '[b]ox_bench.sh <instance_id>'
 #
 # Needs: the vastai CLI with an API key, ~/.ssh/vast_ed25519 registered with Vast, and a clean
 # commit (the box gets the working tree as is).
