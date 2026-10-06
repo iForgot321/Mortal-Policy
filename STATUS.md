@@ -6,7 +6,7 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 ## Current position
 
 **Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
-Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM); no cloud spend yet ($0 of $14.3K).
+Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $3.78 of $14.3K (one trial box).
 
 | Phase 0 deliverable | State |
 |---|---|
@@ -21,7 +21,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM); no cloud spend y
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
 | Interfaces (05 §3, D37) | **Done with tests** (2026-10-06): raw-logit head, fixed reward units, ordered trajectories + GAE, stored behaviour probs end to end (sidecars → server → trainer). Arms **P0/P1 are wired and smoke-tested** locally: `experiments/configs/p0.toml`, K1 critic + B0 warm-up mode (`docs/design/rl-wiring-handoff.md`) |
-| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Client reconnect/backoff done; the rest needs cloud accounts and spend |
+| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`). **First host benchmarked** 2026-10-06: RTX 4090 + EPYC 9684X, 49.7K hanchan/h eval mode, 31.7K/h P0 actor, learner ~3.75K samples/s (`experiments/fleet-host-benchmarks.md`). Open: more host types, featurization rate, bottleneck profile, inference matrix, CPU-only test, VPN, Mahjax spike |
 
 ## 2026-10-03 — session 1 of v2
 
@@ -123,10 +123,22 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 - B0 for real (0.3–0.5M hanchan ≈ 14–23 h here) and the arm runs: not started; they need the user's go-ahead.
 - Trainer gotcha (unchanged): pilot A restores `steps = 156,000` with a fresh optimizer, because the pilot's config was offline.
 
+## 2026-10-06 — first cloud box (fleet trial)
+
+**Done**
+- `01` §10 prices re-checked (complete Vast listing; ≥ 32-vCPU provider table; secure-tier options). The `00` planning price ($0.55) is unchanged; today's ≥ 32-vCPU medians are 4090 $0.50, 5090 $0.67.
+- `tools/fleet/`: `setup_box.sh` (packages, Python/torch/GPU checks, Rust 1.95.0, pinned packages, libriichi build, frozen-input hashes, box configs, tests), `requirements-box.txt`, `frozen.sha256`, `bench_1v3.py` (eval-mode hanchan/h on a benchmark-only seed key).
+- Workflow chosen with the user: Vast.ai, the `vastai/pytorch:2.6.0-cuda-12.4.1-py312-22.04` image, **no published ports** beyond SSH, code by rsync from a clean commit, Claude drives the box over SSH (`~/.ssh/vast_ed25519`), no credentials on boxes. The GitHub fork stays at upstream; nothing pushed.
+- Trial box (Vast contract 54461788; RTX 4090, EPYC 9684X, 32 vCPU, $0.464/h): setup in ~3 min, all tests pass, P0 smoke passes the M4 checks, 49.7K hanchan/h eval mode, 31.7K/h P0 actor, learner ~3.75K samples/s. Details and gotchas: `experiments/fleet-host-benchmarks.md`.
+
+**Verified vs attempted:** everything above ran on the box and the numbers are from its logs (`workdir/fleet/20261006-vast-4090-epyc9684x/`). Not measured: 5090 boxes (torch 2.6 has no Blackwell kernels), featurization rate, multi-box networking/VPN.
+
+**Lesson:** the box idled ~7 h after the trial ($3.78 total vs ~$0.40 of work). Destroy right after copying results back.
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. Fleet (03): cloud accounts, VPN, provisioning, benchmarks, Mahjax spike → Phase 0 exit.
+1. Fleet (03) → Phase 0 exit: featurization rate (samples/s per vCPU), 2–4 more host types for the allowlist, a bottleneck profile; then the inference matrix, CPU-only test, VPN and Mahjax spike.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
