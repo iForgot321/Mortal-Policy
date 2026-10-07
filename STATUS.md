@@ -167,11 +167,27 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 
 **Not done:** 5090/H100 throughput (needs a rental, ~$2–3; wouldn't change the verdict). Verdict recorded under D12 in `08`; new open decision D12a (triple ron in libriichi's arena).
 
+## 2026-10-06 — SP ablation (hand-off `docs/design/sp-ablation-handoff.md`), in progress
+
+**Built (committed)**
+- **Obs v5** = v4 with the 123 single-player-table rows (889–1011) zeroed and the SP calculator never called; same shape, so `Brain(version=5)` builds v4's modules and the same seed gives the same initial weights. libriichi (`consts.rs`, `obs_repr.rs`, oracle arms), `model.py`, `engine.py`.
+- `tools/obs/hash_obs.py`: golden hash of `encode_obs` over 36 fixed arena/Tenhou logs; `--check-v5`.
+- `bench_featurize.py --version`; `bench_1v3.py` reports network decisions per game.
+- Configs `experiments/configs/sp-nosp-{a,b}.toml` (pilot configs with `version = 5` and new paths, nothing else) and the unattended chain `experiments/run_sp_ablation_chain.sh`.
+
+**Verified**
+- v4 bit-identical: golden hash `b9817059…` (22,794 decisions) identical before and after.
+- v5 == v4 with the rows zeroed, masks equal: every decision of those 36 logs; every decision of every Rust state test (+ a dedicated test, debug build too); pytest on encoder, SL loader, init weights and a v5-vs-v4 arena game. `cargo test`, clippy (baseline 27), fmt, `pytest` (64) pass.
+- **Speed (M2):** encode 3.4 µs vs 1,163 µs per decision; SL loader 90× per thread (74.5K vs 830 samples/s); SL pipeline (2 workers) 19.2K vs 4.6K samples/s; arena 54.4K vs 22.7K hanchan/h (2.8× per decision), CPU busy 2 vs 10, GPU 48% vs 22%.
+- Training path unchanged since the pilots (trainer/dataloader files predate pilot A's start; v4 hash identical), so the pairs are matched.
+
+**Running:** the chain, started 22:05 (trainer pid 1360221, ~5.7 steps/s, ≈ 8 h). Progress: `workdir/sp-ablation/chain.log`. No arena/lab work while it trains (RAM).
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
 1. Fleet (03): CPU-only test (low value now), VPN; decide whether these gate Phase 0 exit. Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
-   - **SP ablation** (hand-off `docs/design/sp-ablation-handoff.md`): v4's single-player tables cost ~1.2 ms per decision (v3: 3.4 µs; `tools/fleet/bench_encode.py`). Train no-SP students (obs v5 = v4 with the SP rows zeroed) matched to pilots A/B and run T-NI. This decides D12's reopen condition and a possibly large actor/featurization speed-up. Do it before the Phase 1 teachers. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
+   - **SP ablation: running** (2026-10-06, `experiments/sp-ablation.md`). Obs v5 built and tested; speed measured. The chain `experiments/run_sp_ablation_chain.sh` trains no-SP A, then T-NI vs pilot A; seed 2 only on a pass. Results then go to the user; adopting v5 needs a decision-log entry. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
