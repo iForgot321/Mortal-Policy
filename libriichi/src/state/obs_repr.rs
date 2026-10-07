@@ -14,6 +14,9 @@ use pyo3::prelude::*;
 const SELF_KAWA_ITEM_CHANNELS: usize = 4;
 const KAWA_ITEM_CHANNELS: usize = 8;
 const MAX_NUM_TURNS: usize = 17; // aka the actual practical `MAX_TSUMOS_LEFT`
+/// The single-player tables at the tail of v4: max EV, required tiles, the
+/// max-required-tiles discard and the per-turn probs/EV. v5 leaves them zero.
+pub(super) const SP_TABLE_CHANNELS: usize = 2 + 2 * 34 + 2 + 3 * MAX_NUM_TURNS;
 
 struct ObsEncoderContext<'a> {
     state: &'a PlayerState,
@@ -89,7 +92,7 @@ impl IntegerEncoder {
                     ctx.idx += intervals - 1;
                 }
             }
-            4 => {
+            4 | 5 => {
                 debug_assert!(self.one_hot || self.rescale);
 
                 if self.one_hot {
@@ -155,7 +158,7 @@ impl<'a> ObsEncoderContext<'a> {
                 2 | 3 => IntegerEncoder::new(score as usize / 100, 500)
                     .rbf_intervals(10)
                     .encode(&mut self),
-                4 => {
+                4 | 5 => {
                     let v = score.clamp(0, 30_000) as f32 / 30_000.;
                     self.arr.fill(self.idx, v);
                     self.idx += 1;
@@ -172,24 +175,24 @@ impl<'a> ObsEncoderContext<'a> {
         match self.version {
             // for v1, this was a mistake, it actually only uses 3 channels.
             1 => self.arr.fill_rows(self.idx, n, 1.),
-            2 | 3 | 4 => self.arr.fill(self.idx + n, 1.),
+            2 | 3 | 4 | 5 => self.arr.fill(self.idx + n, 1.),
             _ => unreachable!(),
         }
         self.idx += 4;
 
         let cap = match self.version {
-            1 | 4 => 10,
+            1 | 4 | 5 => 10,
             2 | 3 => 6,
             _ => unreachable!(),
         };
         let n = state.honba as usize;
         IntegerEncoder::new(n, cap)
-            .rescale(self.version == 4)
+            .rescale(matches!(self.version, 4 | 5))
             .rbf_intervals(3)
             .encode(&mut self);
         let n = state.kyotaku as usize;
         IntegerEncoder::new(n, cap)
-            .rescale(self.version == 4)
+            .rescale(matches!(self.version, 4 | 5))
             .rbf_intervals(3)
             .encode(&mut self);
 
@@ -197,7 +200,7 @@ impl<'a> ObsEncoderContext<'a> {
         self.arr.assign(self.idx + 1, state.jikaze.as_usize(), 1.);
         self.idx += 2;
 
-        if matches!(self.version, 2 | 3 | 4) {
+        if matches!(self.version, 2 | 3 | 4 | 5) {
             let n = (state.bakaze.as_u8() - tu8!(E)).min(1) * 4 + state.kyoku;
             IntegerEncoder::new(n as usize, 7)
                 .rescale(true)
@@ -220,7 +223,7 @@ impl<'a> ObsEncoderContext<'a> {
         self.idx += (18 - state.kawa[0].len().min(18)) * SELF_KAWA_ITEM_CHANNELS;
 
         let max_kawa_len = state.kawa.iter().map(|k| k.len()).max().unwrap();
-        if matches!(self.version, 3 | 4) {
+        if matches!(self.version, 3 | 4 | 5) {
             for (turn, kawa_item) in state.kawa[0].iter().enumerate() {
                 if let Some(kawa_item) = kawa_item {
                     let sutehai = kawa_item.sutehai;
@@ -258,7 +261,7 @@ impl<'a> ObsEncoderContext<'a> {
                     }
                     self.idx += 6;
                 }
-                3 | 4 => {
+                3 | 4 | 5 => {
                     for (turn, kawa_item) in player_kawa.iter().enumerate() {
                         if let Some(kawa_item) = kawa_item {
                             let sutehai = kawa_item.sutehai;
@@ -328,7 +331,7 @@ impl<'a> ObsEncoderContext<'a> {
             self.idx += 1;
         }
 
-        if matches!(self.version, 2 | 3 | 4) {
+        if matches!(self.version, 2 | 3 | 4 | 5) {
             for (tid, count) in state.tiles_seen.iter().copied().enumerate() {
                 self.arr.assign(self.idx, tid, count as f32 / 4.);
             }
@@ -621,6 +624,11 @@ impl<'a> ObsEncoderContext<'a> {
                 // Skip everything else.
                 self.idx += 2 * 34 + 2 + 3 * MAX_NUM_TURNS;
             }
+        } else if self.version == 5 {
+            // v5 = v4 without the single-player tables: the rows stay, zeroed,
+            // and the calculator is never called.
+            debug_assert_eq!(self.idx + SP_TABLE_CHANNELS, self.arr.rows());
+            self.idx += SP_TABLE_CHANNELS;
         }
 
         assert_eq!(self.idx, self.arr.rows());

@@ -1,3 +1,4 @@
+use super::obs_repr::SP_TABLE_CHANNELS;
 use super::{ActionCandidate, PlayerState};
 use crate::algo::shanten;
 use crate::consts::MAX_VERSION;
@@ -5,6 +6,8 @@ use crate::hand::{hand, hand_with_aka, tile37_to_vec};
 use crate::mjai::Event;
 use crate::{matches_tu8, must_tile, t, tuz};
 use std::mem;
+
+use ndarray::s;
 
 impl PlayerState {
     fn test_update(&mut self, event: &Event) -> ActionCandidate {
@@ -65,7 +68,23 @@ impl PlayerState {
                     assert_eq!(mask.as_slice().unwrap(), self.action_mask(true));
                 }
             }
+            self.assert_v5_is_v4_without_sp(false);
+            if self.last_cans.can_kakan || self.last_cans.can_ankan {
+                self.assert_v5_is_v4_without_sp(true);
+            }
         }
+    }
+
+    /// Returns whether v4's single-player rows had anything in them.
+    fn assert_v5_is_v4_without_sp(&self, at_kan_select: bool) -> bool {
+        let (v4, mask4) = self.encode_obs(4, at_kan_select);
+        let (v5, mask5) = self.encode_obs(5, at_kan_select);
+        let sp_start = v4.nrows() - SP_TABLE_CHANNELS;
+        assert_eq!(v5.dim(), v4.dim());
+        assert_eq!(mask5, mask4);
+        assert_eq!(v5.slice(s![..sp_start, ..]), v4.slice(s![..sp_start, ..]));
+        assert!(v5.slice(s![sp_start.., ..]).iter().all(|&v| v == 0.));
+        v4.slice(s![sp_start.., ..]).iter().any(|&v| v != 0.)
     }
 }
 
@@ -1417,4 +1436,33 @@ fn chi_at_0_shanten() {
     assert_eq!(ps.real_time_shanten(), -1);
     assert!(ps.at_furiten);
     assert!(!ps.has_next_shanten_discard);
+}
+
+#[test]
+fn obs_v5_is_v4_without_sp() {
+    // Tenpai from the start, so v4 fills its single-player rows at both the
+    // discard decision and the call decision. `validate` checks the same
+    // equality at every decision of every test here.
+    let log = r#"
+        {"type":"start_kyoku","bakaze":"E","dora_marker":"W","kyoku":1,"honba":0,"kyotaku":0,"oya":0,"scores":[25000,25000,25000,25000],"tehais":[["1m","2m","3m","5p","5p","4s","5s","E","E","E","S","S","S"],["?","?","?","?","?","?","?","?","?","?","?","?","?"],["?","?","?","?","?","?","?","?","?","?","?","?","?"],["?","?","?","?","?","?","?","?","?","?","?","?","?"]]}
+        {"type":"tsumo","actor":0,"pai":"P"}
+    "#;
+    let mut ps = PlayerState::from_log(0, log);
+    assert!(ps.last_cans.can_discard);
+    assert!(ps.assert_v5_is_v4_without_sp(false));
+
+    let log = r#"
+        {"type":"dahai","actor":0,"pai":"P","tsumogiri":true}
+        {"type":"tsumo","actor":1,"pai":"?"}
+        {"type":"dahai","actor":1,"pai":"P","tsumogiri":true}
+        {"type":"tsumo","actor":2,"pai":"?"}
+        {"type":"dahai","actor":2,"pai":"P","tsumogiri":true}
+        {"type":"tsumo","actor":3,"pai":"?"}
+        {"type":"dahai","actor":3,"pai":"6s","tsumogiri":false}
+    "#;
+    for line in log.trim().split('\n') {
+        ps.test_update_json(line);
+    }
+    assert!(ps.last_cans.can_chi_high && !ps.last_cans.can_discard);
+    assert!(ps.assert_v5_is_v4_without_sp(false));
 }
