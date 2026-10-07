@@ -117,6 +117,11 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - At fleet scale the payoff is larger. A third-party report puts real PPO training at 21–58K steps/s per GPU, which could mean 3–9× a libriichi box per dollar [inf].
   - The integration allowance is raised to **≤ 4 weeks**, run in parallel with Phases 1–2 on libriichi.
   - The ≥ 3× throughput threshold is now measured **per dollar**.
+- **Spike result (2026-10-06): D12 stands.** Mahjax 0.1.6; `experiments/mahjax-spike.md`.
+  - **Parity: fixable, not yet passing.** 30K replayed games (10K bot, 10K bot with random actions, 10K Tenhou human), 19.5M decisions, 99.99946% identical legal sets. Mahjax has three rule bugs relative to Tenhou: no furiten after passing a no-yaku winning tile, a honba ≥ 8 dealer-repeat cap, and riichi ankan of a waited tile. libriichi's arena has one deviation of its own: it pays a triple ron, which Tenhou aborts. Mahjax's payouts equal Tenhou's on the 10K Tenhou games.
+  - **Throughput per dollar: passes.** Once an upstream memory bug is patched (`vmap` × `lax.cond` copied a 22 MiB table per environment), an RTX 3060 runs env + observation + b8c192 at 127K hanchan/h: $0.44–0.72 per million hanchan at Vast 3060 prices, 7.5–12× below libriichi's $5.4/M. The 5090 and H100 were not measured.
+  - **Integration: fails, ≈ 6–9 weeks.** The blocker is the observation. v4's single-player-table channels (~12%) come from a recursive search that can't be ported to JAX hash-identically. Adopting Mahjax means a new observation schema in two languages, an SL retrain and a T-NI against v4.
+  - **Reopen if** G0 finds actor throughput binding (fleet soak, `03` §3.7) **and** an SL A/B shows a JAX-portable observation (v4 without the single-player tables) is non-inferior to v4. Integration would then be ~4–5 weeks.
 
 ## Data
 
@@ -486,3 +491,4 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D33b-1:** whether expert iteration earns funding.
 - **D19:** the Gate G1 search classes for inference.
 - **D20:** the decision on publishing weights, after re-reading Tenhou's terms (`07` §6).
+- **D12a:** whether libriichi's arena should abort a triple ron (三家和了) as Tenhou does. It pays all three today (3–7 per 10,000 bot games; `experiments/mahjax-spike.md`). The rules config is frozen, so a change needs an entry here.

@@ -21,7 +21,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
 | Interfaces (05 §3, D37) | **Done with tests** (2026-10-06): raw-logit head, fixed reward units, ordered trajectories + GAE, stored behaviour probs end to end (sidecars → server → trainer). Arms **P0/P1 are wired and smoke-tested** locally: `experiments/configs/p0.toml`, K1 critic + B0 warm-up mode (`docs/design/rl-wiring-handoff.md`) |
-| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 3 EPYC 7V13 40.0K ($11.6/M, contended host), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Bottleneck:** libriichi's arena loop on the main thread (~89% of main-thread samples; inference ~2%). P0 at 2,000-game batches +28% actor rate but lag mean ~2, max 4. **Multi-process actors:** 2 processes per box 77.8K/h (1.48×), 3 processes 85.3K/h (1.62×, ~$5.4/M). **Inference matrix (reduced):** actor size up to b16c256 costs ≤ ~6% throughput, b24c512 ~28% (AMP), torch.compile +8–11%. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). Open: CPU-only test, VPN, Mahjax spike |
+| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 3 EPYC 7V13 40.0K ($11.6/M, contended host), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Bottleneck:** libriichi's arena loop on the main thread (~89% of main-thread samples; inference ~2%). P0 at 2,000-game batches +28% actor rate but lag mean ~2, max 4. **Multi-process actors:** 2 processes per box 77.8K/h (1.48×), 3 processes 85.3K/h (1.62×, ~$5.4/M). **Inference matrix (reduced):** actor size up to b16c256 costs ≤ ~6% throughput, b24c512 ~28% (AMP), torch.compile +8–11%. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). **Mahjax spike done** 2026-10-06: D12 stands (parity fixable, throughput per dollar passes 7.5–12× on a rented 3060, integration ≈ 6–9 weeks; `experiments/mahjax-spike.md`). Open: CPU-only test, VPN |
 
 ## 2026-10-03 — session 1 of v2
 
@@ -142,10 +142,35 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 - Multi-process actors + reduced inference matrix on one EPYC 9684X box ($0.62; `bench_matrix.sh`): 1 / 2 / 3 concurrent processes give 52.6K / 77.8K / 85.3K hanchan/h, so 2–3 actor processes per box is the biggest throughput lever found (~$5.4–6.0 per million hanchan). Shadow pricing: up to b16c256 costs ≤ ~6% vs b8c192, b24c512 ~28% under AMP; torch.compile +8–11%. The shadow mechanism's own ~20% cost points at the observation path (np.stack + host-to-device copy) as a cheap optimization target.
 - **Phase 0 exit, as `00` words it** (L0; σ_set, hanchan/h per box type and featurization samples/s logged with commit and config): all four are now logged. Still open among the 03 §10 Phase 0 deliverables: inference matrix, CPU-only verdict, Mahjax spike, VPN/health-check scripts, cost forecast through G1. Whether to declare exit now is the user's call.
 
+## 2026-10-06 — Mahjax spike (03 §7, D12)
+
+**Built**
+- libriichi: `PlayerState.action_mask(at_kan_select)` from Python (6 lines in `state/getter.rs`; no behaviour change), test `tests/test_action_mask_py.py`.
+- `tools/mahjax/`:
+  - `parity.py` replays mjai logs through Mahjax with each kyoku's wall rebuilt from the log, and compares every seat's legal set at every decision, plus deltas, kyoku transitions and final scores;
+  - `bench.py` and `net.py` measure throughput, with a JAX copy of the v4 network;
+  - `select_patch.py` is the memory fix;
+  - `box_mahjax.sh` is a cloud driver, not run.
+- Conda env `mahjax` (JAX 0.11.2, Mahjax 0.1.6 editable from `workdir/mahjax-src`); the `mortal` env is untouched.
+
+**Verified**
+- Negative controls catch changed rules: a kuikae mutant, abortive draws off, and double ron off.
+- Parity over 30K games (10K pilot A vs B, 10K hobbled, 10K Tenhou 2024-03): 19.5M decisions, 105 different, all explained.
+  - Three Mahjax rule bugs vs Tenhou: furiten after passing a no-yaku winning tile, a honba ≥ 8 dealer cap, and riichi ankan of a waited tile.
+  - One libriichi deviation: its arena pays a triple ron, which Tenhou aborts.
+  - Mahjax's payouts equal Tenhou's on all 10K Tenhou games.
+- Throughput on the 3060:
+  - upstream Mahjax runs out of memory at 256 envs (22 MiB per env from `vmap` × `lax.cond`);
+  - patched, env only: 39K steps/s;
+  - env + observation + b8c192: 22.3K steps/s ≈ 127K hanchan/h (632 steps per hanchan), 5.8× libriichi on the same machine.
+- `cargo test`, clippy (baseline 27), fmt and `pytest` (59) pass.
+
+**Not done:** 5090/H100 throughput (needs a rental, ~$2–3; wouldn't change the verdict). Verdict recorded under D12 in `08`; new open decision D12a (triple ron in libriichi's arena).
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. Fleet (03): CPU-only test (low value now), VPN, Mahjax spike; decide whether these gate Phase 0 exit. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
+1. Fleet (03): CPU-only test (low value now), VPN; decide whether these gate Phase 0 exit. Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
