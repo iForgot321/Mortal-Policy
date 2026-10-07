@@ -111,6 +111,13 @@ impl PlayerState {
         self.last_cans
     }
 
+    /// `action_mask` for Python: the mask `encode_obs` returns, without
+    /// encoding the observation (`tools/mahjax` rule-parity harness).
+    #[pyo3(name = "action_mask", signature = (at_kan_select = false))]
+    fn action_mask_py(&self, at_kan_select: bool) -> Vec<bool> {
+        self.action_mask(at_kan_select).to_vec()
+    }
+
     #[inline]
     #[pyo3(name = "ankan_candidates")]
     fn ankan_candidates_py(&self) -> Vec<String> {
