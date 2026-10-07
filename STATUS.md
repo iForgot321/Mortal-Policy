@@ -171,6 +171,7 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. Fleet (03): CPU-only test (low value now), VPN; decide whether these gate Phase 0 exit. Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
+1. Fleet (03): CPU-only test (low value now), VPN; decide whether these gate Phase 0 exit. Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
+   - **SP ablation** (hand-off `docs/design/sp-ablation-handoff.md`): v4's single-player tables cost ~1.2 ms per decision (v3: 3.4 µs; `tools/fleet/bench_encode.py`). Train no-SP students (obs v5 = v4 with the SP rows zeroed) matched to pilots A/B and run T-NI. This decides D12's reopen condition and a possibly large actor/featurization speed-up. Do it before the Phase 1 teachers. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
