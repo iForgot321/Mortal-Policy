@@ -96,11 +96,72 @@ Workstation (i5-12600KF, 16 threads; RTX 3060), nothing else running, 2026-10-06
 
 ## 4. Training runs (M3, M6)
 
-_Pending._
+Configs `experiments/configs/sp-nosp-{a,b}.toml`: the pilot configs with `version = 5` and their
+own paths, nothing else changed. Run by `experiments/run_sp_ablation_chain.sh` (log:
+`workdir/sp-ablation/chain.log`, per-minute RAM: `nosp-*/ram.log`).
+
+**Matched-pair check.** The trainer and data loader are the code the pilots ran
+(`train_offline_phase1.py` and `dataloader.py` last modified 2026-10-03 02:26, before pilot A
+started at 10:31; v4's encoder hash unchanged). Startup matches (seed, 3,531,008 + 274,222 params,
+500,000 files), and like both pilots the run exhausted its data at exactly step 157,869
+(156,000 + 1,869), so it saw the same number of samples.
+
+| Run | Time | Steps/s | Samples/s | Peak RAM | Final checkpoint |
+|---|---|---|---|---|---|
+| Pilot A (v4, seed 1) | 24.8 h | ~1.75 | ~3.6K, featurization-bound | ~8.6 GB (2026-10-03; method not recorded) | step 156,000, `15121432…` |
+| Pilot B (v4, seed 2) | 25.4 h | ~1.76 | ~3.6K | — | step 156,000, `b267c026…` |
+| **No-SP A** (v5, seed 1), 2026-10-06 22:05 → 10-07 06:39 | **8.6 h** | 5.1 | 10.5K, mostly GPU-bound (GPU ~80%, trainer ~2.7 CPUs) | 13.3 GB (system used, 1-min samples; steady 12.5–13.3) | step 156,000, `498aabc8…` (read-only) |
+
+- **RAM:** 13.3 GB system-wide (MemTotal − MemAvailable, including ~1.4 GB of shared memory for
+  batches) is above the pilots' recorded 8.6 GB, but steady from the first minute, with no memory
+  pressure. Each loader worker holds ~4 GB. Whether the pilots really used less or were measured
+  differently is unknown. A stall watchdog ran alongside; nothing tripped.
+- **BC loss** (nats per decision, 2K-step means; diagnostic only, CLAUDE.md rule 1). One epoch,
+  so every batch is unseen when its loss is taken:
+
+  | Step | Pilot A | Pilot B | No-SP A | No-SP A − A | B − A |
+  |---|---|---|---|---|---|
+  | 2K | 0.830 | 0.826 | 0.892 | +0.062 | −0.004 |
+  | 10K | 0.567 | 0.566 | 0.575 | +0.008 | −0.001 |
+  | 20K | 0.541 | 0.543 | 0.549 | +0.007 | +0.002 |
+  | 40K | 0.525 | 0.526 | 0.531 | +0.006 | +0.001 |
+  | 80K | 0.510 | 0.509 | 0.511 | +0.001 | −0.001 |
+  | 120K | 0.495 | 0.497 | 0.495 | −0.000 | +0.002 |
+  | 156K | 0.4888 | 0.4887 | 0.4880 | −0.001 | −0.000 |
+
+  The SP inputs speed up early learning (a 0.06-nat gap at 2K steps, ~0.007 at 10–40K), but the
+  gap closes by ~100K steps (~200M samples): over steps ≥ 100K it averages −0.0005 (B − A: 0.0000).
 
 ## 5. Verdicts (M4, M6)
 
-_Pending._
+**Smoke** (mixed versions through `lab.arena.play_sets`, benchmark key, 16 sets): runs; each side
+encodes with its own engine's version (also covered by `tests/test_obs_v5.py`).
+
+**Pair 1: PASS.** `20261007-064005-T-NI`, no-SP A (v5, seed 1) vs pilot A (v4, seed 1), family B,
+AMP, exploratory, calibrated boundaries. Pass at 10,000 sets (40K games, 06:40 → 08:07):
+mean Δu = −0.0007, set SD 0.342, LLR +3.66 (boundary +2.944). For scale only (a sequential
+estimate, so this interval is not a valid CI): ±1.96·SD/√n ≈ ±0.0067. The running mean stayed
+within ±0.01 throughout (+0.008 at 2,000 sets, −0.003 at 8,500).
+
+**Style panel** (challenger seat; `panel.json` in the run dir), against pilot A as challenger in
+the A/A′ run (vs 3 × pilot B, 80K games): no metric moved beyond noise.
+
+| Metric | Pilot A | No-SP A |
+|---|---|---|
+| Avg rank | 2.498 | 2.500 |
+| Win / deal-in % | 21.77 / 13.07 | 21.73 / 13.14 |
+| Call / riichi % | 28.29 / 20.00 | 28.45 / 20.10 |
+| Dama share of wins % | 12.54 | 12.49 |
+| Avg win / avg deal-in | 6,355 / −5,200 | 6,386 / −5,223 |
+| Mangan+ / honitsu share of wins % | 32.13 / 4.26 | 32.37 / 4.25 |
+| First discard honour / 2–8 % | 62.33 / 4.77 | 62.37 / 4.71 |
+| Shanten-backward, quiet / facing riichi % | 0.704 / 13.05 | 0.705 / 13.06 |
+| 4th as oorasu leader % | 0.66 | 0.71 |
+
+(Deal-in SE ≈ 0.05 points over 420K kyoku; the opponents differ slightly: 3 × pilot B there,
+3 × pilot A here.)
+
+**Pair 2:** no-SP B (seed 2) training since 2026-10-07 08:07; T-NI vs pilot B follows. _Pending._
 
 ## 6. Recommendation
 
