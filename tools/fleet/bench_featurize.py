@@ -1,6 +1,6 @@
 """Featurization rate (03 §3.4, §4.2): samples/s from Tenhou logs.
 
-1. Loader scaling: GameplayLoader.load_gz_log_files (parse + obs v4 encoding, all four seats)
+1. Loader scaling: GameplayLoader.load_gz_log_files (parse + obs encoding, all four seats)
    at several rayon thread counts, each in a fresh process (the pool size is fixed at first use).
 2. SL pipeline: FileDatasetsIter + DataLoader exactly as train_offline_phase1.py builds them
    (BC, fp16 obs, Q6/Q8 masks, file_batch_size 20), consumed without a GPU, by worker count.
@@ -55,7 +55,7 @@ def child_loader(args):
     files = sample_files(args)
     threads = int(os.environ['RAYON_NUM_THREADS'])
     batch = max(8, 2 * threads)
-    loader = GameplayLoader(version=4, oracle=False)
+    loader = GameplayLoader(version=args.version, oracle=False)
     samples = 0
     t0 = time.time()
     for i in range(0, len(files), batch):
@@ -81,7 +81,7 @@ def child_pipeline(args):
     files = sample_files(args)
     masks = load_masks(args.masks) if args.masks and os.path.exists(args.masks) else {}
     data = FileDatasetsIter(
-        version=4,
+        version=args.version,
         file_list=files,
         pts=[90, 50, -10, -130],
         file_batch_size=20,
@@ -111,7 +111,7 @@ def run_child(args, extra, env):
     if mem_available_gb() < args.min_free_gb:
         return {'skipped': f'MemAvailable {mem_available_gb():.1f} GB < {args.min_free_gb} GB'}
     cmd = [sys.executable, os.path.abspath(__file__), '--file-index', args.file_index, '--files', str(args.files),
-           '--data-root', args.data_root, '--masks', args.masks or ''] + extra
+           '--data-root', args.data_root, '--masks', args.masks or '', '--version', str(args.version)] + extra
     out = subprocess.run(cmd, env={**os.environ, **env}, capture_output=True, text=True, cwd=ROOT)
     if out.returncode != 0:
         return {'error': out.stderr.strip().splitlines()[-1] if out.stderr.strip() else f'exit {out.returncode}'}
@@ -124,6 +124,7 @@ def main():
     p.add_argument('--files', type=int, default=256, help='log files sampled evenly from the index')
     p.add_argument('--data-root', default=os.path.expanduser('~/mj-data'))
     p.add_argument('--masks', default=os.path.expanduser('~/mj-data/splits/masks.jsonl'))
+    p.add_argument('--version', type=int, default=4, help='obs version (5 = v4 without the single-player tables)')
     p.add_argument('--threads', default=None, help='comma-separated rayon thread counts (default: 1,2,4,... and nproc)')
     p.add_argument('--workers', default='1,2', help='comma-separated DataLoader worker counts')
     p.add_argument('--min-free-gb', type=float, default=4.0, help='skip a run if less RAM is available')
@@ -148,7 +149,7 @@ def main():
     commit = subprocess.run(['git', '-C', ROOT, 'describe', '--always', '--dirty', '--abbrev=12'],
                             capture_output=True, text=True).stdout.strip()
     info = {'cpu': cpu, 'cpus_affinity': ncpu, 'hostname': platform.node(), 'commit': commit,
-            'file_index': args.file_index, 'files': args.files}
+            'file_index': args.file_index, 'files': args.files, 'version': args.version}
     print(json.dumps(info), flush=True)
 
     loader_runs = []

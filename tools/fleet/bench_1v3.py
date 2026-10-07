@@ -1,6 +1,7 @@
 """Host benchmark (03 §3.1): 1v3 duplicate play with one checkpoint on both sides, argmax,
 AMP, 500 sets (2,000 concurrent games) per arena call, the way the lab plays (lab/arena.py).
-Reports hanchan/h per chunk and overall, the CPU used (cgroup), and GPU utilization.
+Reports hanchan/h per chunk and overall, network decisions per game, the CPU used (cgroup), and
+GPU utilization.
 
 Not a lab run: seeds come from a benchmark-only key outside the seed families
 (lab/seeds.toml), and nothing is written to the registry or the nonce ledger.
@@ -80,6 +81,22 @@ class ShadowEngine:
                     o = torch.cat([o, o.new_zeros((size - n, *o.shape[1:]))])
                     mk = torch.cat([mk, mk.new_ones((size - n, *mk.shape[1:]))])
             self.forward(o, mk)
+        return self.inner.react_batch(obs, masks, invisible_obs)
+
+
+class CountingEngine:
+    """Counts the observations the arena sends to Python: network decisions per game (a
+    checkpoint of another obs version plays somewhat differently, so game lengths shift)."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        for attr in ('engine_type', 'name', 'is_oracle', 'version', 'enable_quick_eval',
+                     'enable_rule_based_agari_guard'):
+            setattr(self, attr, getattr(inner, attr))
+        self.decisions = 0
+
+    def react_batch(self, obs, masks, invisible_obs):
+        self.decisions += len(obs)
         return self.inner.react_batch(obs, masks, invisible_obs)
 
 
@@ -191,6 +208,8 @@ def main():
     if args.shadow:
         challenger = ShadowEngine(challenger, args.shadow, args.compile)
         champion = ShadowEngine(champion, args.shadow, args.compile)
+    challenger, champion = CountingEngine(challenger), CountingEngine(champion)
+    info['version'] = challenger.version
 
     gpu = GpuSampler()
     chunks = []
@@ -199,6 +218,7 @@ def main():
         while len(chunks) < max(1, args.min_chunks) or time.time() - start < args.minutes * 60:
             i = len(chunks)
             u0, t0 = cgroup_usage_usec(), time.time()
+            d0 = challenger.decisions + champion.decisions
             play_sets(challenger, champion, BENCH_KEY, (args.nonce_offset + i) * args.chunk_sets, args.chunk_sets)
             u1, t1 = cgroup_usage_usec(), time.time()
             games = 4 * args.chunk_sets
@@ -207,6 +227,7 @@ def main():
                 'chunk': i,
                 'seconds': round(t1 - t0, 2),
                 'hanchan_per_h': round(games / (t1 - t0) * 3600),
+                'decisions_per_game': round((challenger.decisions + champion.decisions - d0) / games, 1),
                 'cpu_busy': None if u0 is None else round((u1 - u0) / 1e6 / (t1 - t0), 2),
                 'gpu_util_pct': None if util is None else round(util, 1),
                 'gpu_mem_max_mib': mem,
@@ -224,6 +245,7 @@ def main():
         'games': total_games,
         'hanchan_per_h_overall': round(total_games / (time.time() - start) * 3600),
         'hanchan_per_h_steady_median': statistics.median(c['hanchan_per_h'] for c in steady),
+        'decisions_per_game': round((challenger.decisions + champion.decisions) / total_games, 1),
         'cpu_busy_steady_median': statistics.median(c['cpu_busy'] for c in steady) if steady[0]['cpu_busy'] is not None else None,
         'gpu_util_steady_median': statistics.median(c['gpu_util_pct'] for c in steady) if steady[0]['gpu_util_pct'] is not None else None,
     }
