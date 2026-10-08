@@ -29,6 +29,8 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'mortal'))
+# mortal/dataloader.py reads a config at import; P0's, though the settings used here are explicit
+os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments/configs/p0.toml'))
 
 BENCH_KEY = 0x62656E6368  # "bench": outside the seed families (lab/seeds.toml)
 PILOT = os.path.join(ROOT, 'workdir/pilot/qs-a/pilot-qs-a-final.pth')
