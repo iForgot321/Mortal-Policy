@@ -111,6 +111,7 @@ started at 10:31; v4's encoder hash unchanged). Startup matches (seed, 3,531,008
 | Pilot A (v4, seed 1) | 24.8 h | ~1.75 | ~3.6K, featurization-bound | ~8.6 GB (2026-10-03; method not recorded) | step 156,000, `15121432…` |
 | Pilot B (v4, seed 2) | 25.4 h | ~1.76 | ~3.6K | — | step 156,000, `b267c026…` |
 | **No-SP A** (v5, seed 1), 2026-10-06 22:05 → 10-07 06:39 | **8.6 h** | 5.1 | 10.5K, mostly GPU-bound (GPU ~80%, trainer ~2.7 CPUs) | 13.3 GB (system used, 1-min samples; steady 12.5–13.3) | step 156,000, `498aabc8…` (read-only) |
+| **No-SP B** (v5, seed 2), 2026-10-07 08:07 → 16:40 | **8.6 h** | 5.1 | 10.5K | 13.1 GB | step 156,000, `3180f2f0…` (read-only) |
 
 - **RAM:** 13.3 GB system-wide (MemTotal − MemAvailable, including ~1.4 GB of shared memory for
   batches) is above the pilots' recorded 8.6 GB, but steady from the first minute, with no memory
@@ -131,6 +132,9 @@ started at 10:31; v4's encoder hash unchanged). Startup matches (seed, 3,531,008
 
   The SP inputs speed up early learning (a 0.06-nat gap at 2K steps, ~0.007 at 10–40K), but the
   gap closes by ~100K steps (~200M samples): over steps ≥ 100K it averages −0.0005 (B − A: 0.0000).
+  **Pair 2 repeats it:** no-SP B − pilot B is +0.066 at 2K, +0.008 at 10K, +0.006 at 40K, +0.003
+  at 80K, +0.000 at 120K and −0.0001 at 156K (final 0.4886 vs 0.4887); mean over steps ≥ 100K
+  +0.0003. Like the others, no-SP B exhausted its data at step 157,869.
 
 ## 5. Verdicts (M4, M6)
 
@@ -161,7 +165,28 @@ the A/A′ run (vs 3 × pilot B, 80K games): no metric moved beyond noise.
 (Deal-in SE ≈ 0.05 points over 420K kyoku; the opponents differ slightly: 3 × pilot B there,
 3 × pilot A here.)
 
-**Pair 2:** no-SP B (seed 2) training since 2026-10-07 08:07; T-NI vs pilot B follows. _Pending._
+**Pair 2: PASS.** `20261007-164116-T-NI`, no-SP B (v5, seed 2) vs pilot B (v4, seed 2), family B,
+AMP, exploratory. Pass at the 5,000-set minimum (20K games, 16:41 → 17:24): mean Δu = +0.0044,
+set SD 0.328, LLR +4.37. Smoke beforehand: 16 sets ran.
+
+**Two matched pairs pass T-NI: preliminary evidence (`02` §6.1) that the SP channels can be
+dropped at this scale** (b8c192 BC quick students, 500K games, one epoch). Not confirmed: no
+family-C nonces or reserved panel configurations. The T-NI margin is 0.01 u, so this does not
+rule out a smaller cost; the fixed-N effect-size runs (§5.1) measure it.
+
+Style, no-SP B (20K games) next to pilot A's A/A′ panel and no-SP A: mostly within noise, a few
+small moves (deal-in 13.33% vs 13.07%, riichi 19.73% vs 20.00%, first-discard honour 63.2% vs
+62.3%, shanten-backward quiet 0.65% vs 0.70%, facing riichi 12.5% vs 13.1%). No pilot-B panel as
+challenger exists, so seed-to-seed style variation can't be separated from the SP effect here; the
+effect-size runs give an 80K-game panel per pair.
+
+### 5.1 Effect size (fixed N)
+
+Agreed with the user 2026-10-07: if both pairs pass, measure each pair at a fixed 20K sets on
+fresh family-B nonces (`python -m lab measure --sets 20000 --family B`), pool the two pairs'
+set scores, and apply the decision line: **adopt v5 if the pooled 95% lower bound is above
+−0.005; keep v4 (and try a cheaper SP variant) if it falls between −0.01 and −0.005.** Sequential
+T-NI means are biased by optional stopping, so they don't enter the estimate. _Running._
 
 ## 6. Recommendation
 
