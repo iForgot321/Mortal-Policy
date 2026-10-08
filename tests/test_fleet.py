@@ -171,3 +171,59 @@ def test_health_listening():
 def test_box_scripts_parse():
     for name in ('box_tunnel.sh', 'box_supervise.sh', 'box_learner.sh', 'setup_box.sh', 'box_bench.sh'):
         subprocess.run(['bash', '-n', os.path.join(FLEET, name)], check=True)
+
+
+def test_budget_accounting_and_labels(monkeypatch):
+    run = fleet.Run.__new__(fleet.Run)
+    now = 1_000_000.0
+    run.data = {'boxes': {'learner': {'instance': 1, 'created_ts': now - 7200, 'dph': 0.5}},
+                'retired': [{'instance': 2, 'created_ts': now - 7200, 'destroyed_ts': now - 3600, 'dph': 0.4},
+                            {'instance': None, 'created_ts': now - 7200, 'dph': 0.4}]}  # never created
+    monkeypatch.setattr(fleet.time, 'time', lambda: now)
+    assert fleet.box_hours(run) == pytest.approx(3.0)
+    assert fleet.cost(run) == pytest.approx(2 * 0.5 + 1 * 0.4)
+    assert [fleet.snapshot_label(f) for f in (0.25, 0.5, 1.0)] == ['p25', 'p50', 'full']
+
+
+def test_snapshot_is_verified_frozen_and_never_overwritten(tmp_path, monkeypatch):
+    import hashlib
+    import json
+    import stat
+    monkeypatch.setattr(fleet, 'RUNS', tmp_path)
+    run = fleet.Run('t')
+    run.dir.mkdir()
+    run.data = {'config': 'experiments/configs/p0.toml', 'boxes': {'learner': {
+        'name': 'learner', 'role': 'learner', 'instance': 7, 'ip': '192.0.2.1', 'ssh_port': 22,
+        'created_ts': 0, 'dph': 0.5}}, 'retired': []}
+    run.save()
+    ckpt = tmp_path / 'box-copy.pth'
+    ckpt.write_bytes(b'checkpoint bytes')
+    sha = hashlib.sha256(ckpt.read_bytes()).hexdigest()
+    scripts = []
+
+    def fake_remote(run_, box, script, timeout=300, check=True):
+        scripts.append(script)
+        return subprocess.CompletedProcess([], 0, f'{sha}\n4200\n', '')
+
+    def fake_rsync(run_, box, args, timeout=1800):
+        assert args[0] == f'root@192.0.2.1:{fleet.BOX_ROOT}/{fleet.BOX_DIR}/snapshots/t-p50.pth'
+        (tmp_path / args[1]).write_bytes(ckpt.read_bytes())
+    monkeypatch.setattr(fleet, 'remote', fake_remote)
+    monkeypatch.setattr(fleet, 'rsync', fake_rsync)
+
+    rec = fleet.snapshot(run, 'p50')
+    local = tmp_path / 't' / 'snapshots' / 'p50.pth'
+    assert rec['sha256'] == sha and rec['steps'] == 4200
+    assert not os.stat(local).st_mode & (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+    assert json.loads((tmp_path / 't' / 'snapshots.jsonl').read_text())['label'] == 'p50'
+    # the state file the trainer replaces atomically is copied on the box before hashing
+    assert f'cp {fleet.BOX_ROOT}/workdir/p0/mortal.pth' in scripts[0]
+    subprocess.run(['bash', '-n'], input=scripts[0], text=True, check=True)
+    with pytest.raises(fleet.FleetError, match='never overwritten'):
+        fleet.snapshot(run, 'p50')
+
+    # a copy that doesn't match the box's hash is refused and removed
+    monkeypatch.setattr(fleet, 'rsync', lambda r, b, args, timeout=1800: (tmp_path / args[1]).write_bytes(b'torn'))
+    with pytest.raises(fleet.FleetError, match='sha256'):
+        fleet.snapshot(run, 'full')
+    assert not (tmp_path / 't' / 'snapshots' / 'full.pth').exists()

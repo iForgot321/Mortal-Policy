@@ -226,9 +226,25 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
 
 **Not done:** learner replacement (in the code, never exercised); the eval box's GSPRT queue; interruptible actors. The fleet soak (03 §3.7, ≥ 48 h at T1 scale) needs the leading arm and the user's go-ahead.
 
+## 2026-10-08 (later): Phase 1 readiness decisions (D49, D50) and budget checkpoints
+
+**Decided by the user**
+- **D49:** obs v4 is Phase 1's observation, not the project's. It is reviewed at G0 against a measured value of one doubling of RL compute; v5's break-even is ≈ 0.002–0.004 u per doubling. `05` §1 and §2.2 and the `00` G0 section are amended.
+- **D50:** every fleet role runs on RTX 4090s through Phase 2, because the pinned torch 2.6 has no Blackwell kernels. `03`, `04`, `07` and the `00` planning unit are amended. D17a narrows to "4090 with ≥ 48 vCPU vs H100".
+
+**Built**
+- `fleet.py`:
+  - `box_hours` (the billed compute budget);
+  - `snapshot --label` (copied on the learner, hash-checked, read-only, never overwritten, logged in `snapshots.jsonl`);
+  - `watch --budget-box-hours B --snapshot-at 0.25,0.5`, which freezes `p25`/`p50`, then `full` at the budget, then downs.
+- Tests: `test_fleet.py` +2 (budget accounting; snapshot hash check and no-overwrite).
+- `experiments/p0.md`: the P0 run plan, with the pre-registered doubling estimate (`measure` full vs p50, 100K sets, ≈ ±0.002 u).
+
+**Open (user):** D12a (triple ron), P1 horizon split and K1 critic settings, the riichi.dev bot account, the P0 tuning allowance and go-ahead.
+
 ## Next steps
 
-Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
+Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table). Phase 0's exit bar is met; declaring it is the user's call.
 
 1. Fleet (03): scripts and private network **done** (2026-10-08, D48, `tools/fleet/fleet.py`); the 48 h fleet soak comes with the first arm runs. Cost forecast v0 done; three cheap measurements would tighten it (learner with more loader workers, secure-tier SL featurization, multi-process P0 actor; ~$5). The CPU-only test is deferred (D47). Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
    - **SP ablation: done** (2026-10-07, `experiments/sp-ablation.md`): verdict inconclusive, v5 not adopted; recommendation keep v4 for Phase 1, revisit only if throughput binds at G0 (RL twin at equal box-days; shanten-threshold-1 variant first). User decision pending. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.

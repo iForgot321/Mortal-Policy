@@ -174,6 +174,17 @@ checkpoint age, the tunnel, GPU, memory and disk. Every `--interval` seconds, `w
 
 `events.jsonl` records each loss and recovery with its duration, for the soak's 30-minute rule (03 §3.7).
 
+**Compute budget and snapshots (D49).** An arm-seed's budget is counted in billed box-hours. That
+includes failed provisioning attempts and replacements; `status` shows the running total. Run
+`watch --budget-box-hours 432` (3 boxes × 6 days, `05` §2.2) to get:
+- frozen checkpoints at `--snapshot-at` fractions of the budget (default ¼ and ½: `p25`, `p50`);
+- a final `full` snapshot at the budget, then `down`.
+
+`snapshot --label L` takes one by hand. Every snapshot is copied on the learner, hash-checked here,
+made read-only in `snapshots/`, and logged in `snapshots.jsonl` with its step, box-hours and cost.
+A label is never overwritten. Snapshots are ordinary checkpoints, so they work directly as lab
+specs (`python -m lab measure --challenger …/full.pth --champion …/p50.pth`).
+
 **Spend safety.** `up --hard-hours H` starts a detached watchdog (`down --after`). At the deadline it
 downs the run, even when another command holds the run's lock. It then sweeps every instance labelled
 `mp-<run>-*` until nothing is left. `down` always ends with the same sweep.

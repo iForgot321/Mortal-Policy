@@ -8,14 +8,16 @@
     stop       stop a box's processes; the box keeps billing
     health     probe every box; exit 1 if any is not ok/warn
     pull       copy the learner's run dir (checkpoints, tensorboard) and every box's logs back here
-    watch      health and pull in a loop; restart dead processes; --replace replaces lost boxes
+    snapshot   freeze the learner's checkpoint under a label, pull it, make it read-only
+    watch      health and pull in a loop; restart dead processes; --replace replaces lost boxes;
+               --budget-box-hours: budget snapshots (D49), then down at the budget
     down       pull, revoke and destroy boxes (all, or --name); --after delays it (the watchdog)
     status     the run state and the cost so far
     ssh        print the ssh command for a box
 
 State lives in workdir/fleet/runs/<run>/: fleet.json (boxes, retired boxes, config), events.jsonl,
 health.jsonl, fleet.log, known_hosts/, boxes/<name>-<instance>/ (logs), learner-run/ (the pulled
-run dir). Commands that change state hold a lock on the run, so `watch` and a manual `down` don't
+run dir), snapshots/ (frozen checkpoints, read-only; snapshots.jsonl). Commands that change state hold a lock on the run, so `watch` and a manual `down` don't
 interleave. Rules (tools/fleet/README.md): no credentials or Tenhou data on boxes, no published
 ports beyond SSH, commit before syncing, destroy boxes as soon as their results are back.
 """
@@ -154,12 +156,25 @@ class Run:
         return [b for b in self.boxes.values() if role is None or b['role'] == role]
 
 
+def billed(run):
+    """(box, hours billed so far) for every box the run has rented, live or retired."""
+    return [(b, ((b.get('destroyed_ts') or time.time()) - b['created_ts']) / 3600)
+            for b in [*run.boxes.values(), *run.data['retired']] if b.get('instance') and b.get('created_ts')]
+
+
 def cost(run):
-    total = 0.0
-    for b in [*run.boxes.values(), *run.data['retired']]:
-        if b.get('instance') and b.get('created_ts'):
-            total += b['dph'] * ((b.get('destroyed_ts') or time.time()) - b['created_ts']) / 3600
-    return total
+    return sum(b['dph'] * h for b, h in billed(run))
+
+
+def box_hours(run):
+    """The run's compute so far in billed box-hours, failed attempts and replacements included:
+    what an arm-seed's budget counts (05 §2.2, 3 boxes × 6 days = 432)."""
+    return sum(h for _, h in billed(run))
+
+
+def snapshot_label(fraction):
+    """`p25`, `p50`, ... for a budget fraction; `full` for the whole budget."""
+    return 'full' if fraction >= 1 else f'p{round(fraction * 100)}'
 
 
 # ---------------------------------------------------------------- the run's config
@@ -735,6 +750,47 @@ def pull(run, boxes=None):
     run.log('pulled ' + ', '.join(b['name'] for b in (boxes or run.boxes.values())))
 
 
+def snapshot(run, label):
+    """Freeze the learner's current checkpoint as `label` (05 §2.2, D49). The copy is made on the
+    box (the trainer replaces its state file atomically, so the copy is whole), pulled to
+    snapshots/<label>.pth, checked against the box's sha256 and made read-only. A label is never
+    overwritten."""
+    if not NAME_RE.match(label):
+        raise FleetError(f'snapshot label {label!r}: lowercase letters, digits and dashes only')
+    if label in run.data.get('snapshots', {}):
+        raise FleetError(f'snapshot {label} exists; labels are never overwritten')
+    learner = run.boxes.get('learner')
+    if not learner or not learner.get('ip'):
+        raise FleetError('no learner to snapshot')
+    state_file = box_paths(run)['state_file']
+    snap = f'{BOX_ROOT}/{BOX_DIR}/snapshots/{run.name}-{label}.pth'
+    out = remote(run, learner, f'''mkdir -p {BOX_DIR}/snapshots
+[ -f {snap} ] || {{ cp {state_file} {snap}.tmp && mv {snap}.tmp {snap}; }}
+sha256sum {snap} | cut -d' ' -f1
+{BOX_PY} -c "import torch; print(torch.load('{snap}', weights_only=False, map_location='cpu')['steps'])"
+''', timeout=300).stdout.split()
+    sha, steps = out[-2], int(out[-1])
+    local = run.dir / 'snapshots' / f'{label}.pth'
+    local.parent.mkdir(exist_ok=True)
+    if local.exists():
+        raise FleetError(f'{local} exists but is not in the run state: move it away by hand')
+    retry(rsync, run, learner, [f'root@{learner["ip"]}:{snap}', str(local)])
+    got = subprocess.run(['sha256sum', str(local)], capture_output=True, text=True).stdout.split()[0]
+    if got != sha:
+        local.unlink()
+        raise FleetError(f'snapshot {label}: sha256 {got[:12]} here, {sha[:12]} on the learner')
+    os.chmod(local, 0o444)
+    rec = {'label': label, 'time': now_iso(), 'sha256': sha, 'steps': steps, 'box_hours': round(box_hours(run), 2),
+           'cost': round(cost(run), 2), 'learner': learner['instance'], 'path': os.path.relpath(local, REPO)}
+    with run.lock:
+        run.data.setdefault('snapshots', {})[label] = rec
+        run.save()
+        with open(run.dir / 'snapshots.jsonl', 'a') as f:
+            f.write(json.dumps(rec) + '\n')
+    run.event('snapshot', label=label, steps=steps, box_hours=rec['box_hours'], sha256=sha[:16])
+    return rec
+
+
 def push_state(run, learner):
     """A replacement learner continues from the last pulled checkpoint, if there is one."""
     state_file = box_paths(run)['state_file']
@@ -1063,12 +1119,22 @@ def cmd_pull(a):
     return 0
 
 
+def cmd_snapshot(a):
+    run = Run.load(a.run)
+    with run.locked():
+        snapshot(run, a.label)
+    return 0
+
+
 def cmd_watch(a):
     run = Run.load(a.run)
     deadline = time.time() + a.max_hours * 3600 if a.max_hours else None
     bad_since = {}
     last_pull = 0.0
-    run.event('watch', interval=a.interval, replace=a.replace, max_hours=a.max_hours, max_dollars=a.max_dollars)
+    fractions = sorted(float(f) for f in a.snapshot_at.split(',')) if a.budget_box_hours else []
+    full_failures = 0
+    run.event('watch', interval=a.interval, replace=a.replace, max_hours=a.max_hours, max_dollars=a.max_dollars,
+              budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None)
     while True:
         with run.locked():
             if not run.boxes:
@@ -1103,6 +1169,27 @@ def cmd_watch(a):
                             run.log(f'{verdict} for {waited / 60:.0f} min; not replacing (no --replace)', name)
                 except FleetError as e:
                     run.event('recovery_failed', name, error=repr(str(e)[:300]))
+            if a.budget_box_hours:
+                # D49: frozen checkpoints at fractions of the arm-seed's budget, then the final one
+                used = box_hours(run)
+                for f in fractions:
+                    label = snapshot_label(f)
+                    if used >= f * a.budget_box_hours and label not in run.data.get('snapshots', {}):
+                        try:
+                            snapshot(run, label)
+                        except FleetError as e:
+                            run.event('snapshot_failed', label=label, error=repr(str(e)[:300]))
+                if used >= a.budget_box_hours and 'full' not in run.data.get('snapshots', {}):
+                    try:
+                        snapshot(run, 'full')
+                    except FleetError as e:
+                        full_failures += 1
+                        run.event('snapshot_failed', label='full', error=repr(str(e)[:300]))
+                # after 3 failed tries, down anyway: its pull still brings the final state file back
+                if used >= a.budget_box_hours and ('full' in run.data.get('snapshots', {}) or full_failures >= 3):
+                    run.event('budget_reached', box_hours=round(used, 1), cost=round(cost(run), 2))
+                    down(run)
+                    return 0
             if time.time() - last_pull >= a.pull_every * 60:
                 try:
                     pull(run)
@@ -1155,9 +1242,12 @@ def cmd_status(a):
               f'${b["dph"]:.3f}/h  {up:.1f} h  {b.get("ip", "-")}:{b.get("ssh_port", "-")}  {b.get("commit", "-")}  '
               f'{b["cpu_name"]}')
     print(f'  retired: {len(d["retired"])}; bad machines: {d["bad_machines"]}')
+    for s in d.get('snapshots', {}).values():
+        print(f'  snapshot {s["label"]:<5} step {s["steps"]:,} at {s["box_hours"]} box-hours: {s["path"]} ({s["sha256"][:12]})')
     if d.get('watchdog'):
         print(f'  watchdog pid {d["watchdog"]["pid"]}, deadline {d["watchdog"]["deadline"]}')
-    print(f'  cost so far ${cost(run):.2f} (+ bandwidth); ${sum(b["dph"] for b in run.boxes.values()):.2f}/h now')
+    print(f'  {box_hours(run):.1f} box-hours, ${cost(run):.2f} so far (+ bandwidth); '
+          f'${sum(b["dph"] for b in run.boxes.values()):.2f}/h now')
     return 0
 
 
@@ -1207,6 +1297,8 @@ def main(argv=None):
     s = p('health', cmd_health, 'probe every box')
     s.add_argument('--json', action='store_true')
     p('pull', cmd_pull, 'copy results back')
+    s = p('snapshot', cmd_snapshot, "freeze the learner's checkpoint under a label")
+    s.add_argument('--label', required=True)
     s = p('watch', cmd_watch, 'health, pull and recovery in a loop')
     s.add_argument('--interval', type=int, default=300, help='seconds between checks')
     s.add_argument('--grace', type=float, default=10, help='minutes a box may be lost before replacement')
@@ -1214,6 +1306,10 @@ def main(argv=None):
     s.add_argument('--replace', action='store_true', help='replace lost boxes (rents new ones)')
     s.add_argument('--max-hours', type=float)
     s.add_argument('--max-dollars', type=float)
+    s.add_argument('--budget-box-hours', type=float,
+                   help="the arm-seed's compute budget (05 §2.2: 3 boxes x 6 days = 432): snapshot at "
+                        "--snapshot-at fractions, then `full`, then down")
+    s.add_argument('--snapshot-at', default='0.25,0.5', help='budget fractions to snapshot at (D49)')
     s = p('down', cmd_down, 'pull, revoke and destroy')
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')
