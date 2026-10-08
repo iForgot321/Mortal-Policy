@@ -232,6 +232,22 @@ set scores, and apply the decision line: **adopt v5 if the pooled 95% lower boun
 −0.005; keep v4 (and try a cheaper SP variant) if it falls between −0.01 and −0.005.** Sequential
 T-NI means are biased by optional stopping, so they don't enter the estimate.
 
+**Amended with the user 2026-10-07 ~22:00, after pair 1's result and before pair 2's existed: a
+consistency check.** Each pair's effect is the recipe effect plus run-to-run variation plus
+evaluation noise; pooling assumes the first two are shared. So, with d = m₂ − m₁ and
+SE_d = √(SE₁² + SE₂²):
+- **|d / SE_d| > 1.96 → inconclusive** at the recipe level (the pairs disagree beyond measurement
+  noise; more pairs needed), whatever the pooled number says;
+- otherwise apply the line above to the pooled mean (the average of the two pair means; 95% CI
+  by a stratified bootstrap): adopt v5 above −0.005, keep v4 in (−0.01, −0.005], keep v4 at or
+  below −0.01.
+
+A random-effects interval was rejected: with two pairs its t-multiplier is 12.7, so it says
+nothing. With two pairs the check only catches large disagreements; "consistent" doesn't prove
+equal effects. Code: `experiments/sp_ablation_pool.py <pair-1 run> <pair-2 run>`. Given pair 1
+(−0.0060, SE 0.0024), pair 2 is consistent if its mean is in about [−0.0125, +0.0005], and the
+pooled line can then no longer reach "adopt".
+
 **Pair 1:** `20261007-173414-measure`, no-SP A vs pilot A, 20,000 sets (80K games, fresh family-B
 nonces, 17:34 → 20:30): **mean Δu = −0.0060, 95% bootstrap CI [−0.0107, −0.0014]**, set SD 0.336;
 avg rank 2.508, −0.59 display pt per game. The interval excludes 0: at checkpoint level, no-SP A
