@@ -260,7 +260,25 @@ Style (80K games, against pilot A's A/A′ panel, whose opponents were pilot B):
 shift fits the SP calculator's riichi-vs-dama EV comparison going missing, but one run against a
 mismatched reference can't establish that.
 
-**Pair 2:** running (20:30 →).
+**Pair 2:** `20261007-203040-measure`, no-SP B vs pilot B, 20,000 sets (20:30 → 23:28):
+**mean Δu = +0.0012, 95% CI [−0.0035, +0.0059]**, set SD 0.334, avg rank 2.499.
+
+**Decision rule** (`experiments/sp_ablation_pool.py`, output `workdir/sp-ablation/pooled.json`):
+
+| | Mean Δu | SE | 95% CI |
+|---|---|---|---|
+| Pair 1 | −0.0060 | 0.0024 | [−0.0107, −0.0014] |
+| Pair 2 | +0.0012 | 0.0024 | [−0.0035, +0.0059] |
+| Pooled | −0.0024 | 0.0017 | [−0.0056, +0.0009] (stratified bootstrap) |
+
+- Consistency: d = +0.0072, SE_d = 0.0033, **z = 2.16 → inconsistent** (just past 1.96).
+- **Verdict (pre-registered): INCONCLUSIVE at the recipe level.** Without the check the pooled
+  lower bound (−0.0056) would have fallen in the grey zone (keep v4). **Either way, v5 is not
+  adopted.**
+- Style: pair 1's dama shift does not replicate. No-SP B's 80K-game panel has dama 12.76% (up),
+  calls 28.7%, deal-in 13.4%, riichi 19.7%, honitsu 4.7%, lower shanten-backward rates (0.66% /
+  12.5%). With pilot A's panel as the only reference, seed-to-seed style can't be separated from
+  an SP effect.
 
 ## 6. Recommendation
 
