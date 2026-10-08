@@ -5,13 +5,26 @@
   them worth in speed?
 - **Standard:** a recipe claim, so matched pairs (`02` §6.1, D41). One failed pair keeps SP; two
   passes are *preliminary* evidence that SP can go. Confirmation (fresh family-C nonces, reserved
-  panel configurations) is not implemented in the lab CLI and was not run.
+  panel configurations) was not run: `lab confirm` covers the family-C fixed-N part, the reserved
+  panel configurations are not implemented.
 - **Nothing is adopted here.** Changing the observation is a frozen-item decision (CLAUDE.md
   rule 2) and needs a decision-log entry first; that is the user's call.
 
 ## Summary
 
-_Filled in at the end (M7)._
+| Question | Answer |
+|---|---|
+| v5 built and safe? | Yes. v5 = v4 with the 123 SP rows zeroed; v4 bit-identical (golden hash), v5 = v4 minus SP at every decision tested (§2) |
+| Speed | Large and certain: encoding 340× (3.4 vs 1,163 µs per decision), SL loader 90× per thread, SL pipeline 4.1×, SL training 2.9× (8.6 h vs 25 h), arena 2.4× (2.8× per decision), P0 learner 2.3× (§3) |
+| Where v4's cost goes | 3-shanten decisions: ~17% of decisions, ~83% of SP time (§3.1) |
+| BC fit | Identical by the end of training in both pairs (gap closes by ~100K steps) (§4) |
+| T-NI (δ = 0.01) | **Both pairs pass** (§5) |
+| Effect size (fixed N, 20K sets per pair) | Pair 1 −0.0060 [−0.0107, −0.0014]; pair 2 +0.0012 [−0.0035, +0.0059]; pooled −0.0024 [−0.0056, +0.0009] (§5.1) |
+| Pre-registered verdict | **Inconclusive**: the pairs disagree (z = 2.16). Without the consistency check: grey zone, keep v4. **v5 is not adopted** |
+| D12 reopen condition (non-inferior JAX-portable obs) | **Not met** |
+
+Any cost of dropping SP is small (pooled ~0.25 pt per hanchan, plausibly 0 to ~0.6), but the two
+training runs disagree by about as much as the effect, so this design can't resolve it.
 
 ## 1. Prior evidence (M0, timeboxed)
 
@@ -93,6 +106,23 @@ Workstation (i5-12600KF, 16 threads; RTX 3060), nothing else running, 2026-10-06
   of the GPU's rate) the CPU requirement for teachers mostly disappears with v5.
 - The v4 numbers reproduce the earlier ones (loader 825 / 5.7K, pipeline 4.2K; 3.6K samples/s in
   the pilots' actual training).
+
+**P0 learner** (`tools/fleet/bench_learner.py`, 2026-10-07 23:31, alone on the box): one 800-game
+drain (pilot A both sides, trainee sampling, sidecars; 127,546 trainee samples) trained the way
+`train_online.py` does (MC targets, 2 workers, `file_batch_size` 50, batch 512, AMP, compile),
+timed on a second pass. Raw: `workdir/sp-ablation/learner.json`.
+
+| Mode | v4 | v5 | v5 / v4 |
+|---|---|---|---|
+| Data pipeline only | 4,267 samples/s | 15,676 | 3.7× |
+| **Full learner** | **3,604** | **8,424** | **2.3×** |
+| GPU step only (shapes equal) | 15,117 | | |
+
+v4's learner is featurization-bound (full ≈ data only; ~24% of the GPU's rate), and matches the
+cloud box's ~3,750 samples/s. v5 lifts it 2.3×; the data and GPU stages then barely overlap.
+Since v5 speeds the actors (2.4–2.8×) and the learner (2.3×) about equally, the actor:learner cost
+ratio would stay near its v4 value (~3:1), which is the case where Mahjax's end-to-end edge
+over libriichi would be largest (~1.8–2×). That is moot while v5 is not adopted.
 
 ### 3.1 Where v4's SP cost goes, and what cheaper SP variants would save
 
@@ -280,6 +310,38 @@ mismatched reference can't establish that.
   12.5%). With pilot A's panel as the only reference, seed-to-seed style can't be separated from
   an SP effect.
 
-## 6. Recommendation
+## 6. What it means, and recommendation
 
-_Pending._
+**Run-to-run variation is about as large as the effect.** The pairs differ by 0.0072 against
+evaluation noise of 0.0033. Read naively, each trained network carries "luck" of roughly ±0.003 u
+(one observation; the A/A′ difference, +0.0015 ± 0.0023, fits it). Then each matched pair has
+~0.005 of noise, and resolving an effect of this size to ±0.005 takes ~4 pairs, to ±0.0025 more
+than 10. On this workstation an extra pair costs ~37 h (a 25 h v4 pilot, an 8.6 h v5 student, a
+3 h measurement). **Lesson for the lab:** recipe claims at T-fine resolution (0.005) need more
+than the two pairs `02` §6.1 counts as preliminary evidence; the A/A′ (one pair) understated how
+much training runs vary.
+
+**Recommendation (for the user):**
+1. **Keep v4 for Phase 1.** That is the pre-registered outcome; the plan already uses v4, so
+   nothing changes. Record the result under D12 (reopen condition not met).
+2. **Don't buy more SL pairs.** Two more would most likely still leave an effect of ~0.002–0.003
+   unresolved.
+3. **Revisit SP only if throughput binds at G0**, and then in RL at equal box-days (the v4/v5
+   twin design discussed 2026-10-07): an SL comparison can't credit v5's extra games, an RL one at
+   equal cost does. The first variant to try then is **shanten threshold 1** (≈ 98% of v5's
+   saving, keeps the tenpai/1-shanten EV tables).
+4. **Or adopt v5 as a deliberate trade** (a possible cost of up to ~0.5 pt per hanchan for ~3×
+   cheaper SL and actors). That is a legitimate call, but it needs a decision-log entry stating
+   that the strength evidence was inconclusive.
+
+**Not done / open:** the decision above (user); obs v6 (889 rows) only matters if v5 is adopted;
+the lab's git "dirty" flag is set on every run (the nonce ledger is appended before the git state
+is read), a cosmetic fix offered, not made.
+
+## Artifacts
+
+`workdir/sp-ablation/`: `golden-v4.json`, `m2/` (speed), `sp-cost.json`, `learner.json`,
+`learner-drain/`, `nosp-{a,b}/` (checkpoints `nosp-*-final.pth`, read-only; `train.log`,
+`ram.log`, `tb/`), `pilot-a-as-v5.pth` (timing copy), `chain.log`, `tni-*.log`, `measure-*.log`,
+`pooled.json`. Lab runs: `workdir/lab/20261007-{064005,164116}-T-NI`,
+`workdir/lab/20261007-{173414,203040}-measure`.

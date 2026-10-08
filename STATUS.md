@@ -167,13 +167,14 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 
 **Not done:** 5090/H100 throughput (needs a rental, ~$2–3; wouldn't change the verdict). Verdict recorded under D12 in `08`; new open decision D12a (triple ron in libriichi's arena).
 
-## 2026-10-06 — SP ablation (hand-off `docs/design/sp-ablation-handoff.md`), in progress
+## 2026-10-06/07 — SP ablation (hand-off `docs/design/sp-ablation-handoff.md`): done, verdict inconclusive
 
 **Built (committed)**
 - **Obs v5** = v4 with the 123 single-player-table rows (889–1011) zeroed and the SP calculator never called; same shape, so `Brain(version=5)` builds v4's modules and the same seed gives the same initial weights. libriichi (`consts.rs`, `obs_repr.rs`, oracle arms), `model.py`, `engine.py`.
 - `tools/obs/hash_obs.py`: golden hash of `encode_obs` over 36 fixed arena/Tenhou logs; `--check-v5`.
 - `bench_featurize.py --version`; `bench_1v3.py` reports network decisions per game.
 - Configs `experiments/configs/sp-nosp-{a,b}.toml` (pilot configs with `version = 5` and new paths, nothing else) and the unattended chain `experiments/run_sp_ablation_chain.sh`.
+- `tools/obs/sp_cost.py` (where v4's SP cost goes; cheaper-variant estimates), `tools/fleet/bench_learner.py` (P0 learner samples/s by obs version), `experiments/sp_ablation_pool.py` (the pre-registered decision rule).
 
 **Verified**
 - v4 bit-identical: golden hash `b9817059…` (22,794 decisions) identical before and after.
@@ -181,13 +182,22 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 - **Speed (M2):** encode 3.4 µs vs 1,163 µs per decision; SL loader 90× per thread (74.5K vs 830 samples/s); SL pipeline (2 workers) 19.2K vs 4.6K samples/s; arena 54.4K vs 22.7K hanchan/h (2.8× per decision), CPU busy 2 vs 10, GPU 48% vs 22%.
 - Training path unchanged since the pilots (trainer/dataloader files predate pilot A's start; v4 hash identical), so the pairs are matched.
 
-**Running:** the chain, started 22:05 (trainer pid 1360221, ~5.7 steps/s, ≈ 8 h). Progress: `workdir/sp-ablation/chain.log`. No arena/lab work while it trains (RAM).
+**Results** (all in `experiments/sp-ablation.md`; registry rows exploratory)
+- **Training:** no-SP A and B 8.6 h each (pilots ~25 h), mostly GPU-bound, peak RAM ~13.3 GB (system-wide, steady); both exhausted their data at step 157,869 like the pilots. BC loss: the early gap (0.06 nats at 2K steps) closes by ~100K steps; final 0.4880 vs 0.4888 (A), 0.4886 vs 0.4887 (B).
+- **T-NI (δ = 0.01): both pass.** Pair 1 `20261007-064005-T-NI` (10K sets, −0.0007, LLR +3.66); pair 2 `20261007-164116-T-NI` (5K sets, +0.0044, LLR +4.37).
+- **Effect size (fixed N, 20K sets each, family B):** pair 1 `20261007-173414-measure` −0.0060 [−0.0107, −0.0014]; pair 2 `20261007-203040-measure` +0.0012 [−0.0035, +0.0059]; pooled −0.0024 [−0.0056, +0.0009].
+- **Pre-registered verdict: INCONCLUSIVE** (the pairs disagree, z = 2.16; consistency check added with the user before pair 2's result). Without the check: grey zone, keep v4. **v5 is not adopted; D12's reopen condition is not met.**
+- **SP cost:** 3-shanten decisions are ~17% of decisions and ~83% of v4's SP time; shanten threshold 3→2 would save ~83%, threshold 1 ~98%, call/pass skipping ~12%.
+- **P0 learner** (workstation): v4 3.6K samples/s (featurization-bound, matches the cloud's 3.75K), v5 8.4K (2.3×); GPU-only ceiling 15.1K.
+- **Lesson:** two matched pairs differ by ~as much as the effect (run-to-run "luck" ~±0.003 u per network, rough); recipe claims at 0.005 resolution need ~4+ pairs, not 2.
+
+**Open (user):** keep v4 (recommended; nothing changes) or adopt v5 as a deliberate trade (needs a decision-log entry stating the evidence was inconclusive); whether to record the result under D12 in `08`; the v4/v5 RL twin at G0 and the D47 draft only if SP is revisited. Lab quirk found: every lab run records `git.dirty = true` (the nonce ledger is appended before the git state is read); fix offered, not made.
 
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
 1. Fleet (03): CPU-only test (low value now), VPN; decide whether these gate Phase 0 exit. Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
-   - **SP ablation: running** (2026-10-06, `experiments/sp-ablation.md`). Obs v5 built and tested; speed measured. The chain `experiments/run_sp_ablation_chain.sh` trains no-SP A, then T-NI vs pilot A; seed 2 only on a pass. Results then go to the user; adopting v5 needs a decision-log entry. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
+   - **SP ablation: done** (2026-10-07, `experiments/sp-ablation.md`): verdict inconclusive, v5 not adopted; recommendation keep v4 for Phase 1, revisit only if throughput binds at G0 (RL twin at equal box-days; shanten-threshold-1 variant first). User decision pending. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
