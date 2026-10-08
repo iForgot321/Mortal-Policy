@@ -406,6 +406,10 @@ def sync(run, box):
     retry(rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
                             './', on_box(box)])
     retry(rsync, run, box, ['-R', *inputs(cfg, box['role'], run.data.get('init')), on_box(box)])
+    # what the box actually got: a replacement syncs the working tree as it is now
+    with run.lock:
+        box['commit'] = git_commit(allow_dirty=True)
+        run.save()
 
 
 def provision(run, name, role, machine=None, skip_tests=False, allow_zen2=False, tries=3):
@@ -442,7 +446,7 @@ def provision(run, name, role, machine=None, skip_tests=False, allow_zen2=False,
             wait_running(run, box)
             run.log(f'running at {box["ip"]}:{box["ssh_port"]}', name)
             sync(run, box)
-            run.log(f'synced {run.data["commit"]}; setting up', name)
+            run.log(f'synced {box["commit"]}; setting up', name)
             remote_step(run, box, 'setup', 'tools/fleet/setup_box.sh' + (' --skip-tests' if skip_tests else ''), 40)
             with run.lock:
                 box['status'] = 'ready'
@@ -1148,7 +1152,8 @@ def cmd_status(a):
     for b in run.boxes.values():
         up = (time.time() - b['created_ts']) / 3600
         print(f'  {b["name"]:<8} {b["status"]:<9} instance {b["instance"]}  machine {b["machine_id"]}  '
-              f'${b["dph"]:.3f}/h  {up:.1f} h  {b.get("ip", "-")}:{b.get("ssh_port", "-")}  {b["cpu_name"]}')
+              f'${b["dph"]:.3f}/h  {up:.1f} h  {b.get("ip", "-")}:{b.get("ssh_port", "-")}  {b.get("commit", "-")}  '
+              f'{b["cpu_name"]}')
     print(f'  retired: {len(d["retired"])}; bad machines: {d["bad_machines"]}')
     if d.get('watchdog'):
         print(f'  watchdog pid {d["watchdog"]["pid"]}, deadline {d["watchdog"]["deadline"]}')

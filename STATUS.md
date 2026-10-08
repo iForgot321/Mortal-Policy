@@ -6,7 +6,7 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 ## Current position
 
 **Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
-Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $5.33 of $14.3K (benchmark boxes).
+Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $5.74 of $14.3K (benchmark boxes; $0.41 fleet test on 2026-10-08).
 
 | Phase 0 deliverable | State |
 |---|---|
@@ -21,7 +21,7 @@ Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast
 | Pilot quick student A (b8c192 BC, seed 1) | **Done** 2026-10-04 11:19 (24.8 h): step 156,000, BC loss 0.489, frozen `workdir/pilot/qs-a/pilot-qs-a-final.pth` |
 | Pilot quick student B (seed 2) | **Done** 2026-10-05 12:43: step 156,000, frozen `workdir/pilot/qs-b/pilot-qs-b-final.pth` (`b267c026…`) |
 | Interfaces (05 §3, D37) | **Done with tests** (2026-10-06): raw-logit head, fixed reward units, ordered trajectories + GAE, stored behaviour probs end to end (sidecars → server → trainer). Arms **P0/P1 are wired and smoke-tested** locally: `experiments/configs/p0.toml`, K1 critic + B0 warm-up mode (`docs/design/rl-wiring-handoff.md`) |
-| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 3 EPYC 7V13 40.0K ($11.6/M, contended host), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Bottleneck:** libriichi's arena loop on the main thread (~89% of main-thread samples; inference ~2%). P0 at 2,000-game batches +28% actor rate but lag mean ~2, max 4. **Multi-process actors:** 2 processes per box 77.8K/h (1.48×), 3 processes 85.3K/h (1.62×, ~$5.4/M). **Inference matrix (reduced):** actor size up to b16c256 costs ≤ ~6% throughput, b24c512 ~28% (AMP), torch.compile +8–11%. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). **Mahjax spike done** 2026-10-06: D12 stands (parity fixable, throughput per dollar passes 7.5–12× on a rented 3060, integration ≈ 6–9 weeks; `experiments/mahjax-spike.md`). Open: VPN/fleet scripts. **Cost forecast through G1, v0** (2026-10-08, `docs/design/cost-forecast-g1.md`, `tools/fleet/forecast.py`): plan at measured prices ≈ $8.8K vs $9.0K; levers ≈ $6.5K; pessimistic ≈ $10.8K; the learner (≈ 85K hanchan/h) binds once actors scale. CPU-only test **deferred** (D47, 2026-10-08) |
+| Fleet (03): VPN, provisioning, benchmarks, Mahjax spike | Box workflow **done** (`tools/fleet/setup_box.sh`, `bench_1v3.py`, `box_bench.sh`). **Hosts benchmarked** 2026-10-06 (eval mode, RTX 4090): Zen 4 EPYC 9684X 49.7K hanchan/h ($9.3/M), Ryzen 7950X 51.4K ($13.9/M), Zen 3 EPYC 7V13 40.0K ($11.6/M, contended host), Zen 2 EPYC 7742 30.9K ($15.8/M); P0 actor 31.7K/h, learner ~3.75K samples/s. **Bottleneck:** libriichi's arena loop on the main thread (~89% of main-thread samples; inference ~2%). P0 at 2,000-game batches +28% actor rate but lag mean ~2, max 4. **Multi-process actors:** 2 processes per box 77.8K/h (1.48×), 3 processes 85.3K/h (1.62×, ~$5.4/M). **Inference matrix (reduced):** actor size up to b16c256 costs ≤ ~6% throughput, b24c512 ~28% (AMP), torch.compile +8–11%. **Featurization** (workstation): loader 825/s on 1 thread → 5.7K/s on 16; SL pipeline 4.2K/s (`experiments/fleet-host-benchmarks.md`). **Mahjax spike done** 2026-10-06: D12 stands (parity fixable, throughput per dollar passes 7.5–12× on a rented 3060, integration ≈ 6–9 weeks; `experiments/mahjax-spike.md`). **Fleet scripts done** 2026-10-08 (`tools/fleet/fleet.py`; private network = restricted SSH tunnels, D48): tested end to end on Vast (`experiments/fleet-e2e.md`). **Cost forecast through G1, v0** (2026-10-08, `docs/design/cost-forecast-g1.md`, `tools/fleet/forecast.py`): plan at measured prices ≈ $8.8K vs $9.0K; levers ≈ $6.5K; pessimistic ≈ $10.8K; the learner (≈ 85K hanchan/h) binds once actors scale. CPU-only test **deferred** (D47, 2026-10-08) |
 
 ## 2026-10-03 — session 1 of v2
 
@@ -193,11 +193,44 @@ Followed `docs/design/rl-wiring-handoff.md`. Nothing is committed yet.
 
 **Open (user):** keep v4 (recommended; nothing changes) or adopt v5 as a deliberate trade (needs a decision-log entry stating the evidence was inconclusive); whether to record the result under D12 in `08`; the v4/v5 RL twin at G0 and the D47 draft only if SP is revisited. Lab quirk found: every lab run records `git.dirty = true` (the nonce ledger is appended before the git state is read); fix offered, not made.
 
+## 2026-10-08: fleet scripts and private network (03 §10, D48)
+
+The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` risk register now name it).
+
+**Built**
+- `mortal/`:
+  - `server.py` refuses a non-loopback bind unless `online.server.allow_non_loopback` is set;
+  - `recv_msg` unpickles with `weights_only=True`, so a hostile actor host can't run code on the learner;
+  - `train_online` saves checkpoints atomically;
+  - `client.py` logs `blocked Ns waiting for params`, the soak's "actors blocked" figure.
+- `tools/fleet/fleet.py`: up, provision, join (`--verify`), start, stop, health, pull, watch (`--replace`), down, status and ssh. It keeps a per-run lock, records `events.jsonl` and `health.jsonl`, runs a detached watchdog (`up --hard-hours`), and every full `down` ends with a label sweep.
+- Box side:
+  - `box_tunnel.sh`: the actor's reconnecting tunnel;
+  - `box_supervise.sh`: a restart loop with backoff;
+  - `box_learner.sh`: server and trainer as one unit, restarting together, because a fresh server would leave a running trainer waiting forever;
+  - `box_health.py`: the probe.
+- Tests: `tests/test_fleet.py` (pure logic) and `tests/test_transport.py` (+2: pickles refused, loopback only). `tests/test_fleet_tunnel.py` runs the real restrictions against an sshd; it's gated by `FLEET_TEST_SSHD` and has a negative control.
+
+**Verified**
+- `pytest tests/`: 77 pass, 4 skip (the gated tunnel tests). The tunnel tests pass against Ubuntu 22.04's OpenSSH 8.9 (`FLEET_TEST_SSHD`), including the negative control (all 3 violations caught) and the host-key pinning.
+- Local P0 smoke under the box scripts: a killed `server.py` restarts both processes, the old trainer group (workers, respawned child) is gone, and training resumes. A stopped session leaves no processes and frees the GPU.
+- **Cloud** (`experiments/fleet-e2e.md`, $0.41):
+  - bring-up in 9.5 min;
+  - all 4 restriction checks pass on a real learner;
+  - first-minibatch ratio 0.99999 across machines;
+  - recovery from a killed client (10 s), tunnel (5 s) and `server.py` (22 s);
+  - a destroyed actor replaced by `watch --replace` 591 s after detection;
+  - `down` left zero instances.
+- P0 through the tunnel: ≈ 66K hanchan/h per box with 2 processes (short sample).
+- One fix came out of the test: the image's sshd restarts seconds after first answering, which cost a box. `provision` now waits for two SSH answers 20 s apart and retries syncs.
+
+**Not done:** learner replacement (in the code, never exercised); the eval box's GSPRT queue; interruptible actors. The fleet soak (03 §3.7, ≥ 48 h at T1 scale) needs the leading arm and the user's go-ahead.
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table).
 
-1. Fleet (03): VPN/fleet scripts (needed before the first multi-box arm run). Cost forecast v0 done; three cheap measurements would tighten it (learner with more loader workers, secure-tier SL featurization, multi-process P0 actor; ~$5). The CPU-only test is deferred (D47). Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
+1. Fleet (03): scripts and private network **done** (2026-10-08, D48, `tools/fleet/fleet.py`); the 48 h fleet soak comes with the first arm runs. Cost forecast v0 done; three cheap measurements would tighten it (learner with more loader workers, secure-tier SL featurization, multi-process P0 actor; ~$5). The CPU-only test is deferred (D47). Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
    - **SP ablation: done** (2026-10-07, `experiments/sp-ablation.md`): verdict inconclusive, v5 not adopted; recommendation keep v4 for Phase 1, revisit only if throughput binds at G0 (RL twin at equal box-days; shanten-threshold-1 variant first). User decision pending. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
 2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
 3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.

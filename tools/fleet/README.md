@@ -178,6 +178,12 @@ checkpoint age, the tunnel, GPU, memory and disk. Every `--interval` seconds, `w
 downs the run, even when another command holds the run's lock. It then sweeps every instance labelled
 `mp-<run>-*` until nothing is left. `down` always ends with the same sweep.
 
+**Tested** on 2026-10-08 (`experiments/fleet-e2e.md`, $0.41): bring-up in ~9 min; the restrictions
+verified on a real learner; recovery from a killed client, tunnel and `server.py`; a destroyed actor
+replaced in ~11 min. Boxes behind one datacenter NAT share a public IP, and the tunnels still work.
+The image's sshd restarts seconds after it first answers, which is why `provision` waits for two
+answers 20 s apart.
+
 **Not covered yet:** the eval box's GSPRT queue (provision it with `--role eval`, start work by hand),
 interruptible (bid) actors, and checkpoint copies to object storage. Checkpoints come back to the
 workstation instead, because boxes hold no credentials.
