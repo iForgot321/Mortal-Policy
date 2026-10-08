@@ -94,6 +94,50 @@ Workstation (i5-12600KF, 16 threads; RTX 3060), nothing else running, 2026-10-06
 - The v4 numbers reproduce the earlier ones (loader 825 / 5.7K, pipeline 4.2K; 3.6K samples/s in
   the pilots' actual training).
 
+### 3.1 Where v4's SP cost goes, and what cheaper SP variants would save
+
+`tools/obs/sp_cost.py` (2026-10-07 17:25, alone on the box, 1 thread): `encode_obs(4, False)` timed
+at every decision, split by decision type, **real-time** shanten (what the calculator's threshold
+uses; `PlayerState.shanten` is not refreshed by a draw) and draws left. Raw:
+`workdir/sp-ablation/sp-cost.json`. The two corpora agree to within a few percent:
+
+| | 200 pilot A-vs-B games (130,710 decisions) | 100 Tenhou houou games (66,053) |
+|---|---|---|
+| Mean / median / p99 / max per decision | 1,145 / 106 / 13,663 / 56,002 µs | 1,159 / 102 / 14,138 / 51,503 µs |
+| Share of time in the slowest 1% / 5% / 10% of decisions | 16% / 49% / 71% | 16% / 49% / 71% |
+
+| Real-time shanten | Share of decisions | Mean | **Share of time** |
+|---|---|---|---|
+| tenpai (0) or agari (−1) | 18% | ~13 µs | 0.2% |
+| 1 | 29% | 62 µs | 1.5% |
+| 2 | 30–31% | 530–555 µs | 14–15% |
+| **3** | **17–18%** | **5.5–5.6 ms** | **83–84%** |
+| 4+ (cheap path: required tiles only) | 5–6% | 43 µs | 0.2% |
+
+- **By decision type:** discards (not after own riichi) are 74–75% of decisions and 88% of the
+  time; call/pass decisions 21% and 12% (mean ~0.65 ms); discards after the player's own riichi
+  5% and ~0%.
+- **By draws left:** the first part of the hand (13–17 draws left) is 37% of decisions and 66–68%
+  of the time.
+
+Estimated saving per variant (share of v4's SP time; from these timings, not from a modified
+encoder; same on both corpora within 1.5 points):
+
+| Variant | Saving | Mean per decision (v4 = 1,145 µs) | Portable to JAX? |
+|---|---|---|---|
+| Shanten threshold 3 → 2 | 82–84% | ~200 µs (5–6× cheaper) | No |
+| No SP at call/pass decisions | 12% | ~1,010 µs | No |
+| Work cap at the p95 decision | 19–20% | ~925 µs | No |
+| Work cap at the p99 decision | 4% | ~1,100 µs | No |
+| Required tiles only (cheap path everywhere) | 97% | ~35 µs | Probably |
+| No SP (v5) | 99.7% | 3.4 µs | Yes |
+
+- The cost is the 3-shanten search: one decision in six, mostly early in the hand, takes 5.5 ms
+  on average and accounts for five-sixths of the time. Lowering the threshold to 2 removes most of
+  it but leaves v4 ~60× above v5; only "required tiles only" gets within ~10× of v5.
+- Skipping call/pass decisions or capping the work barely helps: the cost is spread over many
+  3-shanten discards, not a few outliers.
+
 ## 4. Training runs (M3, M6)
 
 Configs `experiments/configs/sp-nosp-{a,b}.toml`: the pilot configs with `version = 5` and their
