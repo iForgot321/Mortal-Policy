@@ -230,7 +230,21 @@ Agreed with the user 2026-10-07: if both pairs pass, measure each pair at a fixe
 fresh family-B nonces (`python -m lab measure --sets 20000 --family B`), pool the two pairs'
 set scores, and apply the decision line: **adopt v5 if the pooled 95% lower bound is above
 −0.005; keep v4 (and try a cheaper SP variant) if it falls between −0.01 and −0.005.** Sequential
-T-NI means are biased by optional stopping, so they don't enter the estimate. _Running._
+T-NI means are biased by optional stopping, so they don't enter the estimate.
+
+**Pair 1:** `20261007-173414-measure`, no-SP A vs pilot A, 20,000 sets (80K games, fresh family-B
+nonces, 17:34 → 20:30): **mean Δu = −0.0060, 95% bootstrap CI [−0.0107, −0.0014]**, set SD 0.336;
+avg rank 2.508, −0.59 display pt per game. The interval excludes 0: at checkpoint level, no-SP A
+is measurably weaker than pilot A, by about 0.6 pt per hanchan. That is consistent with its T-NI
+pass (−0.0007 over 10K other sets; the two differ by ~1.3 SE), which only ruled out −0.01.
+
+Style (80K games, against pilot A's A/A′ panel, whose opponents were pilot B): win −0.11 points
+(SE ≈ 0.045), deal-in +0.07 with a slightly larger average deal-in (−5,228 vs −5,200), riichi
++0.11, **dama share of wins 12.19% vs 12.54% (−0.34, ≈ 4 SE)**, tobi 7.34% vs 7.11%. The dama
+shift fits the SP calculator's riichi-vs-dama EV comparison going missing, but one run against a
+mismatched reference can't establish that.
+
+**Pair 2:** running (20:30 →).
 
 ## 6. Recommendation
 
