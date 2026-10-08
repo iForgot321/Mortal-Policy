@@ -338,6 +338,46 @@ much training runs vary.
 the lab's git "dirty" flag is set on every run (the nonce ledger is appended before the git state
 is read), a cosmetic fix offered, not made.
 
+## 7. Related work: features vs compute, and what RL compute buys
+
+Researched 2026-10-08; the facts and sources are in `01` §6–9.
+
+**Features vs throughput elsewhere.**
+- **They usually buy learning speed, not final strength.** KataGo's Go-specific inputs were worth
+  1.55× training compute at ≈ 2 days ("a small fraction of the total improvement"). AlphaGo's
+  hand-crafted inputs added 1.3 points of move-prediction accuracy, and AlphaGo Zero dropped them.
+  The SP result fits this pattern: the BC loss gap closed by ~100K steps.
+- **Knowledge can win when the evaluator sits inside a search loop.** Stockfish NNUE halved
+  nodes/s for +80–100 Elo. LuckyJ feeds opponent-aware search results into its policy. In data
+  generation the opposite held for Ataraxos: "quantity of games matters more than quality of data".
+- **Mahjong upstreams never isolated the feature.** Suphx's look-ahead features (the same idea as
+  SP) and Mortal v4's SP tables shipped without ablations; this experiment is the first measurement
+  we know of.
+- **The accounting rule:** a feature pays for itself only if it saves more compute than it costs.
+  KataGo's features were cheap and saved 1.55×. SP costs 2.3–2.9× in throughput (actors, learner,
+  SL training) for a strength effect this experiment could not resolve (pooled −0.0024 u).
+
+**What RL compute buys.**
+- **Board games:** roughly a constant gain per doubling until a plateau: ≈ +66 Elo per doubling
+  (Neumann & Gros, Connect Four/Pentago: strength ∝ compute^0.55); ≈ +150 per doubling is quoted
+  for Hex (Jones; secondary).
+- **Riichi mahjong:** thin and mixed. Suphx: SL 7.66 → RL 8.06 stable dan on ~1.5M games (8.30
+  with GRP and oracle guiding). Nitasurin's value-based online RL: ≈ +0.006 u per 500K hanchan;
+  policy-based "exceeded expectations" (no number). Equim: months of early PPO gave no gain. No
+  public per-doubling curve.
+
+**Break-even for v5.** v5 gives ≈ 1.2–1.5 doublings of RL compute at equal cost. It is the better
+choice in RL if one doubling buys more than ≈ 0.002–0.004 u (SP's pooled cost, possibly up to
+0.0056, divided by 1.2–1.5). If RL works at all, that bar looks low: Nitasurin's ~0.006 u per
+500K hanchan, and the plan expects T-std-sized gains (0.01 u) per tranche. If RL stalls, extra
+games buy nothing. **The deciding measurement is G0's actor-size curve (6 vs 12 box-days): what
+one doubling of RL compute buys in mahjong.**
+
+**An option the literature adds:** PerfectDou gained ~10× sample efficiency from privileged
+information in the critic alone. SP could likewise feed only the critic, computed on the learner,
+while the policy and actors run v5: cheap actors without discarding the information, at about 2×
+learner featurization cost. Untested.
+
 ## Artifacts
 
 `workdir/sp-ablation/`: `golden-v4.json`, `m2/` (speed), `sp-cost.json`, `learner.json`,

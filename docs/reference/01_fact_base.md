@@ -113,6 +113,8 @@ Re-verify quarterly. Update this file, not the stage docs, when a fact changes.
   - Tenhou 4-player rules with aka, validated against Tenhou logs.
   - About 1M steps/s (with red fives) on 8×A100, with a random policy. The paper claims >10× libriichi.
   - The RL demo is single-kyoku, no-red rules. **No strength comparison with any external agent.** API "provisional".
+  - [V, paper HTML, read 2026-10-08] **Observation:** a structured dictionary for Transformer agents, ego-centric: tokenized hand indices, action history, scalars such as shanten and scores. **No look-ahead or EV features** (nothing like Mortal's single-player tables).
+  - [V, same] **RL demo:** behaviour cloning on 500K samples, then PPO with KL regularization for 100M env steps (≈ 5.8 h on one GH200); over 1,000 games against three BC opponents, average rank better than 2.5. Tabula rasa learning is left to future work.
 - **pgx:** no riichi; only Sparrow Mahjong.
 - **Mjx:** build broken.
 - **RiichiEnv (smly):** Rust, active.
@@ -143,7 +145,7 @@ Re-verify quarterly. Update this file, not the stage docs, when a fact changes.
 | Agent | Record | Method | Style notes |
 |---|---|---|---|
 | **LuckyJ** (Tencent AI Lab) [V] | Tenhou 10-dan on 2023-05-30 after 1,321 games, zero demotions. Stable **10.68 in 特上** over 1,145 games; avg rank 2.262 ± 0.032; bootstrap CI ≈ 8.8–13.1 [calc]. Inactive since. | **No human data**; self-play with **ACH** (Actor-Critic Hedge); imperfect-information search with "optimistic value estimation" whose **results are fed as features into the policy network, in training and at play time**; "symmetry training"; "mixed reward". No paper. | Emergent "human-like" flexibility: gives up shanten for shape, value or safety when quiet 4.0% of the time (NAGA 2.1%, humans 3.5%); avg win 6,287 (Suphx 5,785); calls 35.5%; honitsu 8.1% of wins |
-| **Suphx** (MSRA, 2019) [V] | 10-dan; stable 8.74 over 5,760 games | SL: discard 76.7%, riichi 85.7%, chi 95.0%, pon 91.9%, kan 94.0%. 50 blocks × 256 channels. RL on about 1.5M games per agent with 44 GPUs × 2 days. GRP reward. Oracle guiding. pMCPA (not used on Tenhou). | Approx. ablation from Fig. 8: SL 7.66 → RL 8.06 → +GRP 8.24 → +oracle 8.30 |
+| **Suphx** (MSRA, 2019) [V] | 10-dan; stable 8.74 over 5,760 games | SL: discard 76.7%, riichi 85.7%, chi 95.0%, pon 91.9%, kan 94.0%. 50 blocks × 256 channels. RL on about 1.5M games per agent with 44 GPUs × 2 days. GRP reward. Oracle guiding. pMCPA (not used on Tenhou). **Look-ahead features:** 100+ 34-wide channels from a depth-first search over its own draws and discards, ignoring opponents (the same idea as Mortal's v4 single-player tables); no ablation reported. | Approx. ablation from Fig. 8: SL 7.66 → RL 8.06 → +GRP 8.24 → +oracle 8.30 |
 | **NAGA** (Dwango Media Village) [V] | 10-dan on 2021-07-30 after 26,598 games; stable 7.23 | Supervised CNNs on top-table logs; later a single model. Styles ("types") are **imitation models of specific strong players**, e.g. Omega = 100% pro 渡辺太, Kagashi = one heavy-calling player. | Maximum-acceptance, efficiency-first |
 | **BigCoach → 極雀 Gokujan** [V/hearsay] | Site claim: "Balance" played 1,747 Houou games as **unauthorized bots** (e.g. 未払い) for a stable dan of about 10.6 | Paid review site with an anonymous operator. [hearsay] Mortal code plus Houou imitation, then **hundreds of millions of self-play hanchan** with hand-tuned rewards. Families: RIGEL balanced, NOVA first-place-seeking, HALO 4th-avoiding (HALO 1.1 is a voting ensemble), ZENITH MoE, COMET call-heavy. | Its million-game head-to-heads all fall within 2.476–2.508 avg rank. "Human-like" is a community label meaning hard to detect. It is linked by model names to a Mahjong Soul cheating tool; shared operator unproven. |
 
@@ -207,6 +209,16 @@ LuckyJ 1,080 games; Suphx 500; NAGA 500; humans = the other seats at LuckyJ's ta
   - **Test-time search:** belief network → depth-limited rollouts → one tabular magnetic-mirror-descent step with the same reverse KLs as training. The move is **sampled** from the updated policy.
   - Unverified from the retrieved text: an ablation showing that removing regularization severely hurts search (the appendix was truncated).
 - **Scaling in board games** (Jones, arXiv 2104.03113): trade-offs between model size, train compute and test-time compute, measured in AlphaZero/Hex. It motivates measuring learning curves early (D30, D31), but it is not a mahjong scaling law.
+  - Commonly quoted from the paper body (secondary, a search summary; **not** in the abstract, not re-read): about +500 Elo per 10× train compute on every board size, and 10× train compute ≈ 15× test-time compute.
+- **Scaling laws for AlphaZero** (Neumann & Gros, arXiv 2210.00849; Connect Four, Pentago) [V, read 2026-10-08]:
+  - Playing strength (Bradley–Terry γ) ∝ N^0.87–0.88 in parameters and ∝ C^0.55 in training compute for compute-optimal agents; power law up to the perfect-play plateau. "Optimal training stops long before convergence."
+  - That is ≈ +66 Elo per doubling of training compute [calc: 400 × 0.55 × log₁₀2].
+- **Hand-crafted features vs compute** (2026-10-08; context: the SP ablation, `experiments/sp-ablation.md`):
+  - **KataGo** (Wu, arXiv 1902.10565, Table 2) [V]: without its Go-specific inputs (liberties, komi parity, pass-alive regions, ladder features), reaching the same Elo at ≈ 2 days (2.5G self-play queries) took **1.55× the training time**. They "contribute noticeably to the learning speed, but account for only a small fraction of the total improvement". Other ablations: global pooling 1.60×, ownership/score targets 1.65×, playout-cap randomization 1.37×, auxiliary policy targets 1.30×, forced playouts + policy-target pruning 1.25×.
+  - **AlphaGo** (Nature 2016): SL policy accuracy 57.0% with all hand-crafted inputs vs 55.7% with raw board + history (secondary, a search summary of the paper). AlphaGo Zero later used raw stones only.
+  - **Stockfish NNUE** (2020): about half the nodes/s of classical Stockfish, +80–100 Elo (secondary: chessprogramming.org, chess.com; not checked against Fishtest).
+  - **Search vs knowledge** (Junghanns & Schaeffer, IJCAI 1997) [V, abstract]: "neither extreme is feasible"; the trade-off point is game-specific, and extra search depth shows diminishing returns.
+  - Mahjong: Suphx's look-ahead features and Mortal v4's SP tables were never ablated upstream (§6, §2); LuckyJ feeds opponent-aware search results into its policy (§6); Ataraxos dropped search from data generation (above).
 - **α-Rank** (Omidshafiei et al., Sci. Rep. 2019): multi-agent evaluation that accounts for matchup structure. It motivates the population panel (D34).
 
 ## 8. Compute calibration
@@ -219,6 +231,7 @@ LuckyJ 1,080 games; Suphx 500; NAGA 500; humans = the other seats at LuckyJ's ta
 | PerfectDou | 880 cores, 8 GPUs | Beat DouZero |
 | BigCoach | Hundreds of millions of hanchan [hearsay] | ≈10.6 [site claim] |
 | Ataraxos (Stratego) | 16 H100 × 1 week + 4 H100 × 4 days; "a few thousand dollars" | Superhuman; no search in data generation |
+| Mahjax RL demo | 100M env steps ≈ 5.8 h on one GH200 (BC init, PPO + KL) | Beats its BC opponents (avg rank < 2.5, 1,000 games); no external comparison |
 | This project | $10–15K cloud budget (D21, D42). Phase 2 in tranches: T1 = eval + learner + 3 actors; T2/T3 = eval + learner + candidate learner + 4 actors (4090/5090, ≥ 32 vCPU). Forecast ≈ 270–290M generated hanchan (D30). | Target L5 |
 
 ## 9. Sources
@@ -260,6 +273,12 @@ LuckyJ 1,080 games; Suphx 500; NAGA 500; humans = the other seats at LuckyJ's ta
   - arXiv 1511.06295 (policy distillation); arXiv 1803.03835 (kickstarting)
   - github.com/vivekjoshy/openskill.py; github.com/twu3202/riichi-eval
   - arXiv 2511.07312 (Ataraxos); arXiv 2104.03113 (Jones, scaling with board games); nature.com/articles/s41598-019-45619-9 (α-Rank)
+- **Features vs compute, RL scaling** (2026-10-08)
+  - ar5iv.labs.arxiv.org/html/1902.10565 (KataGo); ar5iv.labs.arxiv.org/html/2210.00849 (Neumann & Gros)
+  - ar5iv.labs.arxiv.org/html/2003.13590 (Suphx look-ahead features); arxiv.org/html/2605.20577 (Mahjax observation and RL demo)
+  - mlanthology.org/ijcai/1997/junghanns1997ijcai-search/ (search vs knowledge)
+  - chessprogramming.org/Stockfish_NNUE; chess.com/news/view/stockfish-absorbs-nnue-100-elo
+  - augmentingcognition.com/assets/Silver2016a.pdf (AlphaGo, Nature 2016)
 
 ## 10. Cloud pricing and hardware performance (prices fetched 2026-10-06; re-verify before each phase)
 
