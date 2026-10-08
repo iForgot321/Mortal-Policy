@@ -78,6 +78,12 @@ Re-verify quarterly. Update this file, not the stage docs, when a fact changes.
 
 - **History:** went live 2026-03-09. mjai.app shut down 2026-04-30, and its data was deleted.
 - **Connection:** bots are **self-hosted over WebSocket** (`wss://game.riichi.dev/ws/ranked` with a bot token). Observations arrive base64-encoded and are decoded with the `riichienv` package. A validation game is required first.
+- **Rules engine** [V, riichi.dev docs note; riichienv 0.4.10 source and a local run, 2026-10-08]:
+  - The game server is built on **riichienv-core** (Rust). The `riichienv` Python package wraps the same core, and the docs say local simulation "matches the online server exactly".
+  - riichienv's default rule is the Tenhou preset: Rust `GameRule::default()` = `default_tenhou()`, and `RiichiEnv(rule=None)` uses it.
+  - Under that rule a **triple ron is an abortive draw**: `ryukyoku`, reason `sanchaho`, no payments. A ron on a riichi-declaration discard cancels the deposit, including in that case.
+  - `default_mjsoul()` and the Python no-argument `GameRule()` pay all three instead.
+  - Reproduce: `tools/rules/riichienv_sanchaho.py`. The server's exact rule object isn't published; this assumes it uses the default.
 - **Time limit:** **3 s grace per action plus a 15 s bank per kyoku.** A timeout plays tsumogiri or pass, and "timeouts are never penalized". An illegal action is chombo.
 - **Rating:** OpenSkill Weng-Lin Plackett–Luce, with μ₀ = 25, σ₀ = 8.333, τ = 0.3. Displayed as 1500 + 20·(μ − 3σ). Placement only; score is not used. "Stabilizes around ~50 games."
 - **Board, 2026-09-29:**

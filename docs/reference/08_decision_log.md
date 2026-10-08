@@ -549,4 +549,4 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D33b-1:** whether expert iteration earns funding.
 - **D19:** the Gate G1 search classes for inference.
 - **D20:** the decision on publishing weights, after re-reading Tenhou's terms (`07` §6).
-- **D12a:** whether libriichi's arena should abort a triple ron (三家和了) as Tenhou does. It pays all three today (3–7 per 10,000 bot games; `experiments/mahjax-spike.md`). The rules config is frozen, so a change needs an entry here.
+- **D12a:** whether libriichi's arena should abort a triple ron (三家和了) as Tenhou does. It pays all three today (3–7 per 10,000 bot games; `experiments/mahjax-spike.md`). The rules config is frozen, so a change needs an entry here. **Evidence (2026-10-08):** riichi.dev runs on riichienv-core, whose default rule aborts a triple ron like Tenhou (`01` §3, `tools/rules/riichienv_sanchaho.py`).
