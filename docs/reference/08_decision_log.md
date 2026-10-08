@@ -484,6 +484,39 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Residual risk:** an actor host has root on its box, so it can still talk to `server.py`. Messages are now unpickled with `weights_only=True`, so a message can't run code, but a malicious host could still submit bad games. The tunnels keep out everyone else; they don't make actor hosts trusted. A WireGuard or Tailscale network would leave the same gap.
 - **Reopen if:** tunnel throughput or reconnects limit the fleet soak (`03` §3.7), or the fleet moves to VM-based boxes, where WireGuard runs natively.
 
+**D49 (2026-10-08): Observation v4 is Phase 1's observation, not the project's. It is reviewed at G0 against a measured value of one doubling of RL compute.** Amends `05` §1 item 4, which froze v4 through Phase 2. Decided by the user.
+- **Why:**
+  - The SP ablation (`experiments/sp-ablation.md`) left strength inconclusive: pooled −0.0024 u [−0.0056, +0.0009].
+  - Its speed result is certain. v5 makes actors 2.4–2.8× and the learner 2.3× cheaper, about 1.2–1.5 extra doublings of RL compute at equal cost.
+  - So v5 is the better RL observation if one doubling buys more than about 0.002–0.004 u. No public mahjong result gives that number.
+- **What:**
+  - All Phase 1 work (teachers, student candidates, every engine arm) uses v4, so Phase 1 results stay comparable with each other.
+  - Every arm-seed freezes checkpoints at ¼ and ½ of its compute budget (billed box-hours; `fleet.py watch --budget-box-hours`), as well as the final one.
+  - **The doubling estimate:** a fixed-N `measure` of the full-budget checkpoint against the ½-budget checkpoint of the same run, on family B.
+    - P0's estimate is pre-registered in `experiments/p0.md` and gives the first number early in Phase 1.
+    - D31's actor-size curves (6 vs 12 box-days) add more by G0.
+  - **At G0**, the observation is reviewed with those estimates: keep v4 for Phase 2, or switch to v5 or the cheaper shanten-threshold-1 variant (`experiments/sp-ablation.md` §6).
+- **Cost of a switch:**
+  - Teachers and students are retrained on the new observation. Each teacher run costs under $100 (`03` §4.2) and runs about 3× faster under v5. That is about a week of calendar time before T1.
+  - Phase 1's engine comparison stays labelled as v4 evidence.
+- **Review:** at G0, scheduled by this entry.
+
+**D50 (2026-10-08): Every fleet role runs on RTX 4090s through Phase 2, with the pinned torch 2.6 + CUDA 12.4.** Amends `03` §2, §4.2 and §5, `04` §5 and `07` §1, which named 5090s for the learner, eval, burst and deploy roles. Decided by the user.
+- **Why:**
+  - **5090s can't run the pinned environment.** torch 2.6 cu124 has no Blackwell kernels, and `05` §1 freezes the software environment for Phases 1–2. A torch upgrade changes numerics: the deterministic A/A and the featurizer hash checks would have to pass again, and comparisons across the upgrade would mix environments.
+  - **No role needs a 5090** (`experiments/fleet-host-benchmarks.md`, `docs/design/cost-forecast-g1.md`):
+    - actors are CPU-bound: the arena loop takes ~89% of the main thread, and the GPU sits at 11–17%;
+    - the learner is featurization-bound at ~3.75K samples/s;
+    - the eval box runs actor-sized nets, where a network up to b16c256 costs ≤ 6% on a 4090;
+    - SL teachers are featurization-bound (`03` §4.2).
+  - **4090s are cheaper and easier to rent.** On 2026-10-06 the ≥ 32-vCPU medians were $0.50 for a 4090 and $0.67 for a 5090, and Vast listed only 9 such 5090 offers.
+- **Consequences:**
+  - Learner, actor, eval and deploy boxes are 1× RTX 4090, with the vCPU and RAM specs unchanged.
+  - Teachers (burst) run on a 4090 with ≥ 48 vCPU on the secure tier, or an H100 if the `03` §4.2 rule favours it. At the measured featurization rates it doesn't. D17a narrows to "4090 with ≥ 48 vCPU vs H100", pending a secure-tier featurization measurement.
+  - The learner upgrade path (`03` §5) is 4090 → H100 SXM. Hopper runs on torch 2.6.
+  - The $0.55 planning price stays.
+- **Reopen if:** a role becomes GPU-bound on a 4090 (`03` §5's learner rule), or a torch upgrade is needed for another reason. The natural point is G1, when the Phase 1–2 freeze ends.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -508,7 +541,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
 - **D16:** the student net size (`03` §4.1 + `04` §6).
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed.
-- **D17a:** H100 vs a 5090 with ≥ 48 vCPU for teacher runs, decided by the featurization rate (`03` §4.2).
+- **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50), decided by the featurization rate (`03` §4.2) once it is measured on a secure-tier box.
 - **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.
 - **D18:** the Gate G0 outcome: the selected engine (D29) and actor size (D31), and the branch taken.
 - **D30a/b:** the T2 and T3 release decisions.

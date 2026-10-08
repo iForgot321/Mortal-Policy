@@ -134,7 +134,7 @@ The winning pair (2 seeds) forms the **teacher ensemble** used for distillation 
 - The **binding constraint is CPU featurization**:
   - Features are about 137 KB per sample at FP32, so they can't be cached at 1B samples and are generated on the fly.
   - H100 instances come with only 16–26 vCPU.
-  - Choose an H100 or a 5090 with ≥ 48 vCPU by the `03` §4.2 rule.
+  - Choose an H100 or a 4090 with ≥ 48 vCPU by the `03` §4.2 rule (D50).
 - Use secure-tier hosts only (§1, D23).
 - Expect **0.5–3 days per teacher run**, depending on measured presentations and featurization rate.
 

@@ -31,7 +31,7 @@ This file covers:
 - Illegal-action rate is 0 over 100K lab games.
 
 **Deploy box** (`03` §2):
-- 1× RTX 5090, ≥ 16 vCPU, **on-demand on a reliable or verified host**. Never interruptible, because a preempted bot times out mid-game.
+- 1× RTX 4090 (D50; revisit when search is enabled), ≥ 16 vCPU, **on-demand on a reliable or verified host**. Never interruptible, because a preempted bot times out mid-game.
 - Pick the region with the lowest measured WebSocket RTT to `game.riichi.dev`. Measure from 3–4 regions in Phase 1.
 - Budget: about $0.55/h, roughly $400/month (`00`).
 - In Phase 1, the smoke deploy can share the eval box until search is enabled.

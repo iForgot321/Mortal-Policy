@@ -19,9 +19,9 @@ Changing any of these invalidates every comparison made before the change.
 1. The pilot quick students, the quick CQL model, the π_SL student and the BC human prior (`04`).
 2. The **GRP** checkpoint: train it with `train_grp.py` on `train` in Phase 0–1, then freeze it.
 3. The utility u = [+0.90, +0.50, −0.10, −1.30] (`02` §2), and the **reward units** (§3.2).
-4. The rule configuration and the observation schema (v4). Featurizer output hashes must match between the arena and training code paths.
+4. The rule configuration and the observation schema: v4 through Phase 1, reviewed at G0 against the doubling estimates (§2.2, D49). Featurizer output hashes must match between the arena and training code paths.
 5. The evaluation lab: seed families, test definitions, the population panel and the analysis code (`02`).
-6. The software environment: pinned torch, CUDA and the Rust toolchain.
+6. The software environment: pinned torch (2.6), CUDA (12.4) and the Rust toolchain. That pin rules out Blackwell GPUs, so every role runs on RTX 4090s (D50).
 
 ## 2. Learning-engine comparison (Phase 1 early research; D29)
 
@@ -40,6 +40,7 @@ Changing any of these invalidates every comparison made before the change.
 - **Matched total compute:** 3 boxes × 6 days per arm-seed (1 learner + 2 actors), counting collection *and* learning. Evaluation runs on the shared eval box.
 - **Initializations:** each gets the same SL budget (500K-game subset, same steps). Record any remaining difference as part of the recipe.
 - **Tuning allowance:** at most 1 box-day of short sweeps per arm, written down before the runs start.
+- **Budget checkpoints (D49):** every arm-seed freezes checkpoints at ¼ and ½ of its compute budget (billed box-hours; `tools/fleet/fleet.py watch --budget-box-hours`), as well as the final one. A fixed-N comparison of the final checkpoint with the ½ checkpoint of the same run estimates what one doubling of RL compute buys. The observation review at G0 uses it; P0's estimate is pre-registered in `experiments/p0.md`.
 
 ### 2.3 Pre-registered selection (at Gate G0)
 

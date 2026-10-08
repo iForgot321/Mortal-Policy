@@ -34,7 +34,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
         private network (mandatory): SSH tunnels to the learner (D48)
 ┌────────────────┐   params    ┌─────────────────────────┐   replays   ┌──────────────┐
 │ LEARNER        │ ──────────▶ │ ACTORS ×N (stateless)   │ ──────────▶ │ LEARNER      │
-│ 1× 5090, ≥32   │             │ 4090/5090, ≥32 vCPU     │             │ (server.py   │
+│ 1× 4090, ≥32   │             │ 1× 4090, ≥32 vCPU       │             │ (server.py   │
 │ vCPU, on-demand│ ◀────────── │ client.py + libriichi   │             │  buffer +    │
 │ server.py +    │  get_param  │ interruptible OK        │             │  drain)      │
 │ train_online   │             └─────────────────────────┘             └──────────────┘
@@ -42,7 +42,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
         │ checkpoints → object storage (every ~200 iterations)
 ┌───────▼────────┐        ┌──────────────────┐       ┌───────────────────────┐
 │ EVAL BOX       │        │ BURST            │       │ DEPLOY BOX (Phase 4)  │
-│ 1× 5090, ≥32   │        │ SL teachers, CPU │       │ 1× 5090, ≥16 vCPU,    │
+│ 1× 4090, ≥32   │        │ SL teachers, CPU │       │ 1× 4090, ≥16 vCPU,    │
 │ vCPU, on-demand│        │ benchmarks,      │       │ on-demand, reliable;  │
 │ GSPRT queue    │        │ Mahjax spike     │       │ riichi.dev bot        │
 └────────────────┘        └──────────────────┘       └───────────────────────┘
@@ -56,15 +56,15 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
 
 **Security:** `server.py` is plain TCP with **no authentication**. It binds to loopback only; actors reach it through restricted SSH tunnels to the learner (D48). Never expose it publicly.
 
-**Roles:**
+**Roles** (all on RTX 4090s through Phase 2: the pinned torch 2.6 has no Blackwell kernels; D50):
 
 | Role | Spec | Pricing tier | Notes |
 |---|---|---|---|
-| **Learner** | 1× RTX 5090, ≥ 32 vCPU, ≥ 64 GB RAM | On-demand, verified/reliable host | Its CPU also featurizes incoming replays. Upgrade to an H100 SXM only by the §5 rule. |
-| **Actor** | 1× 4090 or 5090, **≥ 32 vCPU** | Interruptible where it saves ≥ 25%; otherwise on-demand | Stateless; reconnects after interruption. Runpod's fixed 6–9 vCPU per consumer GPU is **too few** for these. |
-| **Eval** | 1× 5090, ≥ 32 vCPU | On-demand | Runs the GSPRT queue 24/7 (`02`) |
-| **Burst** | 1× H100 SXM or a 5090 with 48 vCPU | Hourly | SL teachers (choose by featurization rate, §4.2); benchmarks |
-| **Deploy** | 1× 5090, ≥ 16 vCPU | On-demand, reliable, with low RTT to riichi.dev | Phase 4 |
+| **Learner** | 1× RTX 4090, ≥ 32 vCPU, ≥ 64 GB RAM | On-demand, verified/reliable host | Its CPU also featurizes incoming replays. Upgrade to an H100 SXM only by the §5 rule. |
+| **Actor** | 1× 4090, **≥ 32 vCPU** | Interruptible where it saves ≥ 25%; otherwise on-demand | Stateless; reconnects after interruption. Runpod's fixed 6–9 vCPU per consumer GPU is **too few** for these. |
+| **Eval** | 1× 4090, ≥ 32 vCPU | On-demand | Runs the GSPRT queue 24/7 (`02`) |
+| **Burst** | 1× H100 SXM or a 4090 with ≥ 48 vCPU | Hourly | SL teachers (choose by featurization rate, §4.2); benchmarks |
+| **Deploy** | 1× 4090, ≥ 16 vCPU | On-demand, reliable, with low RTT to riichi.dev | Phase 4 |
 
 **Lanes (T2–T3):** actors are split into a **champion lane** and a **candidate lane**.
 - The candidate trains on a **dedicated candidate-learner box**, budgeted in T2 and T3 (D39).
@@ -90,7 +90,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
    - If a b6c128/b8c192 student reaches ≥ 20K hanchan/h on a 96–180-thread box, monthly CPU servers become a **cheaper actor tier**: OVH RISE-XL at 96 threads is $354/mo plus $354 setup, about $0.005/thread-h.
    - This is speculative; the benchmark decides.
 6. **Learner capacity.**
-   - Training samples/s on the 5090 for the chosen student, including the KL-anchor forward pass and the critic.
+   - Training samples/s on the learner's 4090 for the chosen student, including the KL-anchor forward pass and the critic.
    - Compare against the fleet's sample production. Trainee-only 1v3 produces roughly 150–200 samples per hanchan [rough]. At 3.6M hanchan/day that is about 6–8K samples/s; RL-6 multiplies it by about 2.5.
 7. **Fleet soak (gate for T1; D39).** Run the leading engine end-to-end at T1 scale (learner + 3 actors + eval) for **≥ 48 h**, including:
    - real featurization;
@@ -129,12 +129,12 @@ Candidate networks (obs v4, 1012×34) [calc]:
 
 - **Compute:** about 8–9 EFLOP for 1B samples at b24c512. That is roughly 30–40 h on a 4090, or 5–8 h on an H100 [calc, rough]. Either costs well under $100 per run.
 - **The real constraint is CPU featurization.** H100 instances usually come with only 16–26 vCPU. Featurized samples are about 137 KB each at FP32, so they can't be cached for 1B samples; they are generated on the fly.
-- **Rule:** if (instance vCPU × measured samples/s per vCPU) can't feed ≥ 80% of the GPU's training rate, use a **5090 with ≥ 48 vCPU** instead of an H100.
+- **Rule:** if (instance vCPU × measured samples/s per vCPU) can't feed ≥ 80% of the GPU's training rate, use a **4090 with ≥ 48 vCPU** instead of an H100.
 - Run the teachers on **secure-tier** providers only (D23).
 
 ## 5. Learner upgrade rule
 
-Upgrade the learner from a 5090 to an H100 SXM (~$2.4–3.4/h; 2–3.5× faster for CNN training) **only if both** hold:
+Upgrade the learner from a 4090 to an H100 SXM (~$2.4–3.4/h; 2–3.5× faster for CNN training) **only if both** hold:
 - actors are measurably blocked on server buffer overflow (`capacity` reached) for more than 20% of wall-clock;
 - **and** the learner's GPU utilization is above 85%.
 

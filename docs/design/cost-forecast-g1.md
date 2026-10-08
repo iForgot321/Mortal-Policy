@@ -26,6 +26,8 @@ Phase 0 actual spend so far is $5.33 (benchmark rentals), plus ~$10 assumed for 
 | levers | interruptible actors $0.40; learner/eval on 4090s $0.50; secure-tier $0.67 | 8K/s | 2–3 actor processes per box (×1.5); T1 with 2 actor boxes; the 3 students distilled from one featurized stream |
 | pessimistic | 5090 everywhere $0.67; secure-tier $1.30 | 5K/s | as plan |
 
+**Since D50 (2026-10-08)** every role runs on RTX 4090s. The 5090 prices in *measured* and *pessimistic* no longer apply to the learner and eval box; *levers* already priced them as 4090s. The scenarios haven't been re-run yet.
+
 ## Findings
 
 1. **The plan fits at measured prices, just.** Phase 1 comes to $3.18K against $3.2K; Phase 2 to

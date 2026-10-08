@@ -89,7 +89,7 @@ Displayed ratings drift with SD ≈ 36–44 points (`07` §2).
 
 ## Phase map and budget
 
-**Planning unit:** a **"box"** is one RTX 4090/5090 with ≥ 32 vCPU, on-demand, at a planning price of **$0.55/h**. That is the Vast.ai median for 32+ vCPU hosts on 2026-10-01 (`01` §10). One box-day ≈ **$13.2**; one box-month (730 h) ≈ **$400**.
+**Planning unit:** a **"box"** is one RTX 4090 (D50) with ≥ 32 vCPU, on-demand, at a planning price of **$0.55/h**. That is the Vast.ai median for 32+ vCPU hosts on 2026-10-01 (`01` §10). One box-day ≈ **$13.2**; one box-month (730 h) ≈ **$400**.
 
 | Phase | Weeks | Fleet | Cost |
 |---|---|---|---|
@@ -177,6 +177,8 @@ These counts are tracked separately as generated games, consumed samples and cha
 | Arms pass, but the soak fails | Optimize (`03` §6) before T1; dates move (D39) |
 | No arm passes, with healthy curves | Diagnose (`05` §8). One bounded retry of the best arm with package K2, 2 seeds, ≤ $0.6K from the reserve. |
 | The retry fails | Re-scope: the SL incumbent plus inference search becomes the main path. Phase 2 money moves to Phase 3 (D33a), conditional on the pilot. |
+
+**Observation review (D49):** keep v4 for Phase 2, or switch to v5 or a cheaper variant. The evidence is the doubling estimates (`05` §2.2) and the actor-size curves (D31), weighed against v5's break-even of about 0.002–0.004 u per doubling.
 
 ### Phase 2: Select and scale (weeks 10–18)
 

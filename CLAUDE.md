@@ -26,7 +26,7 @@ Guidance for Claude Code (and humans) working in this repository.
 
 ## Machine
 
-- **RTX 3060 12 GB, 16 cores, ~15 GB RAM, WSL2.** Not the 4090/5090 fleet the plan budgets for; that is cloud, later (D21).
+- **RTX 3060 12 GB, 16 cores, ~15 GB RAM, WSL2.** Not the 4090 fleet the plan budgets for (D50); that is cloud (D21).
 - **RAM is the binding constraint.** Never run an arena/lab job concurrently with training: the OOM killer takes a dataloader worker and silently wedges the trainer. Featurized samples are ~137 KB each (fp32); keep worker buffers small, or use `dataset.obs_fp16` with AMP.
 - Conda env `mortal` (Python 3.12, torch 2.6 cu124). **The base conda Python is 3.13**, so always build with `PYO3_PYTHON` set (below) or the `.so` won't import.
 
@@ -71,7 +71,7 @@ Commit only when asked. Small, single-purpose commits.
 ## Project rules
 
 1. **No strength claim without a lab verdict.** Every behaviour change is an experiment with a registry row, labelled *exploratory* or *confirmed*. Loss curves and test_play numbers are not verdicts. Rows made while `lab.toml` says `calibrated = false` are provisional.
-2. **Frozen items need a decision-log entry to change:** utility vector, GRP checkpoint, observation schema (v4), rules config, seed families (`lab/seeds.toml`), lab test definitions (`lab/lab.toml`), data splits (`~/mj-data/splits`). Any featurizer change must keep arena and training paths hash-identical.
+2. **Frozen items need a decision-log entry to change:** utility vector, GRP checkpoint, observation schema (v4 through Phase 1, reviewed at G0: D49), rules config, seed families (`lab/seeds.toml`), lab test definitions (`lab/lab.toml`), data splits (`~/mj-data/splits`). Any featurizer change must keep arena and training paths hash-identical.
 3. **Utility:** `env.pts = [90, 50, -10, -130]` (u × 100, D2). Never the repo default `[6, 4, 2, 0]`. `[90, 45, 0, -135]` is display-only.
 4. **Masks must be identical** in actor, learner, KL, entropy and any loss. `CategoricalPolicy.forward` returns probabilities; use `CategoricalPolicy.logits` (masked raw logits) for losses, KL and ACH.
 5. **Reward units.** Upstream `RewardCalculator` standardizes with running statistics; the plan uses fixed units for RL (D37). Know which path you're touching.
