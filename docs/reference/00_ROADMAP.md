@@ -248,7 +248,7 @@ From the pilot plus a scaled S-3 run on the champion (`06` §7), decide:
 9. **Evaluation-population mismatch.**
    - *Mitigation:* the population panel with reserved configurations (D34); early smoke deploy; blunder mining.
 10. **Network exposure.** Mortal-Policy's TCP server has no authentication.
-    - *Mitigation:* run it on the private WireGuard network only.
+    - *Mitigation:* bind it to loopback and reach it only through restricted SSH tunnels (D48).
 11. **Ecosystem shift.**
     - *Mitigation:* quarterly re-survey of riichi.dev rules, Mahjax maturity and prices.
 12. **Solo burnout.**

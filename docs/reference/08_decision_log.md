@@ -467,6 +467,23 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Consequence:** Phase 0 no longer owes a CPU-only verdict. Actors stay on GPU boxes (`03` §2).
 - **Reopen if:** the observation drops the single-player tables (v5 or a cheaper variant), or actor cost dominates at G0. Then run the test as written (a few hours on a c3d-highcpu-180 spot, ~$5–10).
 
+**D48 (2026-10-08): The fleet's private network is SSH tunnels over each box's published SSH port, not WireGuard or Tailscale.** Amends `03` §2. Decided by the user.
+- **Why:**
+  - Vast boxes are unprivileged Docker containers, which usually have no TUN device or `NET_ADMIN`. That rules out kernel WireGuard and the TUN modes of WireGuard and Tailscale.
+  - Each userspace variant costs something the box workflow forbids:
+    - Tailscale needs an account auth key on every box (a credential on a community host) and a SOCKS shim for `client.py`.
+    - wireproxy needs a published UDP port and a third-party binary.
+  - Every box already publishes SSH, the one port the workflow allows. Tunnels need no new software, port or account.
+- **How** (`tools/fleet/fleet.py`):
+  - `server.py` binds to loopback only, and refuses any other address unless the config sets `online.server.allow_non_loopback`. The trainer runs on the learner box.
+  - Each actor generates its own key on its box. The learner installs it for an unprivileged `fleet` user, restricted by `authorized_keys` options and an `sshd_config` `Match` block:
+    - forwarding only to `127.0.0.1:<port>`;
+    - no remote forwarding, shell, PTY, agent or X11.
+  - The actor pins the learner's host key, read by the workstation over its own SSH session. A loop on the actor holds `ssh -N -L 127.0.0.1:<port>:127.0.0.1:<port>`, and `client.py`'s backoff covers the gaps.
+  - Replacing or tearing down an actor revokes its key.
+- **Residual risk:** an actor host has root on its box, so it can still talk to `server.py`. Messages are now unpickled with `weights_only=True`, so a message can't run code, but a malicious host could still submit bad games. The tunnels keep out everyone else; they don't make actor hosts trusted. A WireGuard or Tailscale network would leave the same gap.
+- **Reopen if:** tunnel throughput or reconnects limit the fleet soak (`03` §3.7), or the fleet moves to VM-based boxes, where WireGuard runs natively.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

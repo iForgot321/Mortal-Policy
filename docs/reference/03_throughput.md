@@ -31,7 +31,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
 ## 2. Fleet architecture
 
 ```
-              WireGuard / Tailscale private network (mandatory)
+        private network (mandatory): SSH tunnels to the learner (D48)
 ┌────────────────┐   params    ┌─────────────────────────┐   replays   ┌──────────────┐
 │ LEARNER        │ ──────────▶ │ ACTORS ×N (stateless)   │ ──────────▶ │ LEARNER      │
 │ 1× 5090, ≥32   │             │ 4090/5090, ≥32 vCPU     │             │ (server.py   │
@@ -52,9 +52,9 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
 - `client.py` actors loop: `get_param` → `train_play` (1v3) → `submit_replay`.
 - `server.py` buffers the replays (with `capacity` and `force_sequential`).
 - The learner drains the buffer, then featurizes it with `GameplayLoader`.
-- **New work:** provisioning scripts, a reconnect/backoff loop in `client.py`, monitoring, and the VPN.
+- **New work:** provisioning scripts, a reconnect/backoff loop in `client.py`, monitoring, and the private network (`tools/fleet/fleet.py`).
 
-**Security:** `server.py` is plain TCP with **no authentication**. Bind it only to the WireGuard interface. Never expose it publicly.
+**Security:** `server.py` is plain TCP with **no authentication**. It binds to loopback only; actors reach it through restricted SSH tunnels to the learner (D48). Never expose it publicly.
 
 **Roles:**
 
