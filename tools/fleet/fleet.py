@@ -376,21 +376,36 @@ def wait_running(run, box):
                              f'({st}: {j.get("status_msg")})')
         time.sleep(15)
     run.save()
-    for _ in range(30):
-        if remote(run, box, 'true\n', timeout=40, check=False).returncode == 0:
+    # two answers 20 s apart: the image's entrypoint restarts sshd shortly after it first
+    # answers, which broke a sync on 2026-10-08
+    ok = 0
+    for _ in range(40):
+        ok = ok + 1 if remote(run, box, 'true\n', timeout=40, check=False).returncode == 0 else 0
+        if ok == 2:
             return
-        time.sleep(10)
+        time.sleep(20 if ok else 10)
     raise FleetError(f'{box["name"]}: ssh never came up ({box["ip"]}:{box["ssh_port"]})')
+
+
+def retry(fn, *args, tries=3, wait=15, **kw):
+    """For idempotent steps (rsync, probes): a dropped connection shouldn't cost a box."""
+    for i in range(tries):
+        try:
+            return fn(*args, **kw)
+        except FleetError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait)
 
 
 def sync(run, box):
     _, cfg = load_config(REPO / run.data['config'])
-    remote(run, box, 'command -v rsync >/dev/null || { apt-get update -qq && '
-                     'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync >/dev/null; }\n',
-           timeout=900)
-    rsync(run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
-                     './', on_box(box)])
-    rsync(run, box, ['-R', *inputs(cfg, box['role'], run.data.get('init')), on_box(box)])
+    retry(remote, run, box, 'command -v rsync >/dev/null || { apt-get update -qq && '
+                            'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync >/dev/null; }\n',
+          timeout=900)
+    retry(rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
+                            './', on_box(box)])
+    retry(rsync, run, box, ['-R', *inputs(cfg, box['role'], run.data.get('init')), on_box(box)])
 
 
 def provision(run, name, role, machine=None, skip_tests=False, allow_zen2=False, tries=3):
