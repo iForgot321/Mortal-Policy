@@ -240,7 +240,17 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
 - Tests: `test_fleet.py` +2 (budget accounting; snapshot hash check and no-overwrite).
 - `experiments/p0.md`: the P0 run plan, with the pre-registered doubling estimate (`measure` full vs p50, 100K sets, ≈ ±0.002 u).
 
-**Open (user):** D12a (triple ron), P1 horizon split and K1 critic settings, the riichi.dev bot account, the P0 tuning allowance and go-ahead.
+**D51 (decided by the user): the arena aborts a triple ron.**
+- **The deciding fact:** riichi.dev runs on riichienv-core. Its default rule (the Tenhou preset) aborts a triple ron, verified by staging one in riichienv 0.4.10 (`tools/rules/riichienv_sanchaho.py`, `01` §3).
+- **The change:** `arena/board.rs`. Three rons end in a zero-delta `ryukyoku`; the dealer repeats with honba +1, a riichi declared on that discard is not accepted, and the three rons are recorded as not applied (D46).
+- **Rust tests:** triple ron, riichi on the discard, and a double-ron control. With the abort disabled, both triple-ron tests fail (negative control).
+- **Verified:**
+  - `cargo test` passes, clippy is unchanged at 28 errors (the same as without the change), fmt is clean, and `pytest` gives 79 passed, 4 skipped;
+  - the v4 golden hash is unchanged (`b9817059…`);
+  - the deterministic A/A passes exactly for rule-based play (`20261008-150055-AA`) and neural true-FP32 play (`20261008-150119-AA`), 500 sets each at `6749abd`;
+  - the three triple-ron games from the A/A′ run replay identically up to the discard, then end in the abortive draw, and every seat's entries join their sidecars. The declarers' decision comes out as pass (45) with no behaviour probability, as D51 states.
+
+**Open (user):** P1 horizon split and K1 critic settings, the riichi.dev bot account, the P0 tuning allowance and go-ahead.
 
 ## Next steps
 

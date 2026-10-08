@@ -378,7 +378,8 @@ class Game:
         if ev['type'] != 'ryukyoku':
             rons = [i for i in self.consumed if self.ev(i)['type'] == 'hora' and i > self.react_trigger]
             if len(rons) >= 3:
-                # Tenhou (and Mahjax) abort a triple ron; libriichi's arena pays all three.
+                # Tenhou (and Mahjax) abort a triple ron; libriichi's arena paid all three
+                # before D51 (2026-10-08), so only older arena logs reach this branch.
                 # Mahjax's rollback of the first two shows up as the third ron's reward.
                 self.notes = [n for n in self.notes if not (n[0] == 'hora_deltas' and n[1] in rons)]
                 raise Divergence(('triple_ron', self.react_trigger, None))

@@ -40,6 +40,8 @@ Same checkpoint, same nonce block (aa-harness-nn, family A [500, 1000)).
 - **True FP32** (`--no-amp` now also disables TF32 and sets deterministic cuDNN): **pass**. 500 sets,
   0 divergent sets, every set score exactly 0, s² = 0.
 
+**Re-check after D51** (2026-10-08, the arena now aborts a triple ron): both deterministic A/As pass exactly again, 500 sets each at `6749abd`: rule-based `20261008-150055-AA`, neural true FP32 `20261008-150119-AA`.
+
 **Conclusion:** the harness is exact; all observed divergence was inference numerics. Recorded as D43:
 the deterministic A/A runs with `--no-amp`; verdict runs keep AMP, the deploy mode (02 §3).
 
