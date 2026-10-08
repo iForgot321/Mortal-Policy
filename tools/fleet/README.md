@@ -13,6 +13,8 @@ Measured results and host choices are in `experiments/fleet-host-benchmarks.md`;
 
 | File | What it does |
 |---|---|
+| `fleet.py` | Runs here: a run's fleet (learner + actors): rent, set up, join the private network, start, health, pull, watch/recover, tear down |
+| `box_tunnel.sh`, `box_supervise.sh`, `box_learner.sh`, `box_health.py` | Run on the boxes, started by `fleet.py`: the actor's tunnel, the restart loop, the learner's server + trainer unit, the health probe |
 | `setup_box.sh` | Runs on the box: packages, Python/torch/GPU checks, Rust, pinned packages, libriichi build, frozen-input hashes, box configs, tests |
 | `box_bench.sh` | Runs here: drives one box end to end (wait, sync, setup, benchmarks, copy back, destroy) |
 | `bench_1v3.py` | Eval-mode hanchan/h; `--shadow` / `--compile` price other network sizes |
@@ -126,6 +128,59 @@ $SSHC root@<ip> "cd /workspace/Mortal-Policy && tmux new -d -s setup 'tools/flee
 # … work …
 rsync -az -e "$SSHC" root@<ip>:/workspace/Mortal-Policy/workdir/box/ workdir/fleet/<run>/box/
 ```
+
+## Running a fleet (`fleet.py`)
+
+One RL run = one learner box (`server.py` + `train_online.py`) and N actor boxes (`client.py` × `--procs`),
+driven from the workstation. State, logs and pulled results live in `workdir/fleet/runs/<run>/`.
+
+```bash
+F="python3 tools/fleet/fleet.py"
+$F up --run p0-a --config experiments/configs/p0.toml --init workdir/pilot/qs-a/pilot-qs-a-final.pth \
+    --actors 2 --procs 3 --hard-hours 30 --verify            # shows the offers; add --yes to rent
+$F health --run p0-a                                         # every box: ok / warn / fail / unreachable / lost
+setsid -f $F watch --run p0-a --replace --max-hours 26 > /tmp/watch-p0-a.out 2>&1 < /dev/null
+$F status --run p0-a                                         # boxes, $/h, cost so far
+$F down --run p0-a                                           # pull, revoke, destroy, sweep
+```
+
+**Private network (D48).** `server.py` binds to `127.0.0.1` only (it refuses anything else). Each actor
+holds an SSH tunnel to it over the learner's published SSH port (`box_tunnel.sh`, reconnecting):
+
+- Each actor makes its own key on its box. The learner installs it for an unprivileged `fleet` user,
+  restricted to forwarding to `127.0.0.1:<port>`: `authorized_keys` options plus an `sshd_config`
+  `Match` block. No shell, PTY, agent, X11 or remote forwarding.
+- The actor pins the learner's ed25519 host key, which the workstation reads and proves over its own
+  session.
+- `join --verify` checks the restrictions from each actor: no command runs, a forward to `:22` is
+  refused, a forward to the server port works, `-R` is refused.
+- `down` and replacements revoke the actor's key. Actor hosts are still not trusted: they can send
+  games to `server.py`, but `recv_msg` unpickles with `weights_only=True`, so they can't run code.
+
+**Processes.** Everything runs under `box_supervise.sh` in tmux, which restarts it with backoff and
+logs each exit to `workdir/fleet-box/logs/supervise.log`. The learner's server and trainer are one
+unit (`box_learner.sh`): if either dies, both restart, because a fresh `server.py` has no parameters
+and an empty buffer that a running trainer would wait on forever. A restarted server starts its
+parameter versions at 0 again, so that drain's policy-lag figures are off.
+
+**Health and recovery.** `health` probes each box (`box_health.py`) and appends to `health.jsonl`: the
+processes, restarts, actor games and blocked seconds in the last hour, the replay queue, parameter and
+checkpoint age, the tunnel, GPU, memory and disk. Every `--interval` seconds, `watch`:
+- restarts the processes on a box that is up but has none running (after a reboot);
+- with `--replace`, replaces a box that has been lost or unreachable for `--grace` minutes. A
+  replacement actor is joined and started. A replacement learner continues from the last pulled
+  checkpoint (`--pull-every`, default 30 min), and every actor is repointed at it;
+- stops and downs everything at `--max-hours` / `--max-dollars`.
+
+`events.jsonl` records each loss and recovery with its duration, for the soak's 30-minute rule (03 §3.7).
+
+**Spend safety.** `up --hard-hours H` starts a detached watchdog (`down --after`). At the deadline it
+downs the run, even when another command holds the run's lock. It then sweeps every instance labelled
+`mp-<run>-*` until nothing is left. `down` always ends with the same sweep.
+
+**Not covered yet:** the eval box's GSPRT queue (provision it with `--role eval`, start work by hand),
+interruptible (bid) actors, and checkpoint copies to object storage. Checkpoints come back to the
+workstation instead, because boxes hold no credentials.
 
 ## Stopping and destroying
 

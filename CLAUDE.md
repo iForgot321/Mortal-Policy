@@ -39,7 +39,7 @@ Guidance for Claude Code (and humans) working in this repository.
 | `lab/` | **Evaluation lab** (`02`): GSPRT, calibration simulator, nonce ledger, registry. `python -m lab --help` from the repo root |
 | `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
 | `tools/data/` | **Data pipeline** (`04a`): `download.py` → `convert.py` → `index.py` → `coverage.py` → `splits.py` → … ; `params.toml` is part of the dataset identity |
-| `tools/fleet/` | **Rented GPU boxes** (`03`): Vast.ai CLI how-to (`README.md`), `setup_box.sh`, the per-box driver `box_bench.sh`, benchmarks. Results in `experiments/fleet-host-benchmarks.md` |
+| `tools/fleet/` | **Rented GPU boxes** (`03`): Vast.ai CLI how-to (`README.md`), `fleet.py` (a run's learner + actors over SSH tunnels, D48), `setup_box.sh`, the benchmark driver `box_bench.sh`, benchmarks. Results in `experiments/fleet-host-benchmarks.md` |
 | `tests/` | Python tests (`pytest tests/`) |
 | `experiments/` | One markdown note per experiment; `experiments/configs/` holds the exact training configs (`MORTAL_CFG=...`) |
 | `~/mj-data/` (outside the repo) | Tenhou data: `raw/` (immutable snapshot), `mjai/`, `db/`, `meta/`, `splits/`, `names/`, `reports/` |
@@ -77,7 +77,7 @@ Commit only when asked. Small, single-purpose commits.
 5. **Reward units.** Upstream `RewardCalculator` standardizes with running statistics; the plan uses fixed units for RL (D37). Know which path you're touching.
 6. **Oracle observations stay out of play.** `Invisible`, `oracle=True`, `trust_seed=True` are for critics, labels and lab diagnostics only.
 7. **Tenhou data** (D13, D23): never committed, never on community/peer cloud hosts, never redistributed. Only the recipe (`tools/data/`, `params.toml`, aggregate reports) and hashes are publishable. Known bot accounts live in `~/mj-data/names/excludes_bots.txt`.
-8. **`server.py` has no authentication.** Private/VPN interfaces only.
+8. **`server.py` has no authentication.** It binds to loopback only; actors reach it through restricted SSH tunnels (D48, `tools/fleet/fleet.py`).
 9. **AGPL-3.0.** Keep license headers; publish the source of any deployed bot.
 10. **Ethics.** Bots play only on riichi.dev. No features aimed at evading bot detection.
 
