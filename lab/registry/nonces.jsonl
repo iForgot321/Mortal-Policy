@@ -8,3 +8,5 @@
 {"family": "B", "start": 1000100000, "count": 60000, "run_id": "20261005-173018-T-NI", "purpose": "T-NI verdict", "block": null, "time": "2026-10-05T17:30:18-07:00"}
 {"family": "B", "start": 1000160000, "count": 60000, "run_id": "20261007-064005-T-NI", "purpose": "T-NI verdict", "block": null, "time": "2026-10-07T06:40:05-07:00"}
 {"family": "B", "start": 1000220000, "count": 60000, "run_id": "20261007-164116-T-NI", "purpose": "T-NI verdict", "block": null, "time": "2026-10-07T16:41:16-07:00"}
+{"family": "B", "start": 1000280000, "count": 20000, "run_id": "20261007-173414-measure", "purpose": "SP ablation effect size (fixed N)", "block": null, "time": "2026-10-07T17:34:14-07:00"}
+{"family": "B", "start": 1000300000, "count": 20000, "run_id": "20261007-203040-measure", "purpose": "SP ablation effect size (fixed N)", "block": null, "time": "2026-10-07T20:30:40-07:00"}
