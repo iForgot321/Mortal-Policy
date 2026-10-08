@@ -144,7 +144,7 @@ These counts are tracked separately as generated games, consumed samples and cha
   - VPN; provisioning; monitoring;
   - per-box throughput;
   - featurization rate;
-  - CPU-only inference benchmark;
+  - CPU-only inference benchmark (deferred 2026-10-08, D47);
   - Mahjax spike.
 
 **Exit:** L0 met; σ_set, hanchan/h per box type and featurization samples/s logged with commit and config.

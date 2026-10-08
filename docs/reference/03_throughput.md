@@ -84,7 +84,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
    - evaluation with argmax on both sides.
 3. **Bottleneck.** Is it libriichi on the CPU, inference on the GPU, or Python/IPC? Optimize only the named bottleneck (§6).
 4. **Featurization rate for SL.** Measure the `GameplayLoader` samples/s per vCPU on the training data. This decides the burst GPU for the teachers (§4.2).
-5. **CPU-only inference experiment.**
+5. **CPU-only inference experiment.** *Deferred 2026-10-08 (D47): v4 actor boxes are already CPU-bound.*
    - Rent a GCP c3d-highcpu-180 spot instance (~$1.64/h) for a few hours.
    - Run libriichi with the student net on CPU (oneDNN, BF16 if available).
    - If a b6c128/b8c192 student reaches ≥ 20K hanchan/h on a 96–180-thread box, monthly CPU servers become a **cheaper actor tier**: OVH RISE-XL at 96 threads is $354/mo plus $354 setup, about $0.005/thread-h.
@@ -201,7 +201,7 @@ All prices as of 2026-10-01 (`01` §10).
 - Host allowlist with hanchan/h per host type.
 - The inference matrix (§4.1).
 - Featurization rate and the teacher-hardware decision (§4.2).
-- CPU-only verdict.
+- CPU-only verdict: deferred (D47).
 - Learner-capacity number.
 - The fleet-soak report (§3.7), which is the gate for T1.
 - Mahjax verdict (`08` D12).

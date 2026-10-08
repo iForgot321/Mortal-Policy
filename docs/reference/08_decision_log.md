@@ -459,6 +459,14 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - C, non-standard events in the mjai log: breaks every log consumer.
 - **Reopen if:** actors stop shipping mjai logs, for example in favour of featurized trajectories that can carry the probability inline.
 
+**D47 (2026-10-08): The CPU-only actor test is deferred** (`03` §3 item 5; D17b stays open). Decided by the user.
+- **Why:**
+  - On obs v4 the actor boxes are already CPU-bound: libriichi's arena loop takes ~89% of the main thread, and v4's single-player tables cost ~0.76 CPU-s per hanchan (`experiments/fleet-host-benchmarks.md`, `experiments/sp-ablation.md`). A CPU-only actor would put inference on those same cores.
+  - v4 stays for Phase 1 (the SP ablation was inconclusive), so the case that would favour a CPU tier, encoding made nearly free by dropping the tables, does not apply.
+  - `00`'s Phase 0 exit criteria (L0; σ_set, hanchan/h per box type, featurization samples/s) don't depend on it.
+- **Consequence:** Phase 0 no longer owes a CPU-only verdict. Actors stay on GPU boxes (`03` §2).
+- **Reopen if:** the observation drops the single-player tables (v5 or a cheaper variant), or actor cost dominates at G0. Then run the test as written (a few hours on a c3d-highcpu-180 spot, ~$5–10).
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -484,7 +492,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D16:** the student net size (`03` §4.1 + `04` §6).
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed.
 - **D17a:** H100 vs a 5090 with ≥ 48 vCPU for teacher runs, decided by the featurization rate (`03` §4.2).
-- **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5).
+- **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.
 - **D18:** the Gate G0 outcome: the selected engine (D29) and actor size (D31), and the branch taken.
 - **D30a/b:** the T2 and T3 release decisions.
 - **D32a:** the search-pilot verdict (recovery ratio, latency) and the decision class to expand next.
