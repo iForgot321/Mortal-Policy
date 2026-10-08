@@ -54,6 +54,10 @@ def main():
     history = []
 
     while True:
+        # time spent waiting for params (server overflow, trainer busy): the fleet
+        # soak's "actors blocked" figure (03 §3.7)
+        wait_start = time.monotonic()
+        wait_status = None
         while True:
             msg = {
                 'type': 'get_param',
@@ -63,7 +67,10 @@ def main():
             if rsp['status'] == 'ok':
                 param_version = rsp['param_version']
                 break
+            wait_status = rsp['status']
             time.sleep(3)
+        if wait_status is not None:
+            logging.info(f'blocked {time.monotonic() - wait_start:.0f}s waiting for params ({wait_status})')
         mortal.load_state_dict(rsp['mortal'])
         dqn.load_state_dict(rsp['dqn'])
         logging.info('param has been updated')

@@ -83,3 +83,34 @@ def test_client_without_sidecars_still_works(server):
     (rsp,) = call(server, 'handle_drain')
     assert rsp['count'] == 4
     assert os.listdir(rsp['behaviour_drain_dir']) == []
+
+
+class Exploit:
+    """Unpickling this would run code: what a hostile actor host could send (D48)."""
+    def __reduce__(self):
+        return (os.system, ('echo pwned',))
+
+
+def test_recv_msg_refuses_code_and_passes_messages(server):
+    import pickle
+    import socket
+    import torch
+    from common import recv_msg, send_msg
+    msg = {'type': 'submit_replay', 'param_version': 3, 'logs': {'a.json.gz': b'\x1f\x8b'},
+           'behaviour': {}, 'state': {'w': torch.ones(2)}, 'is_idle': True}
+    a, b = socket.socketpair()
+    with a, b:
+        send_msg(a, msg)
+        got = recv_msg(b)
+        assert got['logs'] == msg['logs'] and torch.equal(got['state']['w'], msg['state']['w'])
+        send_msg(a, {'type': 'get_param', 'x': Exploit()})
+        with pytest.raises(pickle.UnpicklingError):
+            recv_msg(b)
+
+
+def test_server_binds_loopback_only(server):
+    server.check_bind_host('127.0.0.1')
+    server.check_bind_host('localhost')
+    with pytest.raises(SystemExit):
+        server.check_bind_host('0.0.0.0')
+    server.check_bind_host('0.0.0.0', allow_non_loopback=True)

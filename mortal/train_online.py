@@ -509,7 +509,9 @@ def train():
                     state['critic'] = critic.state_dict()
                     state['critic_optimizer'] = critic_optimizer.state_dict()
                     state['critic_scheduler'] = critic_scheduler.state_dict()
-                torch.save(state, state_file)
+                # atomic, so a crash or a fleet pull never sees a torn checkpoint
+                torch.save(state, state_file + '.tmp')
+                os.replace(state_file + '.tmp', state_file)
 
                 if online and steps % submit_every != 0:
                     submit(is_idle=False)

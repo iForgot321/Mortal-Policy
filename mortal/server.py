@@ -1,6 +1,8 @@
 import prelude
 
+import ipaddress
 import logging
+import socket
 import shutil
 import torch
 import sys
@@ -139,6 +141,17 @@ class Handler(BaseRequestHandler):
     def recv_msg(self):
         return recv_msg(self.request)
 
+def check_bind_host(host, allow_non_loopback=False):
+    """The server has no authentication: it binds to loopback, and actors reach it
+    through SSH tunnels (D48). Any other address needs an explicit opt-in."""
+    addrs = {info[4][0] for info in socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)}
+    public = sorted(a for a in addrs if not ipaddress.ip_address(a.split('%')[0]).is_loopback)
+    if public and not allow_non_loopback:
+        raise SystemExit(
+            f'refusing to bind {host} ({", ".join(public)}): server.py has no authentication. '
+            'Bind 127.0.0.1 and reach it through tools/fleet tunnels (D48), or set '
+            'online.server.allow_non_loopback = true on a private network.')
+
 class Server(ThreadingTCPServer):
     def handle_error(self, request, client_address):
         typ, _, _ = sys.exc_info()
@@ -170,6 +183,7 @@ def main():
     )
 
     bind_addr = (config['online']['remote']['host'], config['online']['remote']['port'])
+    check_bind_host(bind_addr[0], cfg.get('allow_non_loopback', False))
     for d in (S.buffer_dir, S.drain_dir, S.behaviour_buffer_dir, S.behaviour_drain_dir):
         if path.isdir(d):
             shutil.rmtree(d)

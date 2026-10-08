@@ -70,7 +70,9 @@ def recv_msg(conn: socket.socket, map_location=torch.device('cpu')):
     rx = recv_binary(conn, 8)
     (size,) = struct.unpack('<Q', rx)
     rx = recv_binary(conn, size)
-    return torch.load(BytesIO(rx), weights_only=False, map_location=map_location) # TODO: weights_only=True
+    # weights_only: messages hold only dicts, strs, numbers, bytes and tensors, and a
+    # peer (an actor host, D48) must not be able to run code by sending a pickle
+    return torch.load(BytesIO(rx), weights_only=True, map_location=map_location)
 
 def recv_binary(conn: socket.socket, size):
     assert size > 0
