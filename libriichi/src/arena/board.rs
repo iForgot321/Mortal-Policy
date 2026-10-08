@@ -23,8 +23,7 @@ use tinyvec::ArrayVec;
 /// Other than what is mentioned below, everything else is identical to Tenhou's
 /// Rule.
 ///
-/// 1. No triple-ron ryukyoku.
-/// 2. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
+/// 1. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
 ///    always 1x yakuman.
 #[derive(Debug, Default)]
 pub struct Board {
@@ -593,8 +592,17 @@ impl BoardState {
             .unwrap(); // Unwrap is safe because it is proven non-empty
 
         let four_kan_abort = self.check_four_kan && !matches!(ev.event, Event::Hora { .. });
+        // 三家和了: three rons abort the kyoku, as on Tenhou and in riichienv's
+        // default rule, which riichi.dev runs (D51). Nobody pays, and a riichi
+        // declared on the discard is never accepted.
+        let triple_ron = reactions
+            .iter()
+            .filter(|r| matches!(r.event, Event::Hora { .. }))
+            .count()
+            == 3;
         self.record_reactions(reactions, |actor| {
             !four_kan_abort
+                && !triple_ron
                 && match ev.event {
                     // multi-ron applies every hora
                     Event::Hora { .. } => matches!(reactions[actor].event, Event::Hora { .. }),
@@ -604,8 +612,8 @@ impl BoardState {
                 }
         });
 
-        if four_kan_abort {
-            // 四槓散了
+        if four_kan_abort || triple_ron {
+            // 四槓散了 / 三家和了
             self.abortive_ryukyoku();
             return Ok(Poll::End);
         }
@@ -884,3 +892,162 @@ const UNSHUFFLED: [Tile; 136] = [
     t!(F), t!(F), t!(F), t!(F),
     t!(C), t!(C), t!(C), t!(C),
 ];
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::mjai::Behaviour;
+
+    /// Seats 1–3 each hold a dragon triplet (the yaku) and wait on 2m with
+    /// 3m4m. The dealer, tenpai on 6p9p once 2m goes, draws 2m first.
+    fn board() -> BoardState {
+        let haipai = [
+            t![E, E, E, S, S, S, W, W, W, N, N, 7p, 8p],
+            t![P, P, P, 1p, 2p, 3p, 7s, 8s, 9s, 3m, 4m, 9p, 9p],
+            t![F, F, F, 1p, 2p, 3p, 7s, 8s, 9s, 3m, 4m, 9m, 9m],
+            t![C, C, C, 1p, 2p, 3p, 7s, 8s, 9s, 3m, 4m, 1s, 1s],
+        ];
+        let mut rest = UNSHUFFLED.to_vec();
+        for tile in haipai.iter().flatten().chain([&t!(2m)]) {
+            let i = rest.iter().position(|x| x == tile).unwrap();
+            rest.remove(i);
+        }
+        let mut yama = rest.split_off(14);
+        yama.push(t!(2m)); // the yama pops from the back
+        Board {
+            scores: [25000; 4],
+            haipai,
+            rinshan: rest[..4].to_vec(),
+            dora_indicators: rest[4..9].to_vec(),
+            ura_indicators: rest[9..14].to_vec(),
+            yama,
+            ..Default::default()
+        }
+        .into_state()
+    }
+
+    fn reaction(event: Event, label: u8) -> EventExt {
+        EventExt {
+            event,
+            meta: None,
+            behaviour: Some(Behaviour {
+                label,
+                prob: Some(1.),
+                kan_select: None,
+            }),
+        }
+    }
+
+    /// The dealer discards the 2m it drew, after declaring riichi if asked;
+    /// then each seat in `rons` declares ron and the others pass.
+    fn play(riichi: bool, rons: &[u8]) -> BoardState {
+        let mut state = board();
+        state.set_record_behaviour(true);
+        assert!(matches!(
+            state.poll(Default::default()).unwrap(),
+            Poll::InGame
+        ));
+        if riichi {
+            let mut r: [EventExt; 4] = Default::default();
+            r[0] = reaction(Event::Reach { actor: 0 }, 37);
+            assert!(matches!(state.poll(r).unwrap(), Poll::InGame));
+        }
+        let mut r: [EventExt; 4] = Default::default();
+        r[0] = reaction(
+            Event::Dahai {
+                actor: 0,
+                pai: t!(2m),
+                tsumogiri: true,
+            },
+            tu8!(2m),
+        );
+        assert!(matches!(state.poll(r).unwrap(), Poll::InGame));
+        for seat in 1..4 {
+            assert!(state.player_states[seat].last_cans().can_ron_agari);
+        }
+        let mut r: [EventExt; 4] = Default::default();
+        for seat in 1..4 {
+            r[seat] = if rons.contains(&(seat as u8)) {
+                let hora = Event::Hora {
+                    actor: seat as u8,
+                    target: 0,
+                    deltas: None,
+                    ura_markers: None,
+                };
+                reaction(hora, 43)
+            } else {
+                reaction(Event::None, 45)
+            };
+        }
+        assert!(matches!(state.poll(r).unwrap(), Poll::End));
+        state
+    }
+
+    #[test]
+    fn triple_ron_is_an_abortive_draw() {
+        let mut state = play(false, &[1, 2, 3]);
+        let log = state.take_log();
+        let n = log.len();
+        assert!(matches!(log[n - 3].event, Event::Dahai { actor: 0, .. }));
+        assert!(matches!(
+            log[n - 2].event,
+            Event::Ryukyoku {
+                deltas: Some([0, 0, 0, 0])
+            }
+        ));
+        assert!(matches!(log[n - 1].event, Event::EndKyoku));
+        assert!(!log.iter().any(|ev| matches!(ev.event, Event::Hora { .. })));
+
+        let result = state.end();
+        assert!(result.has_abortive_ryukyoku && !result.has_hora && result.can_renchan);
+        assert_eq!(result.scores, [25000; 4]);
+
+        // the three rons were declared, recorded and not applied (D46)
+        let rons: Vec<_> = state
+            .take_behaviour()
+            .into_iter()
+            .filter(|r| r.label == 43)
+            .collect();
+        assert_eq!(rons.len(), 3);
+        assert!(
+            rons.iter()
+                .all(|r| !r.applied && r.event_idx as usize == n - 3)
+        );
+    }
+
+    #[test]
+    fn riichi_on_the_triple_ron_discard_is_not_accepted() {
+        let mut state = play(true, &[1, 2, 3]);
+        let log = state.take_log();
+        assert!(
+            log.iter()
+                .any(|ev| matches!(ev.event, Event::Reach { actor: 0 }))
+        );
+        assert!(
+            !log.iter()
+                .any(|ev| matches!(ev.event, Event::ReachAccepted { .. }))
+        );
+        let result = state.end();
+        assert_eq!(result.scores, [25000; 4]);
+        assert_eq!(result.kyotaku_left, 0);
+    }
+
+    #[test]
+    fn double_ron_still_pays_both() {
+        let mut state = play(false, &[1, 3]);
+        let log = state.take_log();
+        let horas: Vec<_> = log
+            .iter()
+            .filter_map(|ev| match ev.event {
+                Event::Hora { actor, .. } => Some(actor),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(horas, [1, 3]);
+        let result = state.end();
+        assert!(result.has_hora && !result.has_abortive_ryukyoku);
+        assert!(result.scores[0] < 25000 && result.scores[1] > 25000 && result.scores[3] > 25000);
+        assert_eq!(result.scores[2], 25000);
+        assert_eq!(result.scores.iter().sum::<i32>(), 100_000);
+    }
+}

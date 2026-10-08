@@ -517,6 +517,20 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The $0.55 planning price stays.
 - **Reopen if:** a role becomes GPU-bound on a 4090 (`03` §5's learner rule), or a torch upgrade is needed for another reason. The natural point is G1, when the Phase 1–2 freeze ends.
 
+**D51 (2026-10-08): libriichi's arena aborts a triple ron (三家和了), as Tenhou and riichi.dev do.** Resolves D12a and changes the frozen rules config (`05` §1 item 4). Decided by the user.
+- **Why:**
+  - riichi.dev's server runs riichienv-core, whose default rule (the Tenhou preset) ends a triple ron in an abortive draw. That was verified by staging one (`01` §3, `tools/rules/riichienv_sanchaho.py`).
+  - The training data, the GRP and Mahjax already follow Tenhou here. libriichi was the only engine that paid all three: an upstream deviation documented in `arena/board.rs`.
+  - Matching the venue removes a known exception from the deploy parity tests (`07` §1).
+- **What changes:** when three players declare ron on one discard (or kakan), the arena logs a zero-delta `ryukyoku` and ends the kyoku, the same shape as Tenhou's converted logs.
+  - Nobody pays. The dealer repeats and the honba goes up by one; riichi deposits stay on the table.
+  - A riichi declared on that discard is not accepted, as in riichienv.
+  - The three ron reactions are recorded as not applied (D46).
+- **Effect size:** 3–7 games per 10,000 between bots. Across a comparison that is at most ≈ 0.001 u, far below the lab's resolution. Phase 0 results (L0, σ_set, the D44 calibration, the SP ablation) were measured under the old rule and stand; none is re-run.
+- **Known quirk, unchanged:** the loader labels the three declarers' decision at that discard as a pass (45), because no `hora` follows. The same holds for the 2 such games in the Tenhou corpus (6 labels in 1.19B). In RL those entries carry no behaviour probability, since their sidecar records are not applied, so they get no policy-gradient weight.
+- **Timing:** before any Phase 1 run, so no Phase 1–2 comparison spans the change.
+- **Reopen if:** riichi.dev's rule turns out to differ from riichienv's default.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -549,4 +563,4 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D33b-1:** whether expert iteration earns funding.
 - **D19:** the Gate G1 search classes for inference.
 - **D20:** the decision on publishing weights, after re-reading Tenhou's terms (`07` §6).
-- **D12a:** whether libriichi's arena should abort a triple ron (三家和了) as Tenhou does. It pays all three today (3–7 per 10,000 bot games; `experiments/mahjax-spike.md`). The rules config is frozen, so a change needs an entry here. **Evidence (2026-10-08):** riichi.dev runs on riichienv-core, whose default rule aborts a triple ron like Tenhou (`01` §3, `tools/rules/riichienv_sanchaho.py`).
+- **D12a:** triple ron in libriichi's arena. **Resolved by D51** (2026-10-08): abort it, as Tenhou and riichi.dev do.
