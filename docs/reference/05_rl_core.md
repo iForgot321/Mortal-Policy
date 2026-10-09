@@ -30,7 +30,7 @@ Changing any of these invalidates every comparison made before the change.
 | Arm | Engine | Initialization | Seeds |
 |---|---|---|---|
 | **P0** | The released policy recipe (dual-clip PPO on per-kyoku GRP advantage) **plus the §3 correctness fixes** (stored behaviour probabilities, fixed reward units, raw logits, consistent masks) | Pilot quick student | 1 (reference) |
-| **P1** | P0 plus discovery package **K1**: critic V(h, i) + declared horizon + LR schedule (§4, §5) | Pilot quick student | 2 |
+| **P1** | P0 plus discovery package **K1**: critic V(h, i) + declared horizon + LR schedule (§4, §5). Both seeds on horizon H; critic settings in D52 | Pilot quick student | 2 |
 | **V** | **Value-based Mortal** (Equim's `mortal/train.py`): offline CQL on the same data (`min_q_weight` 5, next-rank auxiliary 0.2), then online value learning (no CQL) with the same GRP reward, `pts` = u, and the same client/server fleet | Quick CQL model, same SL budget | 2 |
 | **H** | **Hybrid**, Nitasurin's actual path: V's champion generates self-play → behaviour-clone/distill a policy student on those samples → P1 online | Distilled from V | 1 (2 if it leads) |
 

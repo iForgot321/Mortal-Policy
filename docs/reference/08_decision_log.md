@@ -531,6 +531,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Timing:** before any Phase 1 run, so no Phase 1–2 comparison spans the change.
 - **Reopen if:** riichi.dev's rule turns out to differ from riichienv's default.
 
+**D52 (2026-10-08): Arm P1 runs both seeds on horizon H, and package K1's critic settings are fixed before the runs.** Fills in `05` §2.1 and §4–§5.1, which left both open. Decided by the user.
+- **Horizon:** H (whole hanchan) on both P1 seeds.
+  - P0 already covers K, so P1 tests the package "critic + H" against it, with a replicate. That is what the `05` §2.3 selection rule assumes: two runs of one recipe.
+  - One seed on each horizon was rejected. Each horizon would get a single run, and run-to-run variation is as large as the K-vs-H difference we could hope to see (`experiments/sp-ablation.md` §6). It would also make "P1" two recipes under one label.
+  - **Consequence:** if P1 passes, the gain belongs to the package. Attributing it to the critic or the horizon is the confirmation step's job (D35).
+- **Critic (K1):**
+  - b8c128, regressed onto λ-returns with MSE: the targets are bounded (u ∈ [−1.3, 0.9]), so the outliers Huber guards against can't occur;
+  - γ = 1, λ = 0.95;
+  - AdamW with weight decay 0, critic gradient clipping at 1.0;
+  - a **constant learning rate**, 1e-4 or 3e-4, chosen by a pre-registered B0 check inside P1's tuning allowance (`experiments/k1-lr-check.md`).
+- **Reopen if:** B0 never reaches a monotone calibration with a plateaued explained variance (`05` §4) under these settings.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

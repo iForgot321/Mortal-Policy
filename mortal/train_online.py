@@ -103,6 +103,14 @@ def train():
     else:
         assert not critic_warmup, 'critic.warmup needs critic.enabled'
 
+    # seeds the init (the critic's too), the file order and (through torch's
+    # RNG) the DataLoader worker seeds; unseeded runs keep upstream behaviour
+    if (seed := config['control'].get('seed')) is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        logging.info(f'seed: {seed}')
+
     mortal = Brain(version=version, **config['resnet'], Norm="GN").to(device)
     policy_net = CategoricalPolicy().to(device)
     all_models = (mortal, policy_net)
