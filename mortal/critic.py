@@ -60,7 +60,10 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
     Returns the chunk's decisions concatenated, with `value`, `advantage` and
     `returns` (the λ-return, the critic's regression target; detached) added.
     For the diagnostics: `mc_return`, the observed return (independent of the
-    critic), and `group`, each decision's (trajectory, kyoku).
+    critic), `group`, each decision's (trajectory, kyoku), and `last_kyoku`,
+    whether the decision is in its trajectory's last kyoku. Under horizon H only
+    there is the return fully decided by the current kyoku, so the critic's fit
+    there is its clearest health check.
     Nothing crosses trajectories: each is its own GAE recursion.
     """
     keys = ('obs', 'priv', 'action', 'mask', 'behaviour_prob', 'param_version')
@@ -76,7 +79,7 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
     critic.train(was_training)
     values = torch.cat(values).double().numpy()
 
-    advantage, returns, mc_return, group = [], [], [], []
+    advantage, returns, mc_return, group, last_kyoku = [], [], [], [], []
     start = 0
     for i, t in enumerate(chunk):
         n = len(t['action'])
@@ -85,13 +88,16 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
         advantage.append(adv)
         returns.append(ret)
         mc_return.append(tj.monte_carlo_returns(reward, done, gamma=gamma))
-        group.append(np.stack((np.full(n, i), np.asarray(t['at_kyoku'])), axis=1))
+        at_kyoku = np.asarray(t['at_kyoku'])
+        group.append(np.stack((np.full(n, i), at_kyoku), axis=1))
+        last_kyoku.append(at_kyoku == at_kyoku[-1])
         start += n
     flat['value'] = torch.from_numpy(values).float()
     flat['advantage'] = torch.from_numpy(np.concatenate(advantage)).float()
     flat['returns'] = torch.from_numpy(np.concatenate(returns)).float()
     flat['mc_return'] = torch.from_numpy(np.concatenate(mc_return)).float()
     flat['group'] = torch.from_numpy(np.concatenate(group))
+    flat['last_kyoku'] = torch.from_numpy(np.concatenate(last_kyoku))
     return flat
 
 

@@ -227,3 +227,14 @@ def test_snapshot_is_verified_frozen_and_never_overwritten(tmp_path, monkeypatch
     with pytest.raises(fleet.FleetError, match='sha256'):
         fleet.snapshot(run, 'full')
     assert not (tmp_path / 't' / 'snapshots' / 'full.pth').exists()
+
+
+def test_overrides_change_only_the_named_key():
+    text, _ = fleet.load_config(P0)
+    out = fleet.box_config(text, overrides={'dataset.num_workers': '8', 'train_play.default.games': '800'})
+    a, b = tomllib.loads(fleet.box_config(text)), tomllib.loads(out)
+    assert b['dataset']['num_workers'] == 8 and a['dataset']['num_workers'] == 2
+    b['dataset']['num_workers'] = 2
+    assert a == b
+    with pytest.raises(fleet.FleetError, match='no such key'):
+        fleet.box_config(text, overrides={'dataset.no_such_key': '1'})

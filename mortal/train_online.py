@@ -236,7 +236,7 @@ def train():
     lag_max = 0
     # critic diagnostics: (value, Monte-Carlo return) of every decision before
     # the critic trained on it, and each chunk's advantage variance ratio
-    critic_diag = {'value': [], 'mc_return': [], 'adv_var_ratio': []}
+    critic_diag = {'value': [], 'mc_return': [], 'adv_var_ratio': [], 'last_kyoku': []}
     idx = 0
 
     def train_epoch():
@@ -489,7 +489,12 @@ def train():
                     writer.add_scalars('critic/calibration_target', {f'bin{i}': t for i, t in enumerate(mean_t)}, steps)
                     writer.add_scalars('critic/calibration_value', {f'bin{i}': v for i, v in enumerate(mean_v)}, steps)
                     writer.add_scalar('critic/adv_var_ratio', np.nanmean(critic_diag['adv_var_ratio']), steps)
-                    logging.info(f'critic: explained variance {ev:.4f}, calibration monotone: {monotone}')
+                    # under H only the game's last kyoku decides its return: the critic's
+                    # clearest health check (experiments/k1-lr-check.md)
+                    last = np.concatenate(critic_diag['last_kyoku'])
+                    ev_last = explained_variance(values[last], mc_returns[last]) if last.any() else float('nan')
+                    writer.add_scalar('critic/explained_variance_last_kyoku', ev_last, steps)
+                    logging.info(f'critic: explained variance {ev:.4f} (last kyoku {ev_last:.4f}), calibration monotone: {monotone}')
                     for v in critic_diag.values():
                         v.clear()
                 writer.flush()
@@ -608,6 +613,7 @@ def train():
                 flat = gae_targets(chunk, critic, device=device, gamma=critic_gamma, lam=critic_lambda, enable_amp=enable_amp)
                 critic_diag['value'].append(flat['value'].numpy())
                 critic_diag['mc_return'].append(flat['mc_return'].numpy())
+                critic_diag['last_kyoku'].append(flat['last_kyoku'].numpy())
                 critic_diag['adv_var_ratio'].append(advantage_variance_ratio(flat['advantage'].numpy(), flat['group'].numpy()))
                 yield flat
 

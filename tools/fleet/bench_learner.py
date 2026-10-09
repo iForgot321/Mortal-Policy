@@ -15,9 +15,14 @@ explore_rate 1.0, behaviour sidecars), on the benchmark-only seed key, so no non
 The cloud reference is ~3,750 samples/s on an RTX 4090 + EPYC 9684X box (v4,
 experiments/fleet-host-benchmarks.md), measured on live drains of the same size.
 
+`--workers 2 4 8` repeats the full and data-only passes at each loader-worker count (P0's
+tuning allowance: the learner box has ≥ 32 vCPU, p0.toml uses 2).
+
 Usage, from the repo root:
     python tools/fleet/bench_learner.py --drain workdir/sp-ablation/learner-drain \
         --versions 4 5 --out workdir/sp-ablation/learner.json
+    python tools/fleet/bench_learner.py --drain workdir/box/learner-drain --games 1600 \
+        --versions 4 --workers 2 4 8 --out workdir/box/learner-workers.json
 """
 import argparse
 import glob
@@ -74,7 +79,7 @@ def generate(drain, games):
                  seed_start=(0, BENCH_KEY), seed_count=games // 4)
 
 
-def loader(version, logs, drain):
+def loader(version, logs, drain, workers=WORKERS):
     from torch.utils.data import DataLoader
     from dataloader import worker_init_fn
     from rl_dataset import OrderedDatasetsIter
@@ -84,7 +89,7 @@ def loader(version, logs, drain):
         grp_state_file=GRP_FILE, grp_network=GRP_NETWORK, horizon='K', targets='mc',
         player_names=['trainee'], file_batch_size=FILE_BATCH, obs_fp16=True,
     )
-    return DataLoader(dataset=data, batch_size=BATCH, drop_last=False, num_workers=WORKERS,
+    return DataLoader(dataset=data, batch_size=BATCH, drop_last=False, num_workers=workers,
                       pin_memory=True, worker_init_fn=worker_init_fn)
 
 
@@ -139,6 +144,7 @@ def main():
     ap.add_argument('--games', type=int, default=800)
     ap.add_argument('--versions', type=int, nargs='+', default=[4, 5])
     ap.add_argument('--gpu-steps', type=int, default=200)
+    ap.add_argument('--workers', type=int, nargs='+', default=[WORKERS], help='loader-worker counts to time')
     ap.add_argument('--out', default=None)
     args = ap.parse_args()
 
@@ -156,23 +162,25 @@ def main():
         'commit': subprocess.run(['git', '-C', ROOT, 'describe', '--always', '--dirty', '--abbrev=12'],
                                  capture_output=True, text=True).stdout.strip(),
         'gpu': torch.cuda.get_device_name(0), 'cpus': len(os.sched_getaffinity(0)), 'drain_games': len(logs),
-        'batch': BATCH, 'num_workers': WORKERS, 'file_batch_size': FILE_BATCH,
+        'batch': BATCH, 'num_workers': args.workers, 'file_batch_size': FILE_BATCH,
     }
     print(json.dumps(info), flush=True)
 
     results = []
     gpu_batches = None
     for v in args.versions:
-        n, dt = timed_pass(loader(v, logs, args.drain))
-        data_only = {'version': v, 'mode': 'data only', 'samples': n, 'seconds': round(dt, 1),
-                     'samples_per_s': round(n / dt)}
-        print(json.dumps(data_only), flush=True)
         learner = Learner(v, device)
-        timed_pass(loader(v, logs, args.drain), learner)  # warm-up: compile, autotune
-        n, dt = timed_pass(loader(v, logs, args.drain), learner)
-        full = {'version': v, 'mode': 'full', 'samples': n, 'seconds': round(dt, 1), 'samples_per_s': round(n / dt)}
-        print(json.dumps(full), flush=True)
-        results += [data_only, full]
+        timed_pass(loader(v, logs, args.drain, args.workers[0]), learner)  # warm-up: compile, autotune
+        for w in args.workers:
+            n, dt = timed_pass(loader(v, logs, args.drain, w))
+            data_only = {'version': v, 'workers': w, 'mode': 'data only', 'samples': n, 'seconds': round(dt, 1),
+                         'samples_per_s': round(n / dt)}
+            print(json.dumps(data_only), flush=True)
+            n, dt = timed_pass(loader(v, logs, args.drain, w), learner)
+            full = {'version': v, 'workers': w, 'mode': 'full', 'samples': n, 'seconds': round(dt, 1),
+                    'samples_per_s': round(n / dt)}
+            print(json.dumps(full), flush=True)
+            results += [data_only, full]
         if gpu_batches is None:
             gpu_batches = []
             for batch in loader(v, logs, args.drain):

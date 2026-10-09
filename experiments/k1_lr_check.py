@@ -5,6 +5,8 @@
     run        train a fresh critic in B0 at one learning rate through the real trainer
                (mortal/train_online.py), fed the fixed set in fixed drains by a replay server
     report     read the runs' critic diagnostics and apply the pre-registered rule
+    evaluate   score the saved critics (and an untrained control) on fresh games: explained
+               variance overall and in the game's last kyoku, where under H it can approach 1
 
 From the repo root, in the `mortal` env, one step at a time (never alongside training or the
 lab: 15 GB of RAM):
@@ -12,6 +14,7 @@ lab: 15 GB of RAM):
     python experiments/k1_lr_check.py run --lr 1e-4 --workers 1 --file-batch 16
     python experiments/k1_lr_check.py run --lr 3e-4 --workers 1 --file-batch 16
     python experiments/k1_lr_check.py report
+    python experiments/k1_lr_check.py evaluate --games 4000
 """
 import argparse
 import json
@@ -77,7 +80,7 @@ def cmd_gen_worker(a):
     import torch
     from libriichi.arena import OneVsThree
     trainee, baseline = engines(torch.device('cuda:0'))
-    pool = Path(a.out) / 'pool'
+    pool = Path(a.out) / a.pool_name
     done = 0
     while done < a.sets:
         n = min(a.chunk, a.sets - done)
@@ -90,7 +93,7 @@ def cmd_gen_worker(a):
 
 def cmd_generate(a):
     out = Path(a.out)
-    pool = out / 'pool'
+    pool = out / a.pool_name
     if pool.exists():
         raise SystemExit(f'{pool} exists; the game set is generated once')
     pool.mkdir(parents=True)
@@ -100,10 +103,11 @@ def cmd_generate(a):
     procs = []
     for k in range(a.procs):
         n = min(per, sets - k * per)
-        log = open(out / f'gen-{k}.log', 'w')
+        log = open(out / f'gen-{a.pool_name}-{k}.log', 'w')
         procs.append(subprocess.Popen(
-            [sys.executable, __file__, '--out', str(out), 'gen-worker', '--start', str(10000 + k * per),
-             '--sets', str(n), '--chunk', str(a.chunk)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT))
+            [sys.executable, __file__, '--out', str(out), 'gen-worker', '--start', str(a.start + k * per),
+             '--sets', str(n), '--chunk', str(a.chunk), '--pool-name', a.pool_name], cwd=ROOT, stdout=log,
+            stderr=subprocess.STDOUT))
     codes = [p.wait() for p in procs]
     if any(codes):
         raise SystemExit(f'generation workers exited {codes}; see {out}/gen-*.log')
@@ -112,7 +116,7 @@ def cmd_generate(a):
     missing = [x for x in logs if x not in sidecars]
     manifest = {'games': len(logs), 'missing_sidecars': len(missing), 'key': KEY, 'sets': sets,
                 'procs': a.procs, 'seconds': round(time.time() - t0), 'commit': git_commit(), 'policy': str(PILOT_A)}
-    (out / 'pool.json').write_text(json.dumps(manifest, indent=1) + '\n')
+    (out / f'{a.pool_name}.json').write_text(json.dumps(manifest, indent=1) + '\n')
     print(json.dumps(manifest))
     return 0 if len(logs) == a.games and not missing else 1
 
@@ -308,6 +312,69 @@ def cmd_report(a):
     return 0
 
 
+# ---------------------------------------------------------------- evaluate
+
+def cmd_evaluate(a):
+    """The saved critics on fresh B0 games (a nonce range the check never used), through the
+    trainer's own gae_targets; an untrained critic with the runs' seed is the control."""
+    out = Path(a.out)
+    fresh = out / 'fresh'
+    if not fresh.exists():
+        g = argparse.Namespace(out=a.out, games=a.games, procs=a.procs, chunk=500, start=100_000, pool_name='fresh')
+        if cmd_generate(g):
+            raise SystemExit('fresh generation failed')
+    mortal_path()
+    import prelude  # noqa: F401
+    import numpy as np
+    import toml
+    import torch
+    from critic import Critic, calibration, explained_variance, gae_targets
+    from rl_dataset import OrderedDatasetsIter
+    cfg = toml.load(P1)
+    device = torch.device('cuda:0')
+    critics = {}
+    torch.manual_seed(SEED)
+    critics['untrained'] = Critic(conv_channels=cfg['critic']['conv_channels'], num_blocks=cfg['critic']['num_blocks'])
+    for lr in LRS:
+        state = torch.load(out / f'lr-{lr}' / 'mortal.pth', weights_only=False, map_location='cpu')
+        c = Critic(conv_channels=cfg['critic']['conv_channels'], num_blocks=cfg['critic']['num_blocks'])
+        c.load_state_dict(state['critic'])
+        critics[lr] = c
+    for c in critics.values():
+        c.to(device).eval()
+    logs = sorted(str(fresh / 'logs' / n) for n in os.listdir(fresh / 'logs'))
+    data = OrderedDatasetsIter(version=cfg['control']['version'], file_list=logs, behaviour_dir=str(fresh / 'bp'),
+                               pts=cfg['env']['pts'], grp_state_file=cfg['grp']['state_file'],
+                               grp_network=cfg['grp']['network'], horizon='H', targets='gae',
+                               file_batch_size=16, obs_fp16=True)
+    vals = {k: [] for k in critics}
+    mc, last = [], []
+    for chunk in data:
+        for k, c in critics.items():
+            flat = gae_targets(chunk, c, device=device, gamma=cfg['critic']['gamma'],
+                               lam=cfg['critic']['gae_lambda'], enable_amp=True)
+            vals[k].append(flat['value'].numpy())
+        mc.append(flat['mc_return'].numpy())
+        last.append(flat['last_kyoku'].numpy())
+    mc, last = np.concatenate(mc), np.concatenate(last)
+    res = {'decisions': int(len(mc)), 'last_kyoku_share': float(last.mean()), 'critics': {}}
+    for k, v in vals.items():
+        v = np.concatenate(v)
+        res['critics'][k] = {
+            'ev': explained_variance(v, mc),
+            'ev_last_kyoku': explained_variance(v[last], mc[last]),
+            'ev_earlier_kyoku': explained_variance(v[~last], mc[~last]),
+            'calibration_monotone': calibration(v, mc)[2],
+            'calibration_monotone_last_kyoku': calibration(v[last], mc[last])[2],
+        }
+    (out / 'evaluate.json').write_text(json.dumps(res, indent=1) + '\n')
+    print(f'{res["decisions"]:,} decisions, {res["last_kyoku_share"]:.1%} in the last kyoku')
+    for k, r in res['critics'].items():
+        print(f'{k:>9}: EV {r["ev"]:+.4f}, last kyoku {r["ev_last_kyoku"]:+.4f}, earlier {r["ev_earlier_kyoku"]:+.4f}, '
+              f'calibration monotone {r["calibration_monotone"]} (last kyoku {r["calibration_monotone_last_kyoku"]})')
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--out', default=str(ROOT / 'workdir' / 'k1-lr-check'))
@@ -316,11 +383,14 @@ def main():
     s.add_argument('--games', type=int, default=100_000)
     s.add_argument('--procs', type=int, default=2)
     s.add_argument('--chunk', type=int, default=500, help='duplicate sets per arena call')
+    s.add_argument('--start', type=int, default=10_000, help='first nonce')
+    s.add_argument('--pool-name', default='pool')
     s.set_defaults(fn=cmd_generate)
     s = sub.add_parser('gen-worker')
     s.add_argument('--start', type=int, required=True)
     s.add_argument('--sets', type=int, required=True)
     s.add_argument('--chunk', type=int, default=500)
+    s.add_argument('--pool-name', default='pool')
     s.set_defaults(fn=cmd_gen_worker)
     s = sub.add_parser('run')
     s.add_argument('--lr', required=True, choices=LRS)
@@ -335,6 +405,10 @@ def main():
     s.set_defaults(fn=cmd_run)
     s = sub.add_parser('report')
     s.set_defaults(fn=cmd_report)
+    s = sub.add_parser('evaluate')
+    s.add_argument('--games', type=int, default=4000)
+    s.add_argument('--procs', type=int, default=2)
+    s.set_defaults(fn=cmd_evaluate)
     a = ap.parse_args()
     a.out = str(Path(a.out).resolve())  # the trainer runs from mortal/
     return a.fn(a)

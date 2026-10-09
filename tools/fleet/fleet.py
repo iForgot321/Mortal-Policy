@@ -192,10 +192,24 @@ def load_config(path):
     return text, cfg
 
 
-def box_config(text, actor=None):
-    """The run's config as a box sees it: the workstation root rewritten to BOX_ROOT and, for actor
-    process k, its own train_play dirs (client.py clears them before every batch)."""
+def set_toml_value(text, key, value):
+    """`section.name = value` in a TOML text, on the line that sets it (a run's override; the
+    checked-in config stays as it is). `value` is a TOML literal."""
+    section, _, name = key.rpartition('.')
+    pat = re.compile(rf"^(\[{re.escape(section)}\]\n(?:(?!\[).*\n)*?){re.escape(name)} = [^\n]*$", re.M)
+    text, n = pat.subn(lambda m: f'{m.group(1)}{name} = {value}', text)
+    if n != 1:
+        raise FleetError(f'override {key}: no such key in the run\'s config')
+    return text
+
+
+def box_config(text, actor=None, overrides=None):
+    """The run's config as a box sees it: the workstation root rewritten to BOX_ROOT, the run's
+    overrides applied and, for actor process k, its own train_play dirs (client.py clears them
+    before every batch)."""
     text = text.replace(WS_ROOT, BOX_ROOT)
+    for key, value in (overrides or {}).items():
+        text = set_toml_value(text, key, value)
     if actor is not None:
         pat = re.compile(r"^(\[train_play\.default\]\n(?:(?!\[).*\n)*?log_dir = '[^']*)(')", re.M)
         text, n = pat.subn(lambda m: f'{m.group(1)}-{actor}{m.group(2)}', text)
@@ -670,14 +684,14 @@ def start(run, box):
     cfg_dir, logs = f'{BOX_ROOT}/{BOX_DIR}/cfg', f'{BOX_ROOT}/{BOX_DIR}/logs'
     state_file = cfg['control']['state_file'].replace(WS_ROOT, BOX_ROOT)
     if box['role'] == 'learner':
-        configs = {'learner.toml': box_config(text)}
+        configs = {'learner.toml': box_config(text, overrides=run.data.get('overrides'))}
         # name: (kind, tmux session, script, config)
         procs = {'server': ('server', 'learner', 'server.py', 'learner.toml'),
                  'trainer': ('trainer', 'learner', 'train_online.py', 'learner.toml')}
         sessions = {'learner': f'{BOX_ROOT}/tools/fleet/box_learner.sh {BOX_PY} {cfg_dir}/learner.toml {port} {logs}'}
     elif box['role'] == 'actor':
         ks = range(1, run.data['procs'] + 1)
-        configs = {f'actor-{k}.toml': box_config(text, actor=k) for k in ks}
+        configs = {f'actor-{k}.toml': box_config(text, actor=k, overrides=run.data.get('overrides')) for k in ks}
         procs = {f'client-{k}': ('client', f'client-{k}', 'client.py', f'actor-{k}.toml') for k in ks}
         sessions = {f'client-{k}': f'env MORTAL_CFG={cfg_dir}/actor-{k}.toml {BOX_PY} client.py' for k in ks}
     else:
@@ -1036,7 +1050,11 @@ def cmd_up(a):
         return 0
     run.dir.mkdir(parents=True, exist_ok=True)
     (run.dir / 'known_hosts').mkdir(exist_ok=True)
+    overrides = dict(kv.split('=', 1) for kv in a.set)
+    for key, value in overrides.items():
+        set_toml_value(Path(REPO / config).read_text(), key, value)  # fail before renting
     run.data = {'run': a.run, 'created': now_iso(), 'config': config, 'init': a.init, 'commit': commit,
+                'overrides': overrides,
                 'actors': a.actors, 'procs': a.procs, 'port': cfg['online']['remote']['port'],
                 'capacity': cfg['online']['server']['capacity'], 'boxes': {}, 'retired': [],
                 'bad_machines': [], 'watchdog': None}
@@ -1274,6 +1292,8 @@ def main(argv=None):
     s.add_argument('--procs', type=int, default=3, help='client.py processes per actor box')
     s.add_argument('--hard-hours', type=float, help='detached watchdog: down everything after this long')
     s.add_argument('--verify', action='store_true', help='check the tunnel restrictions after joining')
+    s.add_argument('--set', action='append', default=[], metavar='SECTION.KEY=VALUE',
+                   help="override a config value for this run's boxes (TOML literal), e.g. dataset.num_workers=8")
     s.add_argument('--skip-tests', action='store_true')
     s.add_argument('--allow-zen2', action='store_true')
     s.add_argument('--allow-dirty', action='store_true')

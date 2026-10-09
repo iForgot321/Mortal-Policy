@@ -136,3 +136,12 @@ def test_diagnostics_limits():
     per_kyoku = np.repeat(rng.normal(size=10), 100)
     assert cr.advantage_variance_ratio(per_kyoku, group) == pytest.approx(0, abs=1e-12)  # P0: one advantage per kyoku
     assert cr.advantage_variance_ratio(per_kyoku + ret, group) > 0.1
+
+
+def test_last_kyoku_marks_each_trajectorys_final_kyoku(chunk):
+    critic = cr.Critic(conv_channels=32, num_blocks=1).eval()
+    flat = cr.gae_targets(chunk, critic, device=CPU, lam=0.95)
+    want = np.concatenate([np.asarray(t['at_kyoku']) == np.asarray(t['at_kyoku'])[-1] for t in chunk])
+    assert flat['last_kyoku'].dtype == torch.bool
+    assert np.array_equal(flat['last_kyoku'].numpy(), want)
+    assert 0 < want.sum() < len(want)

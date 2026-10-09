@@ -90,3 +90,26 @@ instability. `experiments/configs/p1.toml` keeps 1e-4.
 - **Suggested before the real B0:** log EV separately for the last kyoku of the game, where the
   ceiling is ~1. That is the sharpest health check a critic has under H, and the overall EV hides
   it.
+
+### Health check on fresh games (2026-10-09, post hoc)
+
+The trainer now logs `critic/explained_variance_last_kyoku`. `k1_lr_check.py evaluate` scored the
+saved critics and an untrained control (same seed) on 4,000 fresh B0 games (nonces from 100,000,
+a range the check never used; 634,796 trainee decisions, 9.2% in the last kyoku). It goes through
+the trainer's own `gae_targets`.
+
+| Critic | EV, all | EV, last kyoku | EV, earlier kyoku | Calibration monotone (all / last kyoku) |
+|---|---|---|---|---|
+| untrained (control) | −0.0030 | −0.0104 | −0.0028 | no / no |
+| **1e-4** | **+0.0134** | **+0.0634** | +0.0116 | yes / yes |
+| 3e-4 | +0.0128 | +0.0614 | +0.0110 | yes / no |
+
+**Reading:**
+- **The critic is learning, not broken.** The control sits at ~0. The trained critics are about
+  5× better in the last kyoku, as H's structure predicts, and both calibrate monotonically on
+  fresh data.
+- **Absolute skill is still low:** 6% in the last kyoku, against a ceiling of ~1 for perfect
+  knowledge of the hand's outcome. Draw luck caps what is reachable, but a full B0 (0.3–0.5M
+  hanchan) should raise it.
+- **What to watch in the real B0:** `critic/explained_variance_last_kyoku` should keep rising.
+- The 1e-4 vs 3e-4 ordering holds on fresh data, which is consistent with the registered choice.
