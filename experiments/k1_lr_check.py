@@ -9,8 +9,8 @@
 From the repo root, in the `mortal` env, one step at a time (never alongside training or the
 lab: 15 GB of RAM):
     python experiments/k1_lr_check.py generate --games 100000 --procs 2
-    python experiments/k1_lr_check.py run --lr 1e-4
-    python experiments/k1_lr_check.py run --lr 3e-4
+    python experiments/k1_lr_check.py run --lr 1e-4 --workers 1 --file-batch 16
+    python experiments/k1_lr_check.py run --lr 3e-4 --workers 1 --file-batch 16
     python experiments/k1_lr_check.py report
 """
 import argparse
@@ -167,9 +167,15 @@ def serve(replay, port):
     return server
 
 
-def run_config(run_dir, lr, port, window):
+def run_config(run_dir, lr, port, window, workers=None, file_batch=None):
     import toml
     cfg = toml.load(P1)
+    # data loading only: the workstation's 15 GB can't hold P1's cloud settings (2 workers ×
+    # 50 logs); both runs get the same values
+    if workers:
+        cfg['dataset']['num_workers'] = workers
+    if file_batch:
+        cfg['dataset']['file_batch_size'] = file_batch
     c = cfg['control']
     c['state_file'] = str(run_dir / 'mortal.pth')
     c['best_state_file'] = str(run_dir / 'best.pth')
@@ -186,6 +192,27 @@ def run_config(run_dir, lr, port, window):
     return cfg
 
 
+def mem_available_gb():
+    with open('/proc/meminfo') as f:
+        info = dict(line.split(':', 1) for line in f)
+    return int(info['MemAvailable'].split()[0]) / 2**20
+
+
+def session_pss_gb(sid):
+    """Proportional set size of every process in the trainer's session (respawned child,
+    loader workers): pages shared after fork are split between them, not counted per process."""
+    total = 0
+    for pid in filter(str.isdigit, os.listdir('/proc')):
+        try:
+            if os.getsid(int(pid)) != sid:
+                continue
+            with open(f'/proc/{pid}/smaps_rollup') as f:
+                total += next(int(line.split()[1]) for line in f if line.startswith('Pss:'))
+        except (OSError, ProcessLookupError, StopIteration):
+            continue
+    return total / 2**20
+
+
 def cmd_run(a):
     out = Path(a.out)
     run_dir = out / f'lr-{a.lr}'
@@ -193,7 +220,7 @@ def cmd_run(a):
         raise SystemExit(f'{run_dir} exists; runs are never overwritten')
     run_dir.mkdir(parents=True)
     import toml
-    cfg = run_config(run_dir, a.lr, a.port, a.window)
+    cfg = run_config(run_dir, a.lr, a.port, a.window, a.workers, a.file_batch)
     cfg_path = run_dir / 'config.toml'
     cfg_path.write_text(toml.dumps(cfg))
     os.environ['MORTAL_CFG'] = str(cfg_path)
@@ -209,10 +236,16 @@ def cmd_run(a):
         trainer = subprocess.Popen([sys.executable, 'train_online.py'], cwd=ROOT / 'mortal', stdout=log,
                                    stderr=subprocess.STDOUT, env={**os.environ, 'MORTAL_CFG': str(cfg_path)},
                                    start_new_session=True)
+        peak_pss, min_avail, guard = 0.0, mem_available_gb(), False
         while not replay.done.is_set() and trainer.poll() is None:
             time.sleep(5)
+            peak_pss = max(peak_pss, session_pss_gb(trainer.pid))
+            min_avail = min(min_avail, mem_available_gb())
+            if min_avail < a.min_available_gb:
+                guard = True  # stop it ourselves, cleanly, before the system starts killing
+                break
     code = trainer.poll()
-    if code is None:  # finished every drain: stop it (and its respawned child and loader workers)
+    if code is None:  # finished every drain (or the guard fired): stop it, its child and loader workers
         os.killpg(trainer.pid, signal.SIGTERM)
         try:
             trainer.wait(60)
@@ -222,6 +255,8 @@ def cmd_run(a):
     server.shutdown()
     rec = {'lr': a.lr, 'logs': len(logs), 'drains': replay.drains, 'drain_size': a.drain, 'window': a.window,
            'seed': SEED, 'finished': replay.done.is_set(), 'trainer_exit': code,
+           'workers': cfg['dataset']['num_workers'], 'file_batch_size': cfg['dataset']['file_batch_size'],
+           'peak_pss_gb': round(peak_pss, 2), 'min_available_gb': round(min_avail, 2), 'memory_guard': guard,
            'seconds': round(time.time() - t0), 'commit': git_commit()}
     (run_dir / 'run.json').write_text(json.dumps(rec, indent=1) + '\n')
     print(json.dumps(rec))
@@ -293,10 +328,15 @@ def main():
     s.add_argument('--window', type=int, default=100, help='steps between diagnostics (save_every)')
     s.add_argument('--port', type=int, default=5101)
     s.add_argument('--limit', type=int, default=0, help='use only the first N logs (smoke tests)')
+    s.add_argument('--workers', type=int, help='dataset.num_workers (default: p1.toml)')
+    s.add_argument('--file-batch', type=int, help='dataset.file_batch_size (default: p1.toml)')
+    s.add_argument('--min-available-gb', type=float, default=1.5,
+                   help='stop the run cleanly if MemAvailable falls below this')
     s.set_defaults(fn=cmd_run)
     s = sub.add_parser('report')
     s.set_defaults(fn=cmd_report)
     a = ap.parse_args()
+    a.out = str(Path(a.out).resolve())  # the trainer runs from mortal/
     return a.fn(a)
 
 

@@ -43,6 +43,19 @@
 - **Note:** 100K hanchan is a fraction of a full B0 (0.3–0.5M, `05` §4). The check compares
   learning speed and stability early in B0; it doesn't certify convergence.
 
+## Amendment (2026-10-09, before any critic result)
+
+- **First attempt interrupted.** The 100K-game set finished (4.0 h, 0 missing sidecars, `6f80e88`).
+  The 1e-4 run was then killed at step 100 of ~31K, when the system ran critically low on memory
+  under P1's cloud loader settings (2 workers × 50 logs per file batch). That partial run is kept
+  aside as `workdir/k1-lr-check/lr-1e-4.killed-20261008/` and not used.
+- **Change:** both runs use **1 loader worker and 16 logs per file batch**, the same for both.
+  - These settings only change memory and how the data is batched. The setting under test, and
+    every other critic setting, stays as registered.
+  - The driver now records peak memory, and stops a run cleanly if available memory falls below
+    1.5 GB.
+- **Unchanged:** data, drains, seed, metric and decision rule.
+
 ## Result
 
 *(filled in after the runs)*
