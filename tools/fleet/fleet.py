@@ -1076,6 +1076,9 @@ def cmd_up(a):
             run.log('no learner: tearing down')
             down(run, do_pull=False)
             return 1
+        if a.no_start:
+            run.log(f'up (not started): {len(run.live("actor"))} of {a.actors} actors; ${cost(run):.2f} so far')
+            return 0
         start(run, run.boxes['learner'])
         if run.live('actor'):
             join(run, verify=a.verify)
@@ -1297,6 +1300,7 @@ def main(argv=None):
     s.add_argument('--skip-tests', action='store_true')
     s.add_argument('--allow-zen2', action='store_true')
     s.add_argument('--allow-dirty', action='store_true')
+    s.add_argument('--no-start', action='store_true', help='set the boxes up, but neither join nor start them')
     s.add_argument('--yes', action='store_true', help='rent; without it, only show the offers')
     s = p('provision', cmd_provision, 'rent and set up one box')
     s.add_argument('--name', required=True)
