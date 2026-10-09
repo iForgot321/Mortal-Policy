@@ -94,13 +94,14 @@ def loader(version, logs, drain, workers=WORKERS):
 
 
 class Learner:
-    def __init__(self, version, device):
+    def __init__(self, version, device, compile=True):
         import torch
         self.device = device
         self.brain, self.policy = load_nets(version, device)
         self.brain.train(), self.policy.train()
-        self.brain.compile()
-        self.policy.compile()
+        if compile:
+            self.brain.compile()
+            self.policy.compile()
         params = list(self.brain.parameters()) + list(self.policy.parameters())
         self.params = params
         self.opt = torch.optim.AdamW(params, lr=LR, weight_decay=0.0, betas=(0.9, 0.999), eps=1e-8)
@@ -145,6 +146,8 @@ def main():
     ap.add_argument('--versions', type=int, nargs='+', default=[4, 5])
     ap.add_argument('--gpu-steps', type=int, default=200)
     ap.add_argument('--workers', type=int, nargs='+', default=[WORKERS], help='loader-worker counts to time')
+    ap.add_argument('--no-compile', action='store_true',
+                    help='eager learner steps (the first compile hung on a Vast EPYC 7C13 box, 2026-10-09)')
     ap.add_argument('--out', default=None)
     args = ap.parse_args()
 
@@ -162,14 +165,14 @@ def main():
         'commit': subprocess.run(['git', '-C', ROOT, 'describe', '--always', '--dirty', '--abbrev=12'],
                                  capture_output=True, text=True).stdout.strip(),
         'gpu': torch.cuda.get_device_name(0), 'cpus': len(os.sched_getaffinity(0)), 'drain_games': len(logs),
-        'batch': BATCH, 'num_workers': args.workers, 'file_batch_size': FILE_BATCH,
+        'batch': BATCH, 'num_workers': args.workers, 'file_batch_size': FILE_BATCH, 'compile': not args.no_compile,
     }
     print(json.dumps(info), flush=True)
 
     results = []
     gpu_batches = None
     for v in args.versions:
-        learner = Learner(v, device)
+        learner = Learner(v, device, compile=not args.no_compile)
         timed_pass(loader(v, logs, args.drain, args.workers[0]), learner)  # warm-up: compile, autotune
         for w in args.workers:
             n, dt = timed_pass(loader(v, logs, args.drain, w))
