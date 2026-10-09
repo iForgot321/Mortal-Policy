@@ -6,7 +6,7 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 ## Current position
 
 **Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
-Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $5.74 of $14.3K (benchmark boxes; $0.41 fleet test on 2026-10-08).
+Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $6.23 of $14.3K before P0 (benchmarks, the $0.41 fleet test, the $0.49 learner check); P0 running at ≈ $1.44/h from 2026-10-09.
 
 | Phase 0 deliverable | State |
 |---|---|
@@ -263,7 +263,22 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
   - **Suggested before the real B0:** log EV for last-kyoku decisions separately.
 - **Open:** P1 seed 2's initialization (pilot A again, or pilot B with its own B0); the per-phase EV diagnostic.
 
-**Open (user):** the riichi.dev bot account and adapter, the P0 tuning allowance and go-ahead, P1 seed 2's init.
+**Open (user):** the riichi.dev bot account and adapter, P1 seed 2's init.
+
+## 2026-10-09: arm P0 launched (run `p0-a`)
+
+- **Approved by the user:** the tuning allowance (800-game batches, 2 clients per actor box, learner loader workers by a short check) and ≈ $200 of spend. The user wants to be told if spend heads above $500.
+- **Learner check** (`p0-tune`, $0.49, EPYC 7C13): 4 loader workers give 4,841 samples/s against 3,601 with 2, so 4 was chosen.
+  - The first `torch.compile` in `bench_learner.py` hung for 45 min on that box. The timing passes then ran eager, an amendment recorded in `experiments/p0.md` before any timing.
+- **Health check of the K1 critic** on 4,000 fresh games: EV 0.063 in the last kyoku, 0.013 overall; the untrained control is ~0.
+- **fleet.py fixes:** the allowlist now covers custom EPYC models (7B13 Zen 3, 7K62 Zen 2); `watch --allow-zen2` for replacement actors; `up --set` and `--no-start`.
+- **P0 launched** 2026-10-09 22:22 UTC at `a8c51e9`:
+  - learner EPYC 9684X; actors EPYC 9684X and 7C13, 2 clients each; `dataset.num_workers = 4`; ≈ $1.44/h;
+  - all tunnel restrictions verified;
+  - first drain of 1,600 logs, first-minibatch ratio 1.00005.
+  - `watch` (on the workstation) replaces lost boxes, freezes `p25`/`p50` at 108/216 box-hours, then takes `full` at 432 and downs everything (≈ 2026-10-15 22:00 UTC). Safety stop at $450; watchdog at 156 h.
+  - **The workstation must stay on and awake until then.**
+- **After the run:** T-std full vs pilot A (G0) and the pre-registered doubling `measure`, full vs p50, 100K sets (`experiments/p0.md`).
 
 ## Next steps
 
