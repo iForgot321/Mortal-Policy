@@ -62,9 +62,10 @@ OFFER_QUERY = ('gpu_name=RTX_4090 num_gpus=1 cpu_cores_effective>=32 cpu_ram>=64
 # by $ per hanchan; other CPUs are skipped, Zen 2 unless --allow-zen2.
 CPU_RATES = (
     (re.compile(r'EPYC 9\d\d[45]|Ryzen [579] [79]\d\d\d|Threadripper.* 7\d\d\d'), 50_000),  # Zen 4/5
-    (re.compile(r'EPYC 7\d\d3|EPYC 7V13|Ryzen [579] 5\d\d\d|Threadripper.* 5\d\d\d'), 40_000),  # Zen 3
+    # Zen 3; custom parts carry a letter in the model number (7V13, 7B13)
+    (re.compile(r'EPYC 7[\dA-Z]\d3|Ryzen [579] 5\d\d\d|Threadripper.* 5\d\d\d'), 40_000),
 )
-ZEN2 = (re.compile(r'EPYC 7\d\d2'), 31_000)
+ZEN2 = (re.compile(r'EPYC 7[\dA-Z]\d2'), 31_000)  # e.g. 7742, 7B12, 7K62
 WAIT_RUNNING_S = 25 * 60
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
 # health thresholds, seconds unless noted
@@ -918,7 +919,7 @@ def health(run, quiet=False):
 
 # ---------------------------------------------------------------- recovery
 
-def replace(run, name, since):
+def replace(run, name, since, allow_zen2=False):
     """Replace a lost box with a new one under the same name and bring it back into the run."""
     old = run.boxes[name]
     role = old['role']
@@ -942,7 +943,8 @@ def replace(run, name, since):
             run.boxes.pop(name, None)
             run.data['retired'].append(old)
             run.save()
-    new = provision(run, name, role)
+    # Zen 2 only for actors: the learner featurizes, and per-core speed matters there
+    new = provision(run, name, role, allow_zen2=allow_zen2 and role == 'actor')
     if role == 'learner':
         push_state(run, new)
         start(run, new)
@@ -1184,7 +1186,7 @@ def cmd_watch(a):
                         start(run, box)
                     elif verdict in ('unreachable', 'lost', 'fail') and waited >= a.grace * 60:
                         if a.replace:
-                            replace(run, name, t0)
+                            replace(run, name, t0, allow_zen2=a.allow_zen2)
                             bad_since.pop(name, None)
                         else:
                             run.log(f'{verdict} for {waited / 60:.0f} min; not replacing (no --replace)', name)
@@ -1328,6 +1330,7 @@ def main(argv=None):
     s.add_argument('--grace', type=float, default=10, help='minutes a box may be lost before replacement')
     s.add_argument('--pull-every', type=float, default=30, help='minutes')
     s.add_argument('--replace', action='store_true', help='replace lost boxes (rents new ones)')
+    s.add_argument('--allow-zen2', action='store_true', help='replacement actors may be Zen 2 when supply is thin')
     s.add_argument('--max-hours', type=float)
     s.add_argument('--max-dollars', type=float)
     s.add_argument('--budget-box-hours', type=float,

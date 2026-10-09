@@ -64,6 +64,11 @@ def test_offers_rank_by_dollars_per_hanchan():
     assert [o['id'] for o in fleet.rank_offers(offers, allow_zen2=True)] == [4, 3, 1, 2]
     assert [o['id'] for o in fleet.rank_offers(offers, exclude={12})] == [1, 2]
     assert fleet.rank_offers(offers)[1]['usd_per_m'] == pytest.approx(0.46 / 50_000 * 1e6)
+    custom = [{'id': 6, 'machine_id': 15, 'cpu_name': 'AMD EPYC 7B13 64-Core Processor', 'dph_total': 0.4},
+              {'id': 7, 'machine_id': 16, 'cpu_name': 'AMD EPYC 7K62 48-Core Processor', 'dph_total': 0.4},
+              {'id': 8, 'machine_id': 17, 'cpu_name': 'AMD Ryzen 9 7945HX with Radeon Graphics', 'dph_total': 0.6}]
+    assert [o['id'] for o in fleet.rank_offers(custom)] == [6, 8]  # Zen 3 custom, Zen 4 mobile
+    assert [o['est_rate'] for o in fleet.rank_offers(custom, allow_zen2=True)] == [40_000, 50_000, 31_000]  # $10, $12, $12.9 per M
 
 
 def test_authorized_line_restricts_the_key():
