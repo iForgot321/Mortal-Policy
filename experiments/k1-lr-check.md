@@ -56,6 +56,37 @@
     1.5 GB.
 - **Unchanged:** data, drains, seed, metric and decision rule.
 
-## Result
+## Result (2026-10-09)
 
-*(filled in after the runs)*
+Both runs saw the same 100,000 games in 125 identical drains (`4bd7936`). Each took 1.6 h with a
+peak of 5.6–5.7 GB PSS; no memory-guard stops. Raw output: `workdir/k1-lr-check/` (`report.json`,
+each run's `run.json`, `trainer.log` and tensorboard).
+
+| LR | EV, last 20% | EV, 40–60% | EV, final window | Calibration monotone (final) | Critic loss (final) | Finite |
+|---|---|---|---|---|---|---|
+| **1e-4** | **0.0088** | 0.0059 | 0.0121 | no | 0.0411 | yes |
+| 3e-4 | 0.0070 | 0.0038 | 0.0092 | no | 0.0412 | yes |
+
+**Pre-registered decision: 1e-4.** 3e-4 was 0.0018 *lower* over the last 20%, against the 0.01
+it needed to win. 3e-4 was stable by the registered test, so the choice doesn't rest on
+instability. `experiments/configs/p1.toml` keeps 1e-4.
+
+### Reading (not part of the registered rule)
+
+- **Both critics explain under 1% of the return's variance after 100K hanchan, and neither
+  reaches a monotone calibration.** Both curves are still rising (0.004–0.006 at mid-run →
+  0.009–0.012 at the end). 100K hanchan is a fifth to a third of a full B0, so B0's stopping rule
+  (`05` §4) was not expected to be met yet.
+- **Horizon H makes the target mostly unpredictable** (`experiments/k1_h_ceiling.py`, post hoc,
+  795K trainee decisions from the last 5,000 games):
+  - Var(H return) is 0.480 u²; the current kyoku's reward accounts for 0.066 of it.
+  - Even **perfect** knowledge of how the current kyoku ends would explain only **14%** overall:
+    11% for decisions in earlier kyoku, and essentially all of it (0.9995) in the game's last
+    kyoku (9% of decisions).
+  - What a critic can actually reach is lower still, since a kyoku's outcome is partly wall luck,
+    which the critic doesn't see.
+  - So a low EV is expected under H. 0.009 is consistent with a critic early in training, not with
+    a broken pipeline, but it doesn't prove the critic is near its ceiling.
+- **Suggested before the real B0:** log EV separately for the last kyoku of the game, where the
+  ceiling is ~1. That is the sharpest health check a critic has under H, and the overall EV hides
+  it.

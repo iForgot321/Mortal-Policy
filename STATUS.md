@@ -250,7 +250,20 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
   - the deterministic A/A passes exactly for rule-based play (`20261008-150055-AA`) and neural true-FP32 play (`20261008-150119-AA`), 500 sets each at `6749abd`;
   - the three triple-ron games from the A/A′ run replay identically up to the discard, then end in the abortive draw, and every seat's entries join their sidecars. The declarers' decision comes out as pass (45) with no behaviour probability, as D51 states.
 
-**Open (user):** P1 horizon split and K1 critic settings, the riichi.dev bot account, the P0 tuning allowance and go-ahead.
+## 2026-10-09: P1 decided (D52) and the K1 critic learning rate chosen
+
+- **D52 (user):** both P1 seeds on horizon H; critic b8c128, MSE onto λ-returns, γ 1, λ 0.95, AdamW with weight decay 0, grad clip 1.0, constant LR. The real config is `experiments/configs/p1.toml`. `train_online.py` gains an optional `control.seed`.
+- **LR check** (`experiments/k1-lr-check.md`, pre-registered):
+  - 100K fixed B0 games, replayed in identical drains to the unmodified trainer at each LR.
+  - **Choice: 1e-4.** EV over the last 20%: 0.0088 vs 0.0070 for 3e-4.
+  - The first attempt was killed by memory pressure under P1's cloud loader settings. The rerun used 1 worker and 16-log batches, recorded as an amendment, and peaked at 5.7 GB PSS.
+- **Reading:** both critics explain < 1% of the H return's variance after 100K hanchan, still rising.
+  - A post hoc ceiling: perfect knowledge of the current kyoku would explain only 14%, since later kyoku dominate the H return. In the game's last kyoku it would explain ~100%.
+  - So a low EV is expected under H, but this doesn't show the critic is healthy.
+  - **Suggested before the real B0:** log EV for last-kyoku decisions separately.
+- **Open:** P1 seed 2's initialization (pilot A again, or pilot B with its own B0); the per-phase EV diagnostic.
+
+**Open (user):** the riichi.dev bot account and adapter, the P0 tuning allowance and go-ahead, P1 seed 2's init.
 
 ## Next steps
 

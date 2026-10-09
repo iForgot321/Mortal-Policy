@@ -3,8 +3,8 @@
 # horizon H, and the [critic] section (D52: b8c128, MSE onto λ-returns, γ 1, λ 0.95, AdamW
 # with weight decay 0, critic grad clip 1.0, constant LR).
 #
-# The critic LR is chosen by the pre-registered B0 check in experiments/k1-lr-check.md
-# (1e-4 vs 3e-4); the value below stands until that check reports.
+# The critic LR, 1e-4, was chosen by the pre-registered B0 check in experiments/k1-lr-check.md
+# (1e-4 vs 3e-4; 2026-10-09).
 #
 # Init: COPY pilot A into the run directory; never write into workdir/pilot/:
 #   mkdir -p workdir/p1 && cp workdir/pilot/qs-a/pilot-qs-a-final.pth workdir/p1/mortal.pth && chmod u+w workdir/p1/mortal.pth
@@ -112,7 +112,7 @@ max_grad_norm = 1.0
 weight_decay = 0.0
 
 [critic.optim.scheduler]
-# constant (peak = final); set by experiments/k1-lr-check.md
+# constant (peak = final); chosen by experiments/k1-lr-check.md
 peak = 1e-4
 final = 1e-4
 warm_up_steps = 0
