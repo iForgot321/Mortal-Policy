@@ -18,9 +18,8 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   - **Policy lag** runs at mean ≈ 7, p95 ≈ 9–11 versions, against the soak's p95 ≤ 2. PPO copes
     (ratio p99 ≈ 1.35), so P0 continues. B0 showed the same lag, so P1 will too. Finding and options:
     `experiments/p0.md` → "Policy lag during run p0-a".
-- **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 needs its registered 4 box-hour extension.
-- **Approved 2026-10-10, not yet launched:** seed 1's B0 extension (≈ $2; `p1a-b0x`, handoff §2.1).
-  Auto mode blocked Claude from running the rental command, so the user runs it or allows it.
+- **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 passed on its registered 4 box-hour
+  extension (`p1a-b0x`, 2026-10-10, $1.99; `experiments/p1.md`). Both P1 seeds can start.
 - **Waiting on the user:**
   - the two P1 runs (≈ $212 each): the user is ready to approve; open questions are the learner
     check (handoff §2.2) and the total new spend passing $500 (P0 ≈ $218 + P1 ≈ $424);
