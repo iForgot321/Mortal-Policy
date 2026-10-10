@@ -157,10 +157,12 @@ class Run:
         return [b for b in self.boxes.values() if role is None or b['role'] == role]
 
 
-def billed(run):
-    """(box, hours billed so far) for every box the run has rented, live or retired."""
-    return [(b, ((b.get('destroyed_ts') or time.time()) - b['created_ts']) / 3600)
-            for b in [*run.boxes.values(), *run.data['retired']] if b.get('instance') and b.get('created_ts')]
+def billed(run, until=None):
+    """(box, hours billed up to `until`, default now) for every box the run has rented."""
+    until = until or time.time()
+    return [(b, max(0.0, min(b.get('destroyed_ts') or until, until) - b['created_ts']) / 3600)
+            for b in [*run.boxes.values(), *run.data['retired']]
+            if b.get('instance') and b.get('created_ts') and b['created_ts'] < until]
 
 
 def cost(run):
@@ -169,8 +171,11 @@ def cost(run):
 
 def box_hours(run):
     """The run's compute so far in billed box-hours, failed attempts and replacements included:
-    what an arm-seed's budget counts (05 §2.2, 3 boxes × 6 days = 432)."""
-    return sum(h for _, h in billed(run))
+    what an arm-seed's budget counts (05 §2.2, 3 boxes × 6 days = 432). Hours before a `rebase`
+    (training discarded by a fault) don't count."""
+    spent = sum(h for _, h in billed(run))
+    rebase = run.data.get('budget_rebase')
+    return spent - rebase['box_hours'] if rebase else spent
 
 
 def snapshot_label(fraction):
@@ -720,9 +725,7 @@ def start(run, box):
              '}']
     if box['role'] == 'learner':
         init = run.data.get('init')
-        copy = (f'[ -f {BOX_ROOT}/{init} ] && mkdir -p {os.path.dirname(state_file)} && cp {BOX_ROOT}/{init} {state_file} '
-                f'&& chmod u+w {state_file}' if init else 'false')
-        lines += [f'[ -f {state_file} ] || {copy} || {{ echo "no {state_file} and no init to copy" >&2; exit 1; }}']
+        lines += [learner_init_line(state_file, f'{BOX_ROOT}/{init}' if init else None)]
     else:
         lines += ['tmux has-session -t tunnel 2>/dev/null || { echo "no tunnel: join first" >&2; exit 1; }']
     lines += [f'start {s} {shlex.quote(cmd)}' for s, cmd in sessions.items()]
@@ -731,6 +734,17 @@ def start(run, box):
         box['status'] = 'running'
         run.save()
     run.event('started', box['name'], procs=','.join(procs), detail=repr(out.replace('\n', '; ')))
+
+
+def learner_init_line(state_file, init):
+    """Bash: copy the run's init to the learner's state file only if that file is missing.
+
+    The copy is grouped in braces: `[ -f s ] || [ -f i ] && cp …` parses as
+    `([ -f s ] || [ -f i ]) && cp …` and overwrote a trained checkpoint on every learner start
+    (run p0-a, 2026-10-10)."""
+    copy = (f'{{ [ -f {init} ] && mkdir -p {os.path.dirname(state_file)} && cp {init} {state_file} '
+            f'&& chmod u+w {state_file}; }}' if init else 'false')
+    return f'[ -f {state_file} ] || {copy} || {{ echo "no {state_file} and no init to copy" >&2; exit 1; }}'
 
 
 def stop(run, box, tunnel=False):
@@ -1280,6 +1294,9 @@ def cmd_status(a):
               f'${b["dph"]:.3f}/h  {up:.1f} h  {b.get("ip", "-")}:{b.get("ssh_port", "-")}  {b.get("commit", "-")}  '
               f'{b["cpu_name"]}')
     print(f'  retired: {len(d["retired"])}; bad machines: {d["bad_machines"]}')
+    if d.get('budget_rebase'):
+        r = d['budget_rebase']
+        print(f'  budget rebased at {r["at"]}: {r["box_hours"]:.1f} box-hours before it excluded ({r["reason"]})')
     for s in d.get('snapshots', {}).values():
         print(f'  snapshot {s["label"]:<5} step {s["steps"]:,} at {s["box_hours"]} box-hours: {s["path"]} ({s["sha256"][:12]})')
     if d.get('watchdog'):
@@ -1302,6 +1319,21 @@ def cmd_sync(a):
                 box['commit'] = commit
                 run.save()
             run.event('synced', name, commit=commit)
+    return 0
+
+
+def cmd_rebase(a):
+    """Restart the run's compute budget at a time when training restarted from its init (a fault
+    discarded the training before it); recorded with its reason."""
+    run = Run.load(a.run)
+    with run.locked():
+        if run.data.get('budget_rebase'):
+            raise FleetError('the budget was already rebased; a second rebase needs a decision')
+        at = datetime.fromisoformat(a.at).timestamp()
+        excluded = sum(h for _, h in billed(run, until=at))
+        run.data['budget_rebase'] = {'at': a.at, 'box_hours': round(excluded, 3), 'reason': a.reason}
+        run.save()
+        run.event('budget_rebase', at=a.at, excluded_box_hours=round(excluded, 2), reason=repr(a.reason))
     return 0
 
 
@@ -1376,6 +1408,9 @@ def main(argv=None):
     s = p('sync', cmd_sync, 'push the working tree to running boxes (restart their processes to use it)')
     s.add_argument('--name', action='append')
     s.add_argument('--allow-dirty', action='store_true')
+    s = p('rebase', cmd_rebase, 'restart the compute budget at a time training restarted from its init')
+    s.add_argument('--at', required=True, help='ISO time, e.g. 2026-10-10T02:14:11+00:00')
+    s.add_argument('--reason', required=True)
     s = p('ssh', cmd_ssh, 'print the ssh command for a box')
     s.add_argument('--name', required=True)
     a = ap.parse_args(argv)

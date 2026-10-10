@@ -250,3 +250,32 @@ def test_overrides_change_only_the_named_key():
     assert a == b
     with pytest.raises(fleet.FleetError, match='no such key'):
         fleet.box_config(text, overrides={'dataset.no_such_key': '1'})
+
+
+def test_learner_start_never_overwrites_a_checkpoint(tmp_path):
+    state, init = tmp_path / 'run' / 'mortal.pth', tmp_path / 'init.pth'
+    init.write_text('pilot')
+    line = fleet.learner_init_line(str(state), str(init))
+    sh = lambda: subprocess.run(['bash', '-c', 'set -euo pipefail\n' + line + '\necho ok'],
+                                capture_output=True, text=True)  # noqa: E731
+    assert sh().returncode == 0 and state.read_text() == 'pilot'  # absent: copied
+    state.write_text('trained')
+    assert sh().returncode == 0 and state.read_text() == 'trained'  # present: untouched
+    state.unlink()
+    init.unlink()
+    p = sh()
+    assert p.returncode == 1 and 'no init to copy' in p.stderr  # neither: refuse
+
+
+def test_budget_rebase_excludes_hours_before_it(monkeypatch):
+    run = fleet.Run.__new__(fleet.Run)
+    now = 1_000_000.0
+    run.data = {'boxes': {'learner': {'instance': 1, 'created_ts': now - 10 * 3600, 'dph': 0.5}},
+                'retired': [{'instance': 2, 'created_ts': now - 10 * 3600, 'destroyed_ts': now - 8 * 3600, 'dph': 0.5}]}
+    monkeypatch.setattr(fleet.time, 'time', lambda: now)
+    assert fleet.box_hours(run) == pytest.approx(12.0)
+    excluded = sum(h for _, h in fleet.billed(run, until=now - 4 * 3600))
+    assert excluded == pytest.approx(6.0 + 2.0)
+    run.data['budget_rebase'] = {'box_hours': excluded}
+    assert fleet.box_hours(run) == pytest.approx(4.0)
+    assert fleet.cost(run) == pytest.approx(6.0)  # cost still counts everything
