@@ -70,7 +70,7 @@ WAIT_RUNNING_S = 25 * 60
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
 # health thresholds, seconds unless noted
 LIMITS = {'submit_s': 1800, 'param_s': 1800, 'checkpoint_s': 3600, 'restarts_1h': 3,
-          'unreachable_15m': 5, 'disk_gb': 5, 'mem_gb': 1.5}
+          'unreachable_15m': 5, 'disk_gb': 5, 'mem_gb': 1.5, 'stall_s': 900}
 SEVERITY = ('ok', 'warn', 'fail', 'unreachable', 'lost')
 
 
@@ -856,6 +856,12 @@ def assess(role, vast_status, probe, capacity=None, limits=LIMITS):
                 warn.append(f'checkpoint {p["checkpoint_age_s"]} s old')
         if p.get('queue') is not None and capacity and p['queue'] >= capacity:
             warn.append(f'replay queue full ({p["queue"]}): actors blocked')
+    # a trainer that is alive but has stopped submitting parameters while games pile up is wedged
+    # (e.g. a DataLoader worker died): restartable, so `fail`, not `warn`
+    trainer, server = probe['procs'].get('trainer', {}), probe['procs'].get('server', {})
+    if (trainer.get('alive') and (trainer.get('last_param_age_s') or 0) > limits['stall_s']
+            and capacity and (server.get('queue') or 0) >= capacity):
+        fail.append('trainer stalled')
     if role == 'actor' and not (probe['tunnel']['alive'] and probe['tunnel']['listening']):
         fail.append('tunnel down')
     if role == 'learner' and not probe.get('server_listening'):
@@ -1187,9 +1193,11 @@ def cmd_watch(a):
                 box = run.boxes[name]
                 try:
                     if verdict == 'fail' and waited < 2 * a.grace * 60:
-                        # box up, processes not: a reboot or a dead tunnel
+                        # box up, processes not: a reboot, a dead tunnel or a wedged trainer
                         if box['role'] == 'actor' and 'tunnel down' in problems:
                             join(run, [name])
+                        if 'trainer stalled' in problems:
+                            stop(run, box)
                         start(run, box)
                     elif verdict in ('unreachable', 'lost', 'fail') and waited >= a.grace * 60:
                         if a.replace:
@@ -1281,6 +1289,22 @@ def cmd_status(a):
     return 0
 
 
+def cmd_sync(a):
+    """Push the working tree to running boxes (a hotfix); restart their processes to use it."""
+    run = Run.load(a.run)
+    with run.locked():
+        commit = git_commit(a.allow_dirty)
+        for name in a.name or list(run.boxes):
+            box = run.boxes[name]
+            retry(rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
+                                    './', on_box(box)])
+            with run.lock:
+                box['commit'] = commit
+                run.save()
+            run.event('synced', name, commit=commit)
+    return 0
+
+
 def cmd_ssh(a):
     run = Run.load(a.run)
     box = run.boxes[a.name]
@@ -1349,6 +1373,9 @@ def main(argv=None):
     s.add_argument('--no-pull', action='store_true')
     s.add_argument('--after', type=int, default=0, help=argparse.SUPPRESS)
     p('status', cmd_status, 'run state and cost')
+    s = p('sync', cmd_sync, 'push the working tree to running boxes (restart their processes to use it)')
+    s.add_argument('--name', action='append')
+    s.add_argument('--allow-dirty', action='store_true')
     s = p('ssh', cmd_ssh, 'print the ssh command for a box')
     s.add_argument('--name', required=True)
     a = ap.parse_args(argv)

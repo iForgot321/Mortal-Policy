@@ -126,6 +126,12 @@ def test_assess_verdicts():
     p = probe('learner')
     p['procs']['server']['queue'] = 1600
     assert fleet.assess('learner', 'running', p, capacity=1600)[0] == 'warn'
+    p = probe('learner')
+    p['procs']['trainer']['last_param_age_s'] = 1000
+    p['procs']['server']['queue'] = 4800
+    assert fleet.assess('learner', 'running', p, capacity=1600)[1][0] == 'trainer stalled'
+    p['procs']['server']['queue'] = 100  # no data waiting: slow, not stalled
+    assert 'trainer stalled' not in fleet.assess('learner', 'running', p, capacity=1600)[1]
     p = probe('learner', disk_free_gb=2.0, cgroup_mem_avail_gb=0.5)
     assert fleet.assess('learner', 'running', p)[1] == ['disk 2.0 GB free', '0.5 GB memory available']
 

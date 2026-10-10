@@ -10,6 +10,10 @@ NAME=${1:?usage: box_supervise.sh <name> <log> <command> [args...]}
 LOG=${2:?usage: box_supervise.sh <name> <log> <command> [args...]}
 shift 2
 EVENTS=$(dirname "$LOG")/supervise.log
+# Vast containers start with a soft limit of 1,024 open files. The trainer's DataLoader workers
+# share tensors by file descriptor, and 4 workers on a 3,200-log drain ran out ("Too many open
+# files"), wedging the trainer (2026-10-10, run p0-a). Raise it to the hard limit.
+ulimit -Sn "$(ulimit -Hn)" 2>/dev/null || true
 delay=5
 while true; do
     t0=$(date +%s)
