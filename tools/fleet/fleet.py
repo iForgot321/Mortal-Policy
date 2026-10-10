@@ -219,12 +219,19 @@ def box_config(text, actor=None, overrides=None):
     return text
 
 
+def frozen_inputs():
+    """Every frozen checkpoint in tools/fleet/frozen.sha256. setup_box.sh checks their hashes, and
+    the tests expect them, whichever pilot a run starts from."""
+    lines = (REPO / 'tools' / 'fleet' / 'frozen.sha256').read_text().split('\n')
+    return {line.split()[1] for line in lines if line.strip()}
+
+
 def inputs(cfg, role, init=None):
-    """Repo-relative files a box needs besides the code: the GRP and the baseline checkpoints,
-    plus, for the learner, the run's initial checkpoint."""
+    """Repo-relative files a box needs besides the code: the frozen checkpoints, the GRP and the
+    baseline checkpoints, plus, for the learner, the run's initial checkpoint."""
     paths = {cfg['grp']['state_file'], cfg['baseline']['train']['state_file'],
              cfg['baseline']['test']['state_file']}
-    rel = sorted(os.path.relpath(p, WS_ROOT) for p in paths)
+    rel = sorted({os.path.relpath(p, WS_ROOT) for p in paths} | frozen_inputs())
     if role == 'learner' and init:
         rel.append(init)
     for p in rel:

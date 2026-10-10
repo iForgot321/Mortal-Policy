@@ -543,6 +543,19 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - a **constant learning rate**, 1e-4 or 3e-4, chosen by a pre-registered B0 check inside P1's tuning allowance (`experiments/k1-lr-check.md`).
 - **Reopen if:** B0 never reaches a monotone calibration with a plateaued explained variance (`05` §4) under these settings.
 
+**D53 (2026-10-09): P1's second seed starts from pilot B, and each P1 seed's B0 warm-up sits outside the arm's compute budget.** Fills in `05` §2.1–§2.2 and §4. Decided by the user.
+- **Seeds:**
+  - seed 1 starts from pilot A and plays against frozen pilot A, matching P0;
+  - seed 2 starts from pilot B and plays against frozen pilot B (`experiments/configs/p1-b.toml`).
+  - So P1's replicate covers the initialization as well as the run.
+- **B0:** each seed warms up its own critic, from scratch, on its own pilot's games. The critic estimates the value of the policy that plays, so pilot A's critic doesn't transfer. The stopping rule is in `experiments/p1.md`.
+- **Budget:** B0 compute (≈ 12 box-hours per seed) is not counted in the 3 boxes × 6 days that each arm-seed gets (`05` §2.2).
+- **Consequences, to state at G0:**
+  - P1 gets its critic warm-up on top of the matched budget, ≈ 3% more compute than P0. That is an asymmetry in P1's favour.
+  - The head-to-head against P0 at matched box-days (`05` §2.3) is matched in initialization only for seed 1. Seed 2's comparison also contains the pilot A/B difference, measured at +0.0015 [−0.0031, +0.0061] u (A/A′).
+  - The selection test (each seed against its own initialization) is unaffected.
+- **Reopen if:** the head-to-head between P1 and P0 comes out within ≈ 3% of compute, where the B0 asymmetry could decide it.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
