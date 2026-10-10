@@ -3,14 +3,33 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position
+## Current position (2026-10-10 18:30 UTC)
 
-**Phase 0 (Foundations). L0 met 2026-10-05.** The lab is calibrated and trustworthy. Phase 0 exit still needs the fleet throughput numbers (03), which need cloud boxes. The behaviour-probability design is decided (D46) and implemented on the actor side.
-Everything runs on the workstation (RTX 3060 12 GB, 15 GB RAM), plus rented Vast.ai boxes from 2026-10-06. Cloud spend: $6.23 of $14.3K before P0 (benchmarks, the $0.41 fleet test, the $0.49 learner check); P0 running at ≈ $1.44/h from 2026-10-09.
+**Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
+logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
+
+- **Live in the cloud, billing: arm P0, run `p0-a`.**
+  - 3 Vast boxes, ≈ $1.47/h, ≈ 110K games/h trained; $30 so far, ≈ $218 at the end.
+  - Supervised by a `fleet.py watch` process **on this workstation**, which must stay on and awake.
+  - Ends by itself ≈ **2026-10-16 02:15 UTC**, then the G0 T-std and the doubling `measure` run
+    on the workstation.
+  - Runbook, commands and checks: **`docs/design/handoff-2026-10-10.md`**. Check it first in any
+    new session.
+- **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 needs its registered 4 box-hour extension.
+- **Waiting on the user:**
+  - seed 1's B0 extension (≈ $2);
+  - the two P1 runs (≈ $212 each);
+  - the riichi.dev adapter (the user has an account and a bot);
+  - the formal Phase 0 exit.
+- **Decisions D48–D53** were made in the last three days (fleet network, obs review at G0, 4090s,
+  triple ron, P1 horizon and critic, P1 seeds and B0 budget). See `08`.
+- **Cloud spend:** ≈ $48 of $14.3K.
+
+### Phase 0 deliverables
 
 | Phase 0 deliverable | State |
 |---|---|
-| Lab: GSPRT, calibration simulator, seed families, nonce ledger, registry, CLI | **Done** (code + tests); boundaries **uncalibrated** until A/A′ data exists |
+| Lab: GSPRT, calibration simulator, seed families, nonce ledger, registry, CLI | **Done** (code + tests), calibrated (D44) |
 | Lab: deterministic A/A | **Pass, exact**: rule-based, and neural in true FP32 (D43) |
 | Lab: shanten-greedy floor bot; hobbled patch; style panel + per-seat table; population-panel definitions | **Done** (mixed-table arena for P-MIX/P-STY/P-RES not yet implemented) |
 | Lab: A/A′ (σ_set, recipe noise) | **Done** 2026-10-05: σ_set = 0.328 (37.7% duplicate benefit), recipe noise Δu = +0.0015 [−0.0031, +0.0061], per-seat table flat |
@@ -295,9 +314,27 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
 
 ## Next steps
 
-Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table). Phase 0's exit bar is met; declaring it is the user's call.
+Read `docs/design/handoff-2026-10-10.md` first: it has the live runs, the exact commands and the
+failure modes already met.
 
-1. Fleet (03): scripts and private network **done** (2026-10-08, D48, `tools/fleet/fleet.py`); the 48 h fleet soak comes with the first arm runs. Cost forecast v0 done; three cheap measurements would tighten it (learner with more loader workers, secure-tier SL featurization, multi-process P0 actor; ~$5). The CPU-only test is deferred (D47). Mahjax: D12 stands; optional 5090/H100 run; D12a (triple ron) is the user's call.
-   - **SP ablation: done** (2026-10-07, `experiments/sp-ablation.md`): verdict inconclusive, v5 not adopted; recommendation keep v4 for Phase 1, revisit only if throughput binds at G0 (RL twin at equal box-days; shanten-threshold-1 variant first). User decision pending. For P0: plan 2–3 `client.py` processes per actor box. Optional throughput work: the observation path and libriichi's per-step main-thread work.
-2. Phase 1 on the workstation: SL teachers and student toward L1 (`04`); riichi.dev smoke deploy.
-3. P0/P1: wiring done (2026-10-06). Next: decide the P1 horizon split and the K1 critic settings; then B0 and the arm runs (cloud, 05 §2.2), with the user's go-ahead.
+1. **Live runs.** Keep P0's watcher alive until it downs the fleet (≈ 2026-10-16 02:15 UTC). Then,
+   on the workstation:
+   - G0 T-std, P0 `full` against pilot A;
+   - the pre-registered doubling `measure`, `full` against `p50`, 100K sets (`experiments/p0.md`).
+2. **P1, with the user's go-ahead.**
+   - Seed 1's B0 extension, then `b0_check.py`.
+   - Then the two P1 runs from the B0 snapshots (`experiments/p1.md`).
+   - Consider a P1 learner check first: the oracle path drains only ≈ 45K games/h.
+3. **Arm V:** port Equim's value-based `mortal/train.py` (removed in `edb448b`) onto the D37
+   interfaces, plus a quick CQL model. Arm H follows V.
+4. **SL substrate (`04`):**
+   - the secure-tier data path (D23) and the D17a measurement;
+   - b24c512 AWR and BC teachers, then the students;
+   - the riichi.dev adapter, `deploy/riichidev_bot.py`, with parity tests, and the smoke deploy
+     (L1).
+5. **Search pilot (`06` §0):** the oracle stage reports by G0.
+6. **Fleet:**
+   - a fleet soak report from P0's `health.jsonl`;
+   - the eval-box queue;
+   - optionally, a box-side deadline via Vast's `CONTAINER_API_KEY`;
+   - re-running the cost forecast with D50's 4090 prices.

@@ -20,9 +20,12 @@ Guidance for Claude Code (and humans) working in this repository.
    ls ~/mj-data/splits/SPLITS.sha256                 # dataset frozen?
    find libriichi/src -name '*.rs' -newer mortal/libriichi.so | head   # output = stale .so
    nvidia-smi; free -g; ps aux | grep -E 'python|train' | grep -v grep # anything running?
+   vastai show instances                             # live cloud boxes bill by the hour
+   ps -eo pid,etime,args | awk '/[f]leet.py (watch|down)/'   # every live run needs its watcher (docs/design/handoff-*.md)
    ```
 
-3. Report the state in a few lines before proposing work. If the state is ambiguous, ask.
+3. Report the state in a few lines before proposing work. If the state is ambiguous, ask. If a cloud run is
+   live and its watcher is missing, restart the watcher first (the latest `docs/design/handoff-*.md` has the command).
 
 ## Machine
 
