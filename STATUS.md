@@ -285,6 +285,14 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
   - **a bash precedence bug in `fleet.py start` replaced the trained checkpoint with pilot A on every learner start** (fixed in `d06a10d`, tested).
   - P0 effectively restarted from pilot A at 02:14:11 UTC. Its budget is rebased there: 12.6 box-hours, ≈ $6, discarded. It now ends ≈ 2026-10-16 02:15 UTC.
 
+## 2026-10-10: P1 B0 warm-ups done (D53; `experiments/p1.md`)
+
+- **Seed 1** (`p1a-b0`): 199K games, $5.93. Its final-window calibration is not monotone, so the registered rule calls for **one 4 box-hour extension** (pending).
+- **Seed 2** (`p1b-b0`): 164K games, $5.60. **Passes.**
+- In both, EV rises then plateaus (overall ≈ 0.011, last kyoku ≈ 0.04). B0 drained only ≈ 45K hanchan/h because of the oracle featurization, below the planned 0.3–0.5M.
+- **P0 at 18:27 UTC:** 48.6 of 432 box-hours since the rebase; the learner trains ≈ 110K games/h; $30.00 so far. Snapshots: p25 ≈ Oct 11 14:15 UTC, p50 ≈ Oct 13 02:15, full ≈ Oct 16 02:15.
+- **Cloud spend so far:** ≈ $47.8.
+
 ## Next steps
 
 Pilots A/B, A/A′, calibration and the L0 checks are all done (see the table). Phase 0's exit bar is met; declaring it is the user's call.
