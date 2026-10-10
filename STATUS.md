@@ -279,6 +279,11 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
   - `watch` (on the workstation) replaces lost boxes, freezes `p25`/`p50` at 108/216 box-hours, then takes `full` at 432 and downs everything (≈ 2026-10-15 22:00 UTC). Safety stop at $450; watchdog at 156 h.
   - **The workstation must stay on and awake until then.**
 - **After the run:** T-std full vs pilot A (G0) and the pre-registered doubling `measure`, full vs p50, 100K sets (`experiments/p0.md`).
+- **2026-10-10 incidents** (details in `experiments/p0.md`):
+  - the learner box was lost and auto-replaced in 19.6 min;
+  - the trainer wedged on Vast's 1,024 open-file limit (fixed: limit raised, stall detection and restart);
+  - **a bash precedence bug in `fleet.py start` replaced the trained checkpoint with pilot A on every learner start** (fixed in `d06a10d`, tested).
+  - P0 effectively restarted from pilot A at 02:14:11 UTC. Its budget is rebased there: 12.6 box-hours, ≈ $6, discarded. It now ends ≈ 2026-10-16 02:15 UTC.
 
 ## Next steps
 
