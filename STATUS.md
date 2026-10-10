@@ -15,10 +15,15 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
     on the workstation.
   - Runbook, commands and checks: **`docs/design/handoff-2026-10-10.md`**. Check it first in any
     new session.
+  - **Policy lag** runs at mean ≈ 7, p95 ≈ 9–11 versions, against the soak's p95 ≤ 2. PPO copes
+    (ratio p99 ≈ 1.35), so P0 continues. B0 showed the same lag, so P1 will too. Finding and options:
+    `experiments/p0.md` → "Policy lag during run p0-a".
 - **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 needs its registered 4 box-hour extension.
+- **Approved 2026-10-10, not yet launched:** seed 1's B0 extension (≈ $2; `p1a-b0x`, handoff §2.1).
+  Auto mode blocked Claude from running the rental command, so the user runs it or allows it.
 - **Waiting on the user:**
-  - seed 1's B0 extension (≈ $2);
-  - the two P1 runs (≈ $212 each);
+  - the two P1 runs (≈ $212 each): the user is ready to approve; open questions are the learner
+    check (handoff §2.2) and the total new spend passing $500 (P0 ≈ $218 + P1 ≈ $424);
   - the riichi.dev adapter (the user has an account and a bot);
   - the formal Phase 0 exit.
 - **Decisions D48–D53** were made in the last three days (fleet network, obs review at G0, 4090s,
