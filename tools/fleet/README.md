@@ -187,7 +187,25 @@ specs (`python -m lab measure --challenger …/full.pth --champion …/p50.pth`)
 
 **Spend safety.** `up --hard-hours H` starts a detached watchdog (`down --after`). At the deadline it
 downs the run, even when another command holds the run's lock. It then sweeps every instance labelled
-`mp-<run>-*` until nothing is left. `down` always ends with the same sweep.
+`mp-<run>-*` until nothing is left. `down` always ends with the same sweep. The watchdog waits on
+the wall clock, so a workstation that sleeps through the deadline downs the run as soon as it wakes.
+
+**Box-side deadline** (in case the workstation is off at the deadline). `start` also arms each box's
+own deadline, an hour after the run's: `box_deadline.py`, in the tmux session `deadline`, with
+`deadline.json` in `workdir/fleet-box/`, both outside the synced tree. At that time the learner
+**stops** itself (its disk, and the checkpoints on it, survive; only storage bills) and actors
+**destroy** themselves. It uses `CONTAINER_API_KEY`, the key Vast injects into every container,
+which can start, stop or destroy only that instance; no credential of ours is on a box. Its log is
+`logs/deadline.log`, and the key is never logged. `deadline --run R` re-arms a live run's boxes,
+`--disarm` removes the files, and `--respawn-watchdog` restarts the workstation watchdog at the
+same deadline (to run current code).
+
+- When a pull fails at `down` and the learner isn't running (stopped, exited, offline, or Vast
+  can't say), `down` keeps it (status `kept`) instead of destroying the only copy of its
+  checkpoints, and exits with an error. Sweeps and `watch` leave it alone. To finish:
+  `vastai start instance <id>` (needs that GPU free), then `fleet.py pull --run R` (it looks the
+  new address up) and `fleet.py down --run R`.
+- Past the hard deadline, `watch` downs the run instead of replacing boxes.
 
 **Tested** on 2026-10-08 (`experiments/fleet-e2e.md`, $0.41): bring-up in ~9 min; the restrictions
 verified on a real learner; recovery from a killed client, tunnel and `server.py`; a destroyed actor

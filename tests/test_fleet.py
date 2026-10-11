@@ -279,3 +279,132 @@ def test_budget_rebase_excludes_hours_before_it(monkeypatch):
     run.data['budget_rebase'] = {'box_hours': excluded}
     assert fleet.box_hours(run) == pytest.approx(4.0)
     assert fleet.cost(run) == pytest.approx(6.0)  # cost still counts everything
+
+
+deadline = load('box_deadline')
+
+
+def test_box_deadline_reads_the_container_key_and_builds_the_vast_request(tmp_path):
+    proc1 = tmp_path / 'environ'
+    proc1.write_bytes(b'PATH=/bin\0CONTAINER_ID=55\0CONTAINER_API_KEY=k3y\0')
+    assert deadline.container_env({}, str(proc1)) == {'CONTAINER_ID': '55', 'CONTAINER_API_KEY': 'k3y'}
+    assert deadline.container_env({'CONTAINER_ID': '7', 'CONTAINER_API_KEY': 'e'}, str(proc1))['CONTAINER_ID'] == '7'
+    stop, destroy = deadline.request('stop', 55, 'k3y'), deadline.request('destroy', 55, 'k3y')
+    assert (stop.method, stop.full_url, stop.data) == ('PUT', 'https://console.vast.ai/api/v0/instances/55/',
+                                                       b'{"state": "stopped"}')
+    assert (destroy.method, destroy.data) == ('DELETE', b'{}')
+    assert stop.get_header('Authorization') == 'Bearer k3y'
+    f = tmp_path / 'deadline.json'
+    assert deadline.read_deadline(str(f)) is None
+    f.write_text('{"instance": 55, "deadline": 100, "action": "reboot"}')
+    with pytest.raises(ValueError):
+        deadline.read_deadline(str(f))
+
+
+def run_deadline(tmp_path, monkeypatch, capsys, spec, replies, env_id='55'):
+    """box_deadline.main on a fake clock; returns (exit code, requests, log)."""
+    import io
+    import json
+    f = tmp_path / 'deadline.json'
+    f.unlink(missing_ok=True)
+    if spec is not None:
+        f.write_text(json.dumps(spec))
+    monkeypatch.setenv('CONTAINER_ID', env_id)
+    monkeypatch.setenv('CONTAINER_API_KEY', 'sekrit-key')
+    clock, sent = [1000.0], []
+
+    class Reply(io.BytesIO):
+        status = 200
+
+    def urlopen(req, timeout):
+        sent.append((req.method, req.full_url))
+        r = replies.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return Reply(json.dumps(r).encode())
+
+    def sleep(s):
+        if len(sent) >= 3:
+            raise KeyboardInterrupt  # a stop retried twice: enough
+        clock[0] += s
+    try:
+        code = deadline.main(str(f), urlopen=urlopen, now=lambda: clock[0], sleep=sleep)
+    except KeyboardInterrupt:
+        code = None
+    out = capsys.readouterr().out
+    assert 'sekrit-key' not in out
+    return code, sent, out
+
+
+def test_box_deadline_acts_only_at_the_deadline(tmp_path, monkeypatch, capsys):
+    import urllib.error
+    code, sent, out = run_deadline(tmp_path, monkeypatch, capsys,
+                                   {'instance': 55, 'deadline': 5000, 'action': 'destroy'},
+                                   [urllib.error.URLError('down'), {'success': True}])
+    assert code == 0 and sent == [('DELETE', 'https://console.vast.ai/api/v0/instances/55/')] * 2
+    assert 'armed: destroy instance 55' in out and 'failed: URLError' in out
+    # a stop keeps asking (the box goes away when it takes effect)
+    code, sent, _ = run_deadline(tmp_path, monkeypatch, capsys,
+                                 {'instance': 55, 'deadline': 5000, 'action': 'stop'}, [{'success': True}] * 3)
+    assert code is None and [m for m, _ in sent] == ['PUT'] * 3
+    # disarmed: no file, or a file naming another instance
+    assert run_deadline(tmp_path, monkeypatch, capsys, None, [])[:2] == (0, [])
+    assert run_deadline(tmp_path, monkeypatch, capsys, {'instance': 56, 'deadline': 0, 'action': 'destroy'},
+                        [])[:2] == (2, [])
+
+
+def test_box_deadline_spec_follows_the_hard_deadline():
+    run = fleet.Run.__new__(fleet.Run)
+    run.data = {'watchdog': None}
+    assert fleet.deadline_spec(run, {'instance': 1, 'role': 'actor'}) is None
+    # runs started before hard_deadline was recorded fall back to the watchdog's
+    run.data = {'watchdog': {'pid': 1, 'deadline': '2026-10-16T10:01:20+00:00'}}
+    hard = datetime.fromisoformat('2026-10-16T10:01:20+00:00').timestamp()
+    assert fleet.deadline_spec(run, {'instance': 9, 'role': 'learner'}) == {
+        'instance': 9, 'deadline': hard + 3600, 'action': 'stop'}
+    run.data = {'watchdog': None, 'hard_deadline': '2026-10-16T10:01:20+00:00'}
+    assert fleet.deadline_spec(run, {'instance': 8, 'role': 'actor'})['action'] == 'destroy'
+
+
+def test_down_keeps_an_unpulled_learner_that_is_not_running(tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, 'RUNS', tmp_path)
+    run = fleet.Run('t')
+    run.dir.mkdir()
+
+    def boxes():
+        return {'learner': {'name': 'learner', 'role': 'learner', 'instance': 1, 'status': 'running'},
+                'actor1': {'name': 'actor1', 'role': 'actor', 'instance': 2, 'status': 'running'}}
+    for vast_status, kept in (('stopped', True), ('exited', True), ('running', False), (None, False)):
+        run.data = {'boxes': boxes(), 'retired': []}
+        monkeypatch.setattr(fleet, 'instances', lambda: {1: {'actual_status': vast_status}} if vast_status else {})
+        bs = list(run.boxes.values())
+        msgs = fleet.keep_unpulled(run, bs)
+        assert ([b['name'] for b in bs] == ['actor1']) is kept and bool(msgs) is kept
+        assert (run.boxes['learner']['status'] == 'kept') is kept
+        assert [b['name'] for b in run.live()] == (['actor1'] if kept else ['learner', 'actor1'])
+    # Vast can't say: keep rather than destroy what may hold the only copy
+    run.data = {'boxes': boxes(), 'retired': []}
+    monkeypatch.setattr(fleet, 'instances', lambda: None)
+    assert fleet.keep_unpulled(run, list(run.boxes.values()))
+
+
+def test_watchdog_waits_on_the_wall_clock(monkeypatch):
+    """A suspended workstation: the wall clock jumps past the deadline during one short sleep."""
+    clock, slept = [0.0], []
+
+    def sleep(s):
+        slept.append(s)
+        clock[0] += s + (50_000 if len(slept) == 2 else 0)
+
+    class Fired(Exception):
+        pass
+
+    def fire(name):
+        raise Fired(clock[0])
+    monkeypatch.setattr(fleet.time, 'time', lambda: clock[0])
+    monkeypatch.setattr(fleet.time, 'sleep', sleep)
+    monkeypatch.setattr(fleet.Run, 'load', staticmethod(fire))
+    a = fleet.argparse.Namespace(after=100_000, run='t', no_pull=False, name=None)
+    with pytest.raises(Fired) as e:
+        fleet.cmd_down(a)
+    assert max(slept) <= 60 and e.value.args[0] >= 100_000 and sum(slept) < 100_000

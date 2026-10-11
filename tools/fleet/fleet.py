@@ -12,6 +12,7 @@
     watch      health and pull in a loop; restart dead processes; --replace replaces lost boxes;
                --budget-box-hours: budget snapshots (D49), then down at the budget
     down       pull, revoke and destroy boxes (all, or --name); --after delays it (the watchdog)
+    deadline   arm every box's own hard deadline (box_deadline.py), an hour after the watchdog's
     status     the run state and the cost so far
     ssh        print the ssh command for a box
 
@@ -72,6 +73,9 @@ NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
 LIMITS = {'submit_s': 1800, 'param_s': 1800, 'checkpoint_s': 3600, 'restarts_1h': 3,
           'unreachable_15m': 5, 'disk_gb': 5, 'mem_gb': 1.5, 'stall_s': 900}
 SEVERITY = ('ok', 'warn', 'fail', 'unreachable', 'lost')
+# a box stops (learner) or destroys (actor) itself this long after the run's hard deadline, in
+# case the workstation is off by then (box_deadline.py)
+BOX_DEADLINE_GRACE_S = 3600
 
 
 class FleetError(Exception):
@@ -154,7 +158,15 @@ class Run:
         return self.dir / 'boxes' / f'{box["name"]}-{box["instance"]}'
 
     def live(self, role=None):
-        return [b for b in self.boxes.values() if role is None or b['role'] == role]
+        """Boxes in play: not a learner `kept` for a late pull (see down())."""
+        return [b for b in self.boxes.values()
+                if b.get('status') != 'kept' and (role is None or b['role'] == role)]
+
+
+def hard_deadline(run):
+    """The run's hard deadline (`up --hard-hours`) as unix time, or None."""
+    iso = run.data.get('hard_deadline') or (run.data.get('watchdog') or {}).get('deadline')
+    return datetime.fromisoformat(iso).timestamp() if iso else None
 
 
 def billed(run, until=None):
@@ -272,7 +284,10 @@ def instances():
 def sweep(run):
     """Destroy any instance labelled for this run, recorded or not (the watchdog's backstop)."""
     listed = instances() or {}
+    kept = {b['instance'] for b in run.boxes.values() if b.get('status') == 'kept'}
     for iid, inst in listed.items():
+        if iid in kept:
+            continue
         if (inst.get('label') or '').startswith(f'mp-{run.name}-'):
             ok = destroy_instance(iid)
             run.event('swept', instance=iid, label=inst.get('label'), destroyed=ok)
@@ -734,6 +749,39 @@ def start(run, box):
         box['status'] = 'running'
         run.save()
     run.event('started', box['name'], procs=','.join(procs), detail=repr(out.replace('\n', '; ')))
+    try:
+        arm_deadline(run, box)
+    except FleetError as e:
+        # the workstation watchdog still holds the deadline; say so and carry on
+        run.event('deadline_failed', box['name'], error=repr(str(e)[:300]))
+
+
+def deadline_spec(run, box):
+    """deadline.json for box_deadline.py, or None when the run has no hard deadline."""
+    hard = hard_deadline(run)
+    if hard is None:
+        return None
+    return {'instance': box['instance'], 'deadline': hard + BOX_DEADLINE_GRACE_S,
+            # a stopped learner keeps its checkpoints for a late pull; actors hold nothing to keep
+            'action': 'stop' if box['role'] == 'learner' else 'destroy'}
+
+
+def arm_deadline(run, box):
+    """Write box_deadline.py and deadline.json into BOX_DIR and start it if it isn't running.
+    Both go outside the synced tree, so a live run's code is untouched. Idempotent."""
+    spec = deadline_spec(run, box)
+    if spec is None:
+        return None
+    put(run, box, f'{BOX_DIR}/box_deadline.py', (Path(__file__).parent / 'box_deadline.py').read_text())
+    put(run, box, f'{BOX_DIR}/deadline.json', json.dumps(spec) + '\n')
+    cmd = f'{BOX_PY} {BOX_DIR}/box_deadline.py >> {BOX_DIR}/logs/deadline.log 2>&1'
+    remote(run, box, f'mkdir -p {BOX_DIR}/logs\n'
+                     f'tmux has-session -t deadline 2>/dev/null || '
+                     f'tmux new-session -d -s deadline -c {BOX_ROOT} {shlex.quote(cmd)}\n'
+                     'sleep 2\ntmux has-session -t deadline\n', timeout=60)
+    at = datetime.fromtimestamp(spec['deadline'], timezone.utc).isoformat(timespec='seconds')
+    run.event('deadline_armed', box['name'], instance=box['instance'], action=spec['action'], at=at)
+    return spec
 
 
 def learner_init_line(state_file, init):
@@ -771,6 +819,8 @@ def pull(run, boxes=None):
         if not box.get('ip'):
             continue
         try:
+            if box.get('status') == 'kept':
+                refresh_address(run, box)
             dst = run.box_dir(box)
             dst.mkdir(parents=True, exist_ok=True)
             rsync(run, box, [f'root@{box["ip"]}:{BOX_ROOT}/{BOX_DIR}/logs/', f'{dst}/logs/'], timeout=600)
@@ -784,6 +834,19 @@ def pull(run, boxes=None):
     if errors:
         raise FleetError('; '.join(errors))
     run.log('pulled ' + ', '.join(b['name'] for b in (boxes or run.boxes.values())))
+
+
+def refresh_address(run, box):
+    """A restarted instance may come back on another address: look it up, or fail if it isn't
+    running (a kept learner is started by hand: `vastai start instance ID`)."""
+    j = vast('show', 'instance', box['instance'])
+    if j.get('actual_status') != 'running' or not j.get('ports', {}).get('22/tcp'):
+        raise FleetError(f'{box["name"]}: {j.get("actual_status")}; start it first '
+                         f'(vastai start instance {box["instance"]})')
+    with run.lock:
+        box['ip'] = j['public_ipaddr'].strip()
+        box['ssh_port'] = int(j['ports']['22/tcp'][0]['HostPort'])
+        run.save()
 
 
 def snapshot(run, label):
@@ -928,7 +991,7 @@ def health(run, quiet=False):
             verdict, problems = 'ok', ['not started']
         return box['name'], (verdict, problems, probe)
 
-    boxes = list(run.boxes.values())
+    boxes = run.live()
     with ThreadPoolExecutor(max(1, len(boxes))) as ex:
         report = dict(ex.map(one, boxes))
     with open(run.dir / 'health.jsonl', 'a') as f:
@@ -998,14 +1061,15 @@ def kill_watchdog(run):
     run.save()
 
 
-def spawn_watchdog(run, hours):
-    """A detached `down --after`: tears the run down at the deadline whatever else happens."""
+def spawn_watchdog(run, until):
+    """A detached `down --after`: tears the run down at `until` (unix time) whatever else happens."""
     with open(run.dir / 'watchdog.log', 'a') as log:
         p = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'down', '--run', run.name,
-                              '--after', str(int(hours * 3600))], cwd=REPO, start_new_session=True,
+                              '--after', str(int(until - time.time()))], cwd=REPO, start_new_session=True,
                              stdin=subprocess.DEVNULL, stdout=log, stderr=log)
-    run.data['watchdog'] = {'pid': p.pid, 'deadline': datetime.fromtimestamp(time.time() + hours * 3600, timezone.utc)
-                            .isoformat(timespec='seconds')}
+    deadline = datetime.fromtimestamp(until, timezone.utc).isoformat(timespec='seconds')
+    run.data['watchdog'] = {'pid': p.pid, 'deadline': deadline}
+    run.data['hard_deadline'] = deadline
     run.save()
     run.event('watchdog', pid=p.pid, deadline=run.data['watchdog']['deadline'])
 
@@ -1013,11 +1077,13 @@ def spawn_watchdog(run, hours):
 def down(run, names=None, do_pull=True):
     names = names or list(run.boxes)
     boxes = [run.boxes[n] for n in names if n in run.boxes]
+    errors = []
     if do_pull:
         try:
             pull(run, boxes)
         except FleetError as e:
             run.log(f'pull failed: {e}')
+            errors += keep_unpulled(run, boxes)
     learner = run.boxes.get('learner')
     if learner and learner not in boxes:
         for box in boxes:
@@ -1026,7 +1092,6 @@ def down(run, names=None, do_pull=True):
                     revoke(run, learner, box)
                 except FleetError as e:
                     run.log(f'revoke failed: {e}', box['name'])
-    errors = []
 
     def one(box):
         try:
@@ -1035,12 +1100,32 @@ def down(run, names=None, do_pull=True):
             errors.append(str(e))
     with ThreadPoolExecutor(max(1, len(boxes))) as ex:
         list(ex.map(one, boxes))
-    if not run.boxes:
+    if not run.live():
         sweep(run)
         kill_watchdog(run)
     run.log(f'down: {", ".join(b["name"] for b in boxes) or "nothing"}; ${cost(run):.2f} so far')
     if errors:
         raise FleetError('; '.join(errors))
+
+
+def keep_unpulled(run, boxes):
+    """After a failed pull: a learner that isn't running (stopped by its box-side deadline,
+    exited, offline, or Vast can't say) still has the run's checkpoints on its disk, so it is
+    taken out of `boxes` and kept for a human to start, pull and down. Returns the messages."""
+    listed = instances()
+    out = []
+    for box in [b for b in boxes if b['role'] == 'learner']:
+        status = '?' if listed is None else (listed.get(box['instance']) or {}).get('actual_status')
+        if status is None or (status == 'running' and box.get('status') != 'kept'):
+            continue  # gone, or up and merely unreachable: destroyed as before
+        boxes.remove(box)
+        with run.lock:
+            box['status'] = 'kept'
+            run.save()
+        run.event('kept_unpulled', box['name'], instance=box['instance'], vast_status=status)
+        out.append(f'{box["name"]}: not pulled and {status}; kept. vastai start instance {box["instance"]}, '
+                   f'then fleet.py pull and down --run {run.name}')
+    return out
 
 
 # ---------------------------------------------------------------- commands
@@ -1090,7 +1175,7 @@ def cmd_up(a):
     run.save()
     with run.locked():
         if a.hard_hours:
-            spawn_watchdog(run, a.hard_hours)
+            spawn_watchdog(run, time.time() + a.hard_hours * 3600)
         names = [('learner', 'learner')] + [(f'actor{k}', 'actor') for k in range(1, a.actors + 1)]
 
         def prov(nr):
@@ -1187,12 +1272,15 @@ def cmd_watch(a):
               budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None)
     while True:
         with run.locked():
-            if not run.boxes:
+            if not run.live():
                 run.log('no boxes left; watch ends')
                 return 0
             spent = cost(run)
-            if (deadline and time.time() > deadline) or (a.max_dollars and spent > a.max_dollars):
-                run.event('watch_limit', spent=round(spent, 2))
+            hard = hard_deadline(run)
+            past_hard = hard is not None and time.time() > hard
+            if (deadline and time.time() > deadline) or (a.max_dollars and spent > a.max_dollars) or past_hard:
+                # past the hard deadline (the workstation slept through the watchdog): never replace
+                run.event('watch_limit', spent=round(spent, 2), hard_deadline=past_hard)
                 down(run)
                 return 0
             report = health(run)
@@ -1260,7 +1348,11 @@ def cmd_down(a):
     # the watchdog: down everything at the deadline; if another command still holds the run
     # (a hung `up` or `watch`), go on without the lock and keep sweeping labelled instances
     # until that command is gone, so nothing it creates afterwards survives
-    time.sleep(a.after)
+    # wait on the wall clock: time.sleep runs on the monotonic clock, which can stop while the
+    # workstation sleeps, and one long sleep would then fire late by the time asleep
+    until = time.time() + a.after
+    while (left := until - time.time()) > 0:
+        time.sleep(min(left, 60))
     run = Run.load(a.run)
     run.data['watchdog'] = None  # don't let down() kill this process
     run.event('watchdog_fired')
@@ -1280,6 +1372,30 @@ def cmd_down(a):
                 pass
         sweep(run)
         time.sleep(300)
+    return 0
+
+
+def cmd_deadline(a):
+    """Arm (or --disarm) every live box's own deadline; --respawn-watchdog first restarts the
+    workstation watchdog at the same deadline, so it runs the current code."""
+    run = Run.load(a.run)
+    with run.locked():
+        hard = hard_deadline(run)
+        if hard is None:
+            raise FleetError(f'run {run.name} has no hard deadline (up --hard-hours)')
+        if a.respawn_watchdog:
+            if hard <= time.time():
+                raise FleetError('the hard deadline has passed')
+            kill_watchdog(run)
+            spawn_watchdog(run, hard)
+        for box in run.live():
+            if not box.get('ip'):
+                continue
+            if a.disarm:
+                remote(run, box, f'rm -f {BOX_DIR}/deadline.json\n', timeout=60)
+                run.event('deadline_disarmed', box['name'], instance=box['instance'])
+            else:
+                arm_deadline(run, box)
     return 0
 
 
@@ -1404,6 +1520,10 @@ def main(argv=None):
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')
     s.add_argument('--after', type=int, default=0, help=argparse.SUPPRESS)
+    s = p('deadline', cmd_deadline, "arm every box's own hard deadline (box_deadline.py)")
+    s.add_argument('--disarm', action='store_true', help='remove it instead')
+    s.add_argument('--respawn-watchdog', action='store_true',
+                   help='first restart the workstation watchdog at the same deadline (to run current code)')
     p('status', cmd_status, 'run state and cost')
     s = p('sync', cmd_sync, 'push the working tree to running boxes (restart their processes to use it)')
     s.add_argument('--name', action='append')
