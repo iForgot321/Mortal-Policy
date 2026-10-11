@@ -52,6 +52,12 @@ def train():
     torch.backends.cudnn.benchmark = config['control']['enable_cudnn_benchmark']
     enable_amp = config['control']['enable_amp']
     enable_compile = config['control']['enable_compile']
+    # torch's CPU threads in this process (0: torch's default, one per CPU). The critic path
+    # concatenates and shuffles whole chunks here while the loader workers featurize; on a
+    # 32-vCPU box the default oversubscribes the CPUs (experiments/p1.md, learner check).
+    # Throughput only: these CPU ops are copies and indexing.
+    if (num_threads := config['control'].get('num_threads', 0)) > 0:
+        torch.set_num_threads(num_threads)
 
     pts = config['env']['pts']
     file_batch_size = config['dataset']['file_batch_size']

@@ -29,6 +29,8 @@ device = 'cuda:0'
 enable_cudnn_benchmark = true
 enable_amp = true
 enable_compile = true
+# torch CPU threads in the trainer (0: torch's default); set by the learner check (experiments/p1.md)
+num_threads = 0
 
 batch_size = 512
 opt_step_every = 1
