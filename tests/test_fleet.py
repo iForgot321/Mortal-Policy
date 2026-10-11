@@ -418,3 +418,10 @@ def test_watchdog_waits_on_the_wall_clock(monkeypatch):
     with pytest.raises(Fired) as e:
         fleet.cmd_down(a)
     assert max(slept) <= 60 and e.value.args[0] >= 100_000 and sum(slept) < 100_000
+
+
+def test_value_runs_start_the_value_trainer():
+    _, p0 = fleet.load_config(P0)
+    _, v = fleet.load_config(os.path.join(ROOT, 'experiments', 'configs', 'v-a.toml'))
+    assert fleet.trainer_script(p0) == 'train_online.py'
+    assert fleet.trainer_script(v) == 'train_value.py'

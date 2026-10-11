@@ -87,6 +87,51 @@ class MortalEngine:
         greedy = torch.nn.functional.one_hot(q.argmax(-1), q.shape[-1]).float()
         return (1 - self.explore_rate) * greedy + self.explore_rate * q / q.sum(-1, keepdim=True)
 
+class ValueEngine(MortalEngine):
+    """Arm V's actor (Equim's engine, a24399b^:mortal/engine.py). `dqn` is a DQN
+    (Q at -inf where illegal): greedy on Q, except that with probability ε the
+    action is drawn from softmax(Q/τ) restricted to its top-p nucleus."""
+    def __init__(self, *args, boltzmann_epsilon=0, boltzmann_temp=1, top_p=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.boltzmann_epsilon = boltzmann_epsilon
+        self.boltzmann_temp = boltzmann_temp
+        self.top_p = top_p
+
+    def sample(self, q_out):
+        batch_size = q_out.shape[0]
+        greedy = q_out.argmax(-1)
+        if self.boltzmann_epsilon > 0:
+            is_greedy = torch.full((batch_size,), 1-self.boltzmann_epsilon, device=self.device).bernoulli().to(torch.bool)
+            sampled = self.nucleus(q_out).multinomial(1).squeeze(-1)
+            actions = torch.where(is_greedy, greedy, sampled)
+        else:
+            is_greedy = torch.ones(batch_size, dtype=torch.bool, device=self.device)
+            actions = greedy
+        behaviour_probs = self.behaviour_dist(q_out).gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+        return actions, is_greedy, behaviour_probs
+
+    def nucleus(self, q_out):
+        """softmax(Q/τ) on its top-p nucleus, renormalized: the distribution
+        Equim's `sample_top_p` draws from (the smallest set of most likely
+        actions whose mass reaches p; p ≤ 0 is greedy)."""
+        q = q_out.float()
+        if self.top_p <= 0:
+            return torch.nn.functional.one_hot(q.argmax(-1), q.shape[-1]).float()
+        probs = (q / self.boltzmann_temp).softmax(-1)
+        if self.top_p >= 1:
+            return probs
+        probs_sort, probs_idx = probs.sort(-1, descending=True)
+        keep_sort = probs_sort.cumsum(-1) - probs_sort <= self.top_p
+        keep = torch.zeros_like(keep_sort).scatter(-1, probs_idx, keep_sort)
+        probs = probs * keep
+        return probs / probs.sum(-1, keepdim=True)
+
+    def behaviour_dist(self, q_out):
+        """(1 - ε)·1[a = argmax Q] + ε·nucleus(a): what `sample` draws from."""
+        q = q_out.float()
+        greedy = torch.nn.functional.one_hot(q.argmax(-1), q.shape[-1]).float()
+        return (1 - self.boltzmann_epsilon) * greedy + self.boltzmann_epsilon * self.nucleus(q_out)
+
 class ExampleMjaiLogEngine:
     def __init__(self, name: str):
         self.engine_type = 'mjai-log'

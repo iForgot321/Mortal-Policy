@@ -8,8 +8,8 @@ import numpy as np
 import time
 import gc
 from os import path
-from model import Brain, CategoricalPolicy
-from player import TrainPlayer
+from model import Brain
+from player import TrainPlayer, build_head, head_kind
 from common import send_msg, recv_msg, UnexpectedEOF
 from config import config
 
@@ -41,7 +41,7 @@ def main():
     conv_channels = config['resnet']['conv_channels']
 
     mortal = Brain(version=version, num_blocks=num_blocks, conv_channels=conv_channels,Norm = "GN").to(device).eval()
-    dqn = CategoricalPolicy().to(device).eval()
+    dqn = build_head(head_kind(), version).to(device).eval()
     if config['online']['enable_compile']:
         mortal.compile()
         dqn.compile()

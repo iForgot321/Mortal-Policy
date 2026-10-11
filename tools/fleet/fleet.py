@@ -4,7 +4,8 @@
     up         rent a learner and N actors, set them up, join them, start the run
     provision  rent and set up one box (--start also joins and starts it)
     join       actors ↔ learner over restricted SSH tunnels (D48); --verify checks the restrictions
-    start      learner: server.py + train_online.py; actor: N client.py processes (idempotent)
+    start      learner: server.py + trainer (train_online.py; train_value.py for arm V); actor: N
+               client.py processes (idempotent)
     stop       stop a box's processes; the box keeps billing
     health     probe every box; exit 1 if any is not ok/warn
     pull       copy the learner's run dir (checkpoints, tensorboard) and every box's logs back here
@@ -711,10 +712,11 @@ def start(run, box):
     state_file = cfg['control']['state_file'].replace(WS_ROOT, BOX_ROOT)
     if box['role'] == 'learner':
         configs = {'learner.toml': box_config(text, overrides=run.data.get('overrides'))}
+        trainer = trainer_script(cfg)
         # name: (kind, tmux session, script, config)
         procs = {'server': ('server', 'learner', 'server.py', 'learner.toml'),
-                 'trainer': ('trainer', 'learner', 'train_online.py', 'learner.toml')}
-        sessions = {'learner': f'{BOX_ROOT}/tools/fleet/box_learner.sh {BOX_PY} {cfg_dir}/learner.toml {port} {logs}'}
+                 'trainer': ('trainer', 'learner', trainer, 'learner.toml')}
+        sessions = {'learner': f'{BOX_ROOT}/tools/fleet/box_learner.sh {BOX_PY} {cfg_dir}/learner.toml {port} {logs} {trainer}'}
     elif box['role'] == 'actor':
         ks = range(1, run.data['procs'] + 1)
         configs = {f'actor-{k}.toml': box_config(text, actor=k, overrides=run.data.get('overrides')) for k in ks}
@@ -780,6 +782,11 @@ def arm_deadline(run, box):
     at = datetime.fromtimestamp(spec['deadline'], timezone.utc).isoformat(timespec='seconds')
     run.event('deadline_armed', box['name'], instance=box['instance'], action=spec['action'], at=at)
     return spec
+
+
+def trainer_script(cfg):
+    """The learner's trainer: arm V's value trainer for `control.head = 'value'`, else PPO."""
+    return 'train_value.py' if cfg['control'].get('head', 'policy') == 'value' else 'train_online.py'
 
 
 def learner_init_line(state_file, init):

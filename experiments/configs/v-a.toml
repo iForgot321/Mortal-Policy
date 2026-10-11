@@ -1,0 +1,133 @@
+# Arm V, seed A (05 §2.1): Equim's value-based Mortal online (mortal/train_value.py, ported from
+# a24399b^:mortal/train.py): online value learning without the CQL term, from quick CQL model A.
+# v0: the run fixes the values marked "tuning" within V's tuning allowance (≤ 1 box-day, written
+# down before the runs, 05 §2.2; experiments/v.md).
+#
+# Init: COPY the frozen CQL model into the run directory (fleet.py up --init does it on the learner):
+#   mkdir -p workdir/v && cp workdir/cql/qs-a/cql-qs-a-final.pth workdir/v/mortal.pth && chmod u+w workdir/v/mortal.pth
+# The trainer restores its steps but, because the CQL model's config was offline, starts a fresh
+# optimizer and scheduler.
+#
+# Run from mortal/ (three processes, as P0):
+#   MORTAL_CFG=../experiments/configs/v-a.toml python server.py
+#   MORTAL_CFG=../experiments/configs/v-a.toml python train_value.py
+#   MORTAL_CFG=../experiments/configs/v-a.toml python client.py      # one per actor GPU
+#
+# Units: Q targets are the kyoku's GRP-Δu in u units (pts / 100), never standardized (05 §3.2).
+#
+# Frozen inputs: CQL model A cql-qs-a-final.pth (hash in experiments/v.md once frozen),
+# GRP-v2 grp-v2-frozen.pth (db28beac…).
+
+[control]
+version = 4
+online = true
+# the network's head: the actors build a DQN and play engine.ValueEngine
+head = 'value'
+
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/v/mortal.pth'
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/v/tb'
+
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+# torch CPU threads in the trainer (0: torch's default); the fleet sets it as P1's learner check did
+num_threads = 0
+
+# Equim's and P0's
+batch_size = 512
+opt_step_every = 1
+save_every = 400
+submit_every = 400
+
+[train_play.default]
+games = 800
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/v/train_play'
+repeats = 1
+# Equim's exploration (his example config's values, which it marks as placeholders): greedy on Q,
+# except with probability boltzmann_epsilon a draw from softmax(Q / boltzmann_temp) on its top_p
+# nucleus. Tuning. Q is in u units here, so the temperature's scale is not Equim's.
+boltzmann_epsilon = 0.005
+boltzmann_temp = 0.05
+top_p = 1.0
+
+[dataset]
+globs = []
+file_index = ''
+player_names_files = []
+# 1v3 logs carry one trainee seat (~158 decisions)
+file_batch_size = 50
+reserve_ratio = 0.0
+num_workers = 2
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+obs_fp16 = true
+
+[resnet]
+conv_channels = 192
+num_blocks = 8
+
+[env]
+# u x 100 (D2)
+pts = [90.0, 50.0, -10.0, -130.0]
+# Monte-Carlo to the kyoku's end, as Equim's config
+gamma = 1
+reward_standardization = false
+
+[aux]
+next_rank_weight = 0.2
+
+[optim]
+# P0's engine-agnostic choices (05 §2.4): no weight decay (it pulls away from the initialization),
+# clipping at 0.5. Equim's example (wd 0.1, no clipping) marks its values as placeholders.
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.0
+max_grad_norm = 0.5
+
+[optim.scheduler]
+# constant (peak = final). Tuning: P0's 2e-5 against Equim's example 1e-4
+peak = 2e-5
+final = 2e-5
+warm_up_steps = 0
+max_steps = 0
+
+# the arm's frozen initialization (05 §2.4), playing greedily on Q
+[baseline.train]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/cql/qs-a/cql-qs-a-final.pth'
+
+[baseline.test]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/cql/qs-a/cql-qs-a-final.pth'
+
+[test_play]
+games = 1000
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/v/test_play'
+
+[online]
+history_window = 50
+# actor-side compile; the engine's batch sizes vary
+enable_compile = false
+
+[online.remote]
+host = '127.0.0.1'
+port = 5000
+
+[online.server]
+buffer_dir = '/home/iforgot/projects/Mortal-Policy/workdir/v/buffer'
+drain_dir = '/home/iforgot/projects/Mortal-Policy/workdir/v/drain'
+sample_reuse_rate = 0
+sample_reuse_threshold = 0
+capacity = 1600
+force_sequential = false
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2
