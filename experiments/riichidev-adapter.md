@@ -1,7 +1,7 @@
 # riichi.dev adapter and parity tests (07 §1)
 
-- **Status:** built 2026-10-10. Parity at the plan's scale: see Results. Not yet connected to
-  riichi.dev: the validation game needs the bot token and the user's go-ahead.
+- **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). Not yet
+  connected to riichi.dev: the validation game needs the bot token and the user's go-ahead.
 - **Code:** `deploy/riichidev_bot.py` (the adapter and its WebSocket runner),
   `deploy/riichidev_parity.py` (the parity harness), `tests/test_riichidev.py`.
 - **Environment:** a venv on top of the frozen `mortal` env, adding riichienv 0.4.10 and
@@ -84,12 +84,15 @@ that seat as the arena masks it.
   runner against a local mock of the validation game over a real WebSocket: the bearer header is
   sent, every answer is accepted, and the token never reaches the log. In the `mortal` env the file
   skips, and the suite is otherwise unchanged (83 pass).
-- **Lab-log replay, 1,000 games of the FP32 A/A** (`workdir/riichidev/parity-replay-aa-1000.json`):
-  running. At 200 games: 125,420 requests; observation tensors identical at every request;
-  125,388 moves identical to the lab's, 0 different, 32 claims outranked by another seat's
-  (not verifiable from the log); 0 adapter failures (mask, legality, events).
-- **Self-play, 300 games** (`workdir/riichidev/parity-selfplay-300.json`): queued after the
-  replay.
+- **Lab-log replay, 1,000 games of the FP32 A/A: pass** (`workdir/riichidev/parity-replay-aa-1000.json`,
+  phase1-v0-final, 3.5 h on the workstation's 3060). 622,380 requests; observation tensors
+  identical to the lab engine's at every one; 622,172 moves identical to the log's, 0 different,
+  208 claims outranked by another seat's (a pass or a lower claim can't be checked against a log
+  that shows the higher one); 0 adapter failures (mask, kan mask, unrequested action, legality).
+- **Self-play, 300 riichienv games in step mode: pass** (`workdir/riichidev/parity-selfplay-300.json`,
+  seeds 0–299, 68 min). 193,186 requests; observation tensors identical to a libriichi
+  `PlayerState` fed the full log at every one; 0 fallbacks, 0 adapter failures; every seat fed the
+  game's events in order.
 
 ## Before ranked play
 
