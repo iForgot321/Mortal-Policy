@@ -3,11 +3,15 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 02:10 UTC)
+## Current position (2026-10-11 03:45 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
 
+- **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
+  2026-10-11 03:16–03:31 UTC at `b3864a7`. 3 boxes each, ≈ $1.39/h per run, ≈ 114K games/h
+  trained per run. ≈ $200 each at the end (432 box-hours; safety stop $250). They end by
+  themselves ≈ **2026-10-17 03:20 UTC**. Handoff §1b.
 - **Live in the cloud, billing: arm P0, run `p0-a`.**
   - 3 Vast boxes, ≈ $1.47/h, ≈ 110K games/h trained; $30 so far, ≈ $218 at the end.
   - Supervised by a `fleet.py watch` process **on this workstation**, which must stay on and awake.
@@ -21,7 +25,8 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
 - **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 passed on its registered 4 box-hour
   extension (`p1a-b0x`, 2026-10-10, $1.99; `experiments/p1.md`). Both P1 seeds can start.
 - **Approved 2026-10-11: both P1 runs, ≈ $640 of new spend in all** (P0 ≈ $218 + P1 ≈ $424; past
-  the user's $500 line, approved explicitly), after a P1 learner check.
+  the user's $500 line, approved explicitly), after a P1 learner check. The projection at launch
+  prices is ≈ $620.
 - **P1 learner check done** (`p1-tune`, $0.60; `experiments/p1.md`): 4 loader workers as in B0,
   plus **8 torch threads in the trainer** (new `control.num_threads`). Torch's default of 32
   oversubscribed the box and halved the learner: ≈ 4.8K samples/s ≈ 110K hanchan/h instead of
@@ -37,7 +42,7 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   - the formal Phase 0 exit.
 - **Decisions D48–D53** were made in the last three days (fleet network, obs review at G0, 4090s,
   triple ron, P1 horizon and critic, P1 seeds and B0 budget). See `08`.
-- **Cloud spend:** ≈ $48 of $14.3K.
+- **Cloud spend:** ≈ $63 of $14.3K so far; ≈ $4.25/h while all three runs are live.
 
 ### Phase 0 deliverables
 
@@ -335,17 +340,18 @@ failure modes already met.
    on the workstation:
    - G0 T-std, P0 `full` against pilot A;
    - the pre-registered doubling `measure`, `full` against `p50`, 100K sets (`experiments/p0.md`).
-2. **P1, with the user's go-ahead.**
-   - Seed 1's B0 extension, then `b0_check.py`.
-   - Then the two P1 runs from the B0 snapshots (`experiments/p1.md`).
-   - Consider a P1 learner check first: the oracle path drains only ≈ 45K games/h.
+2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
+   seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
+   (`experiments/p1.md`), queued after P0's evaluations.
 3. **Arm V:** port Equim's value-based `mortal/train.py` (removed in `edb448b`) onto the D37
    interfaces, plus a quick CQL model. Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;
-   - the riichi.dev adapter, `deploy/riichidev_bot.py`, with parity tests, and the smoke deploy
-     (L1).
+   - the riichi.dev smoke deploy (L1). The adapter and its parity tests are done
+     (`experiments/riichidev-adapter.md`); next come the user's inputs, the validation game, a
+     supervisor, the daily summary, latency metrics and batched self-play for the 100K-game
+     illegal-action test.
 5. **Search pilot (`06` §0):** the oracle stage reports by G0.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
