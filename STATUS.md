@@ -3,19 +3,31 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 08:55 UTC)
+## Current position (2026-10-11 19:10 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
 
 - **Live on the workstation: arm V's quick CQL model A** (`experiments/v.md`), started
   2026-10-11 08:28 UTC at `8e71ad0`, PID 2197357, log `workdir/cql/qs-a/train.log`.
-  - 1.65 steps/s of ≈ 158K, so it ends ≈ **2026-10-12 11:00 UTC**.
+  - Step 66,000 of ≈ 158K at 18:56 UTC (1.75 steps/s), so it ends ≈ **2026-10-12 10:00 UTC**.
+    Losses so far: dqn 0.22, cql 0.52, next rank 0.77 (below ln 4).
   - It uses the GPU and ≈ 9 GB of RAM, so **no lab or arena jobs until it ends**.
-  - The online half of arm V (actors and learner) isn't ported yet.
-- **Box-side deadline:** not built. The auto-mode classifier blocked the `fleet.py` change
-  that lets boxes stop or destroy themselves. It waits on the user. Until then, the live runs'
-  only stop is the workstation watchdog.
+- **Arm V online ported** (2026-10-11, `experiments/v.md`):
+  - `train_value.py` online and `engine.ValueEngine` (Equim's ε/τ/top-p exploration);
+  - `control.head = 'value'` in the client, `TrainPlayer` and `fleet.py start`;
+  - config v0 `experiments/configs/v-a.toml`.
+  Tested on tiny nets on the CPU (sampler, 1v3 actor side, learner loop with `server.py`). The
+  full-size check waits for model A. Open items for the user are in `v.md` → "Open before V's
+  fleet runs".
+- **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
+  `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
+  the learner stops itself (its checkpoints survive).
+  - The watchdogs were respawned at the same deadlines on the new code, which waits on the wall
+    clock.
+  - `down` keeps an unpulled learner that is stopped, out of the reach of `watch`.
+  - The three watchers still run the old code: the auto-mode classifier blocked restarting them.
+    See the handoff.
 
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
   2026-10-11 03:16–03:31 UTC at `b3864a7`. 3 boxes each, ≈ $1.39/h per run, ≈ 114K games/h
@@ -352,8 +364,9 @@ failure modes already met.
 2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
    seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
    (`experiments/p1.md`), queued after P0's evaluations.
-3. **Arm V:** port Equim's value-based `mortal/train.py` (removed in `edb448b`) onto the D37
-   interfaces, plus a quick CQL model. Arm H follows V.
+3. **Arm V** (`experiments/v.md`): freeze CQL model A (≈ 2026-10-12 10:00 UTC), add it to
+   `tools/fleet/frozen.sha256`, run the full-size local check. Then the user's calls: CQL model B
+   for seed 2, the opponents, the tuning plan, and rental approval. Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;
@@ -365,5 +378,4 @@ failure modes already met.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
    - the eval-box queue;
-   - optionally, a box-side deadline via Vast's `CONTAINER_API_KEY`;
    - re-running the cost forecast with D50's 4090 prices.
