@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 21:10 UTC)
+## Current position (2026-10-11 22:50 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
@@ -46,7 +46,7 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   trained per run. ≈ $200 each at the end (432 box-hours; safety stop $250). They end by
   themselves ≈ **2026-10-17 03:20 UTC**. Handoff §1b.
 - **Live in the cloud, billing: arm P0, run `p0-a`.**
-  - 3 Vast boxes, ≈ $1.47/h, ≈ 110K games/h trained; $30 so far, ≈ $218 at the end.
+  - 3 Vast boxes, ≈ $1.47/h, ≈ 110K games/h trained; $72 so far (22:42 UTC), ≈ $218 at the end.
   - Supervised by a `fleet.py watch` process **on this workstation**, which must stay on and awake.
   - Ends by itself ≈ **2026-10-16 02:15 UTC**, then the G0 T-std and the doubling `measure` run
     on the workstation.
@@ -76,7 +76,9 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   - the formal Phase 0 exit.
 - **Decisions D48–D54** were made in the last four days (fleet network, obs review at G0, 4090s,
   triple ron, P1 horizon and critic, P1 seeds and B0 budget, V seeds and opponents). See `08`.
-- **Cloud spend:** ≈ $63 of $14.3K so far; ≈ $4.25/h while all three runs are live.
+- **Cloud spend:** the three live runs have billed ≈ $126 (22:42 UTC: P0 $72, P1 $27 + $27), on
+  top of the earlier one-off boxes (B0 warm-ups, checks, benchmarks); ≈ $4.25/h while all three
+  are live, ≈ $620 for the three runs at the end (approved ≈ $640).
 
 ### Phase 0 deliverables
 
@@ -377,9 +379,12 @@ failure modes already met.
 2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
    seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
    (`experiments/p1.md`), queued after P0's evaluations.
-3. **Arm V** (`experiments/v.md`): freeze CQL model A (≈ 2026-10-12 10:00 UTC), add it to
-   `tools/fleet/frozen.sha256`, run the full-size local check. Then the user's calls: CQL model B
-   for seed 2, the opponents, the tuning plan, and rental approval. Arm H follows V.
+3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): when CQL model A ends (≈ 2026-10-12
+   09:30 UTC) the queue freezes it and starts model B. Then: A's sanity checks, its hash in
+   `v.md` and `tools/fleet/frozen.sha256`, `v_qgaps.py` on it to fix the sweep's ε, and the four
+   sweep configs, committed. The sweep waits for the user's rental approval (≈ $11–15); its
+   evaluation runs after model B (≈ 2026-10-13 11:00 UTC). V's runs need their own approval.
+   Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;
