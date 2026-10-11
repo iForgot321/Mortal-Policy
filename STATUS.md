@@ -3,10 +3,19 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 03:45 UTC)
+## Current position (2026-10-11 08:55 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
+
+- **Live on the workstation: arm V's quick CQL model A** (`experiments/v.md`), started
+  2026-10-11 08:28 UTC at `8e71ad0`, PID 2197357, log `workdir/cql/qs-a/train.log`.
+  - 1.65 steps/s of ≈ 158K, so it ends ≈ **2026-10-12 11:00 UTC**.
+  - It uses the GPU and ≈ 9 GB of RAM, so **no lab or arena jobs until it ends**.
+  - The online half of arm V (actors and learner) isn't ported yet.
+- **Box-side deadline:** not built. The auto-mode classifier blocked the `fleet.py` change
+  that lets boxes stop or destroy themselves. It waits on the user. Until then, the live runs'
+  only stop is the workstation watchdog.
 
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
   2026-10-11 03:16–03:31 UTC at `b3864a7`. 3 boxes each, ≈ $1.39/h per run, ≈ 114K games/h
