@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-10 18:30 UTC)
+## Current position (2026-10-11 02:10 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
@@ -20,10 +20,20 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
     `experiments/p0.md` → "Policy lag during run p0-a".
 - **Done:** the P1 B0 warm-ups. Seed 2 passed; seed 1 passed on its registered 4 box-hour
   extension (`p1a-b0x`, 2026-10-10, $1.99; `experiments/p1.md`). Both P1 seeds can start.
+- **Approved 2026-10-11: both P1 runs, ≈ $640 of new spend in all** (P0 ≈ $218 + P1 ≈ $424; past
+  the user's $500 line, approved explicitly), after a P1 learner check.
+- **P1 learner check done** (`p1-tune`, $0.60; `experiments/p1.md`): 4 loader workers as in B0,
+  plus **8 torch threads in the trainer** (new `control.num_threads`). Torch's default of 32
+  oversubscribed the box and halved the learner: ≈ 4.8K samples/s ≈ 110K hanchan/h instead of
+  2.4K. The benchmark's 'torch.compile hang' was a fork deadlock after in-process generation;
+  fixed.
+- **riichi.dev adapter built** (`deploy/`, `experiments/riichidev-adapter.md`, 07 §1). Parity at
+  the plan's scale passed: a 1,000-game replay of the FP32 A/A (622K requests, inputs and moves
+  identical to the lab engine's) and 300 riichienv self-play games (193K requests). Not yet
+  connected.
 - **Waiting on the user:**
-  - the two P1 runs (≈ $212 each): the user is ready to approve; open questions are the learner
-    check (handoff §2.2) and the total new spend passing $500 (P0 ≈ $218 + P1 ≈ $424);
-  - the riichi.dev adapter (the user has an account and a bot);
+  - riichi.dev: the bot token, which checkpoint to deploy, where it runs, and publishing the source
+    (AGPL), then the validation game (`experiments/riichidev-adapter.md` → "Before ranked play");
   - the formal Phase 0 exit.
 - **Decisions D48–D53** were made in the last three days (fleet network, obs review at G0, 4090s,
   triple ron, P1 horizon and critic, P1 seeds and B0 budget). See `08`.
