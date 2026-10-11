@@ -27,7 +27,11 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
     against its own frozen CQL model.
   - **Finding:** at v0's exploration (ε 0.005, τ 0.05) the trainee takes about one non-greedy
     action per 90 games, because CQL leaves gaps of ≈ 1.8 u between the best and second-best Q
-    (measured on A at step 78K). The tuning plan has to address it (`v.md`).
+    (measured on A at step 78K).
+  - **Tuning plan written** (`experiments/v-tuning.md`): 4 two-hour runs on 3 boxes (24
+    box-hours, ≈ $11–15): Equim's exploration, two stronger settings, and 1e-4 at the default.
+    Picked by a 10K-set lab `measure` each against CQL model A, with a 0.01 u margin favouring the
+    defaults. **Waiting on the user's approval of the rental.**
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -66,6 +70,7 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   identical to the lab engine's) and 300 riichienv self-play games (193K requests). Not yet
   connected.
 - **Waiting on the user:**
+  - approval of V's tuning sweep (≈ $11–15; `experiments/v-tuning.md`);
   - riichi.dev: the bot token, which checkpoint to deploy, where it runs, and publishing the source
     (AGPL), then the validation game (`experiments/riichidev-adapter.md` → "Before ranked play");
   - the formal Phase 0 exit.

@@ -113,9 +113,10 @@
   - **Learning rate:** constant. v0 is P0's 2e-5; Equim's example has 1e-4.
   - **Exploration:** v0 is Equim's ε 0.005, τ 0.05, top-p 1. Q here is in u units, so his
     temperature's scale doesn't carry over.
+  - **The sweep's plan and decision rule: `experiments/v-tuning.md`.**
 - **Measured: how much v0 explores** (2026-10-11; model A's checkpoint at step 78,000, half
-  trained; 3 heldout games, 1,830 decisions with ≥ 2 legal actions; CPU). To redo on the frozen
-  model.
+  trained; 3 heldout games, 1,830 decisions with ≥ 2 legal actions; CPU;
+  `experiments/v_qgaps.py`). To redo on the frozen model.
   - CQL pushes the actions the humans didn't take far down. The best legal action's Q has a median
     of 0.26 u; the median of all legal actions' Q is −5.8 u. A kyoku can't move u by more than
     2.2, so these are not values, just "not in the data".
@@ -137,9 +138,6 @@
    - add it to `tools/fleet/frozen.sha256` (boxes check it, and `fleet.py` needs it as the
      baseline input);
    - redo the exploration measurement above on the frozen model.
-3. **A full-size local check** (server, trainer and one client on the 3060 for a few minutes),
-   after model B, ≈ 2026-10-13. Or, if a V box is rented earlier, in the tuning box's first
-   hour.
-4. **The tuning plan** (learning rate, exploration), written here before any sweep.
-5. **Rental approval** for V's two runs (≈ $210 each at P1's prices) and for the tuning
-   allowance.
+3. **The tuning sweep: planned in `experiments/v-tuning.md`** (2026-10-11), waiting for the
+   user's approval of its rental (≈ $11–15). Its first run is also V's full-size check.
+4. **Rental approval** for V's two runs (≈ $210 each at P1's prices), after the sweep.
