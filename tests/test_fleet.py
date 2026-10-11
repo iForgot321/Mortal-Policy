@@ -371,21 +371,31 @@ def test_down_keeps_an_unpulled_learner_that_is_not_running(tmp_path, monkeypatc
     run = fleet.Run('t')
     run.dir.mkdir()
 
-    def boxes():
-        return {'learner': {'name': 'learner', 'role': 'learner', 'instance': 1, 'status': 'running'},
-                'actor1': {'name': 'actor1', 'role': 'actor', 'instance': 2, 'status': 'running'}}
+    def fresh():
+        run.data = {'boxes': {
+            'learner': {'name': 'learner', 'role': 'learner', 'instance': 1, 'status': 'running'},
+            'actor1': {'name': 'actor1', 'role': 'actor', 'instance': 2, 'status': 'running'}}, 'retired': []}
+        return list(run.boxes.values())
     for vast_status, kept in (('stopped', True), ('exited', True), ('running', False), (None, False)):
-        run.data = {'boxes': boxes(), 'retired': []}
+        bs = fresh()
         monkeypatch.setattr(fleet, 'instances', lambda: {1: {'actual_status': vast_status}} if vast_status else {})
-        bs = list(run.boxes.values())
         msgs = fleet.keep_unpulled(run, bs)
         assert ([b['name'] for b in bs] == ['actor1']) is kept and bool(msgs) is kept
-        assert (run.boxes['learner']['status'] == 'kept') is kept
-        assert [b['name'] for b in run.live()] == (['actor1'] if kept else ['learner', 'actor1'])
+        # out of the run's boxes, so no watch (of any version) replaces it
+        assert ('learner' in run.boxes) is not kept
+        assert [b['instance'] for b in run.data.get('kept', [])] == ([1] if kept else [])
     # Vast can't say: keep rather than destroy what may hold the only copy
-    run.data = {'boxes': boxes(), 'retired': []}
+    bs = fresh()
     monkeypatch.setattr(fleet, 'instances', lambda: None)
-    assert fleet.keep_unpulled(run, list(run.boxes.values()))
+    assert fleet.keep_unpulled(run, bs) and run.data['kept'][0]['status'] == 'kept'
+    # still billed (storage), and never swept
+    run.data['kept'][0].update(created_ts=1, dph=0.5)
+    assert any(b['instance'] == 1 for b, _ in fleet.billed(run))
+    destroyed = []
+    monkeypatch.setattr(fleet, 'instances', lambda: {1: {'label': 'mp-t-learner'}, 3: {'label': 'mp-t-actor9'}})
+    monkeypatch.setattr(fleet, 'destroy_instance', lambda iid: destroyed.append(iid) or True)
+    fleet.sweep(run)
+    assert destroyed == [3]
 
 
 def test_watchdog_waits_on_the_wall_clock(monkeypatch):
@@ -404,7 +414,7 @@ def test_watchdog_waits_on_the_wall_clock(monkeypatch):
     monkeypatch.setattr(fleet.time, 'time', lambda: clock[0])
     monkeypatch.setattr(fleet.time, 'sleep', sleep)
     monkeypatch.setattr(fleet.Run, 'load', staticmethod(fire))
-    a = fleet.argparse.Namespace(after=100_000, run='t', no_pull=False, name=None)
+    a = fleet.argparse.Namespace(after=100_000, run='t', no_pull=False, name=None, kept=False)
     with pytest.raises(Fired) as e:
         fleet.cmd_down(a)
     assert max(slept) <= 60 and e.value.args[0] >= 100_000 and sum(slept) < 100_000

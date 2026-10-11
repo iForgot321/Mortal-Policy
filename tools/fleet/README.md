@@ -201,10 +201,11 @@ which can start, stop or destroy only that instance; no credential of ours is on
 same deadline (to run current code).
 
 - When a pull fails at `down` and the learner isn't running (stopped, exited, offline, or Vast
-  can't say), `down` keeps it (status `kept`) instead of destroying the only copy of its
-  checkpoints, and exits with an error. Sweeps and `watch` leave it alone. To finish:
-  `vastai start instance <id>` (needs that GPU free), then `fleet.py pull --run R` (it looks the
-  new address up) and `fleet.py down --run R`.
+  can't say), `down` keeps it instead of destroying the only copy of its checkpoints, and exits
+  with an error. A kept box moves from the run's `boxes` to `kept` in `fleet.json`, so no `watch`
+  (of any version) replaces it and no sweep destroys it; `status` lists it. To finish:
+  `vastai start instance <id>` (needs that GPU free), then `fleet.py down --run R --kept`, which
+  looks up its new address, pulls it and destroys it.
 - Past the hard deadline, `watch` downs the run instead of replacing boxes.
 
 **Tested** on 2026-10-08 (`experiments/fleet-e2e.md`, $0.41): bring-up in ~9 min; the restrictions

@@ -158,9 +158,7 @@ class Run:
         return self.dir / 'boxes' / f'{box["name"]}-{box["instance"]}'
 
     def live(self, role=None):
-        """Boxes in play: not a learner `kept` for a late pull (see down())."""
-        return [b for b in self.boxes.values()
-                if b.get('status') != 'kept' and (role is None or b['role'] == role)]
+        return [b for b in self.boxes.values() if role is None or b['role'] == role]
 
 
 def hard_deadline(run):
@@ -173,7 +171,7 @@ def billed(run, until=None):
     """(box, hours billed up to `until`, default now) for every box the run has rented."""
     until = until or time.time()
     return [(b, max(0.0, min(b.get('destroyed_ts') or until, until) - b['created_ts']) / 3600)
-            for b in [*run.boxes.values(), *run.data['retired']]
+            for b in [*run.boxes.values(), *run.data.get('kept', []), *run.data['retired']]
             if b.get('instance') and b.get('created_ts') and b['created_ts'] < until]
 
 
@@ -284,7 +282,7 @@ def instances():
 def sweep(run):
     """Destroy any instance labelled for this run, recorded or not (the watchdog's backstop)."""
     listed = instances() or {}
-    kept = {b['instance'] for b in run.boxes.values() if b.get('status') == 'kept'}
+    kept = {b['instance'] for b in run.data.get('kept', [])}
     for iid, inst in listed.items():
         if iid in kept:
             continue
@@ -991,7 +989,7 @@ def health(run, quiet=False):
             verdict, problems = 'ok', ['not started']
         return box['name'], (verdict, problems, probe)
 
-    boxes = run.live()
+    boxes = list(run.boxes.values())
     with ThreadPoolExecutor(max(1, len(boxes))) as ex:
         report = dict(ex.map(one, boxes))
     with open(run.dir / 'health.jsonl', 'a') as f:
@@ -1100,7 +1098,7 @@ def down(run, names=None, do_pull=True):
             errors.append(str(e))
     with ThreadPoolExecutor(max(1, len(boxes))) as ex:
         list(ex.map(one, boxes))
-    if not run.live():
+    if not run.boxes:
         sweep(run)
         kill_watchdog(run)
     run.log(f'down: {", ".join(b["name"] for b in boxes) or "nothing"}; ${cost(run):.2f} so far')
@@ -1110,22 +1108,41 @@ def down(run, names=None, do_pull=True):
 
 def keep_unpulled(run, boxes):
     """After a failed pull: a learner that isn't running (stopped by its box-side deadline,
-    exited, offline, or Vast can't say) still has the run's checkpoints on its disk, so it is
-    taken out of `boxes` and kept for a human to start, pull and down. Returns the messages."""
+    exited, offline, or Vast can't say) still has the run's checkpoints on its disk. It is taken
+    out of `boxes` and out of the run's boxes into `kept`, where no watch, replace or sweep
+    touches it, for a human to start and `down --kept`. Returns the messages."""
     listed = instances()
     out = []
     for box in [b for b in boxes if b['role'] == 'learner']:
         status = '?' if listed is None else (listed.get(box['instance']) or {}).get('actual_status')
-        if status is None or (status == 'running' and box.get('status') != 'kept'):
+        if status in (None, 'running'):
             continue  # gone, or up and merely unreachable: destroyed as before
         boxes.remove(box)
         with run.lock:
             box['status'] = 'kept'
+            run.boxes.pop(box['name'], None)
+            run.data.setdefault('kept', []).append(box)
             run.save()
         run.event('kept_unpulled', box['name'], instance=box['instance'], vast_status=status)
         out.append(f'{box["name"]}: not pulled and {status}; kept. vastai start instance {box["instance"]}, '
-                   f'then fleet.py pull and down --run {run.name}')
+                   f'then fleet.py down --run {run.name} --kept')
     return out
+
+
+def finish_kept(run):
+    """Pull each kept learner (started by hand) and destroy it."""
+    for box in list(run.data.get('kept', [])):
+        pull(run, [box])
+        with run.lock:
+            run.data['kept'].remove(box)
+            run.save()
+        try:
+            destroy_box(run, box)
+        except FleetError:
+            with run.lock:
+                run.data['kept'].append(box)
+                run.save()
+            raise
 
 
 # ---------------------------------------------------------------- commands
@@ -1272,7 +1289,7 @@ def cmd_watch(a):
               budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None)
     while True:
         with run.locked():
-            if not run.live():
+            if not run.boxes:
                 run.log('no boxes left; watch ends')
                 return 0
             spent = cost(run)
@@ -1340,6 +1357,11 @@ def cmd_watch(a):
 
 
 def cmd_down(a):
+    if a.kept:
+        run = Run.load(a.run)
+        with run.locked():
+            finish_kept(run)
+        return 0
     if not a.after:
         run = Run.load(a.run)
         with run.locked():
@@ -1409,6 +1431,9 @@ def cmd_status(a):
         print(f'  {b["name"]:<8} {b["status"]:<9} instance {b["instance"]}  machine {b["machine_id"]}  '
               f'${b["dph"]:.3f}/h  {up:.1f} h  {b.get("ip", "-")}:{b.get("ssh_port", "-")}  {b.get("commit", "-")}  '
               f'{b["cpu_name"]}')
+    for b in d.get('kept', []):
+        print(f'  {b["name"]:<8} KEPT      instance {b["instance"]}: not pulled; vastai start instance '
+              f'{b["instance"]}, then down --run {d["run"]} --kept')
     print(f'  retired: {len(d["retired"])}; bad machines: {d["bad_machines"]}')
     if d.get('budget_rebase'):
         r = d['budget_rebase']
@@ -1519,6 +1544,7 @@ def main(argv=None):
     s = p('down', cmd_down, 'pull, revoke and destroy')
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')
+    s.add_argument('--kept', action='store_true', help='pull and destroy the kept learner (start it first)')
     s.add_argument('--after', type=int, default=0, help=argparse.SUPPRESS)
     s = p('deadline', cmd_deadline, "arm every box's own hard deadline (box_deadline.py)")
     s.add_argument('--disarm', action='store_true', help='remove it instead')
