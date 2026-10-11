@@ -568,6 +568,9 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The selection test (each seed against its own initialization) is unaffected.
 - **Reopen if:** model B fails the sanity checks in `experiments/v.md` that model A passes.
 
+**D55 (2026-10-11): Phase 0 is exited.** `00`'s exit bar was met on 2026-10-05: L0, plus σ_set, hanchan/h per box type and featurization samples/s logged with commit and config (`STATUS.md` → Phase 0 deliverables). Decided by the user.
+- **Carried into Phase 1** (no change to any gate): the remaining fleet items in `STATUS.md` → Next steps (the fleet soak report from P0's health log, the eval-box queue, the cost forecast at D50's 4090 prices), and the population panel's mixed-table arena.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

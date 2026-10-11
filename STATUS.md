@@ -5,8 +5,8 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 
 ## Current position (2026-10-11 22:50 UTC)
 
-**Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
-logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
+**Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
+research is under way.**
 
 - **Live on the workstation: arm V's quick CQL model A** (`experiments/v.md`), started
   2026-10-11 08:28 UTC at `8e71ad0`, PID 2197357, log `workdir/cql/qs-a/train.log`.
@@ -31,7 +31,8 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   - **Tuning plan written** (`experiments/v-tuning.md`): 4 two-hour runs on 3 boxes (24
     box-hours, ≈ $11–15): Equim's exploration, two stronger settings, and 1e-4 at the default.
     Picked by a 10K-set lab `measure` each against CQL model A, with a 0.01 u margin favouring the
-    defaults. **Waiting on the user's approval of the rental.**
+    defaults. **Rental approved by the user 2026-10-11 (≈ $11–15).** It starts after model A is
+    frozen and the configs are committed (plan step 1).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -70,12 +71,11 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   identical to the lab engine's) and 300 riichienv self-play games (193K requests). Not yet
   connected.
 - **Waiting on the user:**
-  - approval of V's tuning sweep (≈ $11–15; `experiments/v-tuning.md`);
   - riichi.dev: the bot token, which checkpoint to deploy, where it runs, and publishing the source
     (AGPL), then the validation game (`experiments/riichidev-adapter.md` → "Before ranked play");
-  - the formal Phase 0 exit.
-- **Decisions D48–D54** were made in the last four days (fleet network, obs review at G0, 4090s,
-  triple ron, P1 horizon and critic, P1 seeds and B0 budget, V seeds and opponents). See `08`.
+- **Decisions D48–D55** were made in the last four days (fleet network, obs review at G0, 4090s,
+  triple ron, P1 horizon and critic, P1 seeds and B0 budget, V seeds and opponents, Phase 0
+  exit). See `08`.
 - **Cloud spend:** the three live runs have billed ≈ $126 (22:42 UTC: P0 $72, P1 $27 + $27), on
   top of the earlier one-off boxes (B0 warm-ups, checks, benchmarks); ≈ $4.25/h while all three
   are live, ≈ $620 for the three runs at the end (approved ≈ $640).
@@ -382,7 +382,7 @@ failure modes already met.
 3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): when CQL model A ends (≈ 2026-10-12
    09:30 UTC) the queue freezes it and starts model B. Then: A's sanity checks, its hash in
    `v.md` and `tools/fleet/frozen.sha256`, `v_qgaps.py` on it to fix the sweep's ε, and the four
-   sweep configs, committed. The sweep waits for the user's rental approval (≈ $11–15); its
+   sweep configs, committed. Then the sweep (rental approved 2026-10-11, ≈ $11–15); its
    evaluation runs after model B (≈ 2026-10-13 11:00 UTC). V's runs need their own approval.
    Arm H follows V.
 4. **SL substrate (`04`):**
