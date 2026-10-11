@@ -23,7 +23,8 @@ re-featurizes with the oracle channels and yields whole-trajectory chunks; the l
 critic values and GAE on each chunk, shuffles it into minibatches, and trains the policy (PPO) and
 a fresh b8c128 critic (MSE onto the λ-returns) in one backward, as `train_online.py` does. Samples
 are decisions loaded, in every mode. Peak memory (PSS of the benchmark and its loader workers) is
-reported per pass.
+reported per pass. `--threads 4 8 16` repeats the passes at each count of torch CPU threads in the
+main process (the trainer's `control.num_threads`).
 
 Usage, from the repo root:
     python tools/fleet/bench_learner.py --drain workdir/sp-ablation/learner-drain \
@@ -173,8 +174,8 @@ class Learner:
 
 class PeakMemory:
     """Peak PSS of this process and its children (the loader workers), sampled every second.
-    Start it only after the loader has forked its workers: a fork while this thread runs can
-    leave a worker deadlocked on a lock the thread held (seen 2026-10-11)."""
+    Started after the loader has forked its workers: a child forked while another thread holds
+    a lock can deadlock on it."""
 
     def __init__(self):
         self.peak = 0
@@ -283,10 +284,16 @@ def main():
     ap.add_argument('--versions', type=int, nargs='+', default=[4, 5])
     ap.add_argument('--gpu-steps', type=int, default=200)
     ap.add_argument('--workers', type=int, nargs='+', default=[WORKERS], help='loader-worker counts to time')
+    ap.add_argument('--threads', type=int, nargs='+', default=[0],
+                    help="torch CPU threads in this process to time (0: torch's default)")
     ap.add_argument('--no-compile', action='store_true',
                     help='eager learner steps (the first compile hung on a Vast EPYC 7C13 box, 2026-10-09)')
     ap.add_argument('--out', default=None)
+    ap.add_argument('--generate-only', action='store_true', help=argparse.SUPPRESS)
     args = ap.parse_args()
+    if args.generate_only:
+        generate(args.drain, args.games)
+        return
 
     import torch
     torch.backends.cudnn.benchmark = True
@@ -297,8 +304,11 @@ def main():
     resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
     if not glob.glob(os.path.join(args.drain, 'logs', '*.json.gz')):
+        # in a child process: loader workers forked after the arena has run in this process
+        # deadlock at start, on a lock one of its threads held (2026-10-11, the P1 check)
         t0 = time.time()
-        generate(args.drain, args.games)
+        subprocess.run([sys.executable, os.path.abspath(__file__), '--generate-only', '--drain', args.drain,
+                        '--games', str(args.games)], check=True)
         print(json.dumps({'generated_games': args.games, 'seconds': round(time.time() - t0, 1)}), flush=True)
     logs = sorted(glob.glob(os.path.join(args.drain, 'logs', '*.json.gz')))
 
@@ -315,19 +325,23 @@ def main():
     arm = args.arm
     results = []
     timed_gpu = False
+    default_threads = torch.get_num_threads()
     for v in args.versions:
         learner = Learner(v, device, compile=not args.no_compile, arm=arm)
         timed_pass(loader(v, logs, args.drain, args.workers[0], arm), learner, arm)  # warm-up: compile, autotune
-        for w in args.workers:
-            n, dt, mem = timed_pass(loader(v, logs, args.drain, w, arm), arm=arm)
-            data_only = {'version': v, 'workers': w, 'mode': 'data only', 'samples': n, 'seconds': round(dt, 1),
-                         'samples_per_s': round(n / dt), 'peak_pss_gb': mem}
-            print(json.dumps(data_only), flush=True)
-            n, dt, mem = timed_pass(loader(v, logs, args.drain, w, arm), learner, arm)
-            full = {'version': v, 'workers': w, 'mode': 'full', 'samples': n, 'seconds': round(dt, 1),
-                    'samples_per_s': round(n / dt), 'peak_pss_gb': mem}
-            print(json.dumps(full), flush=True)
-            results += [data_only, full]
+        for th in args.threads:
+            torch.set_num_threads(th or default_threads)
+            for w in args.workers:
+                n, dt, mem = timed_pass(loader(v, logs, args.drain, w, arm), arm=arm)
+                data_only = {'version': v, 'workers': w, 'threads': torch.get_num_threads(), 'mode': 'data only',
+                             'samples': n, 'seconds': round(dt, 1), 'samples_per_s': round(n / dt), 'peak_pss_gb': mem}
+                print(json.dumps(data_only), flush=True)
+                n, dt, mem = timed_pass(loader(v, logs, args.drain, w, arm), learner, arm)
+                full = {'version': v, 'workers': w, 'threads': torch.get_num_threads(), 'mode': 'full',
+                        'samples': n, 'seconds': round(dt, 1), 'samples_per_s': round(n / dt), 'peak_pss_gb': mem}
+                print(json.dumps(full), flush=True)
+                results += [data_only, full]
+        torch.set_num_threads(default_threads)
         if not timed_gpu:
             # training steps only; P1's batches already carry their GAE targets
             timed_gpu = True
