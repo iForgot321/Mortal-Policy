@@ -244,6 +244,16 @@ class DQN(nn.Module):
         q = (v + a - a_mean).masked_fill(~mask, -torch.inf)
         return q
 
+class AuxNet(nn.Module):
+    """Equim's auxiliary heads on phi (arm V: the next-rank head, dims (4,))."""
+    def __init__(self, dims=None):
+        super().__init__()
+        self.dims = dims
+        self.net = nn.Linear(1024, sum(dims), bias=False)
+
+    def forward(self, x):
+        return self.net(x).split(self.dims, dim=-1)
+
 class GRP(nn.Module):
     def __init__(self, hidden_size=64, num_layers=2):
         super().__init__()

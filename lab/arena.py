@@ -66,7 +66,7 @@ def load_engine(spec, device='cuda:0', name=None, enable_amp=True,
 
     import torch
     from engine import MortalEngine
-    from model import Brain, CategoricalPolicy
+    from model import Brain, CategoricalPolicy, DQN
 
     # weights_only=False: trainer checkpoints carry numpy scalars; we only
     # ever load our own checkpoints
@@ -81,9 +81,14 @@ def load_engine(spec, device='cuda:0', name=None, enable_amp=True,
         conv_channels=cfg['resnet']['conv_channels'],
         Norm=norm,
     ).eval()
-    policy = CategoricalPolicy().eval()
     brain.load_state_dict(state['mortal'])
-    policy.load_state_dict(state['policy_net'])
+    if 'current_dqn' in state:
+        # arm V (train_value.py): greedy on Q, which DQN masks to -inf
+        policy = DQN(version=version).eval()
+        policy.load_state_dict(state['current_dqn'])
+    else:
+        policy = CategoricalPolicy().eval()
+        policy.load_state_dict(state['policy_net'])
     return MortalEngine(
         brain,
         policy,
