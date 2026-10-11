@@ -1,0 +1,70 @@
+# Quick CQL model B (04 §7; arm V seed 2's initialization, D54): cql-qs-a.toml with seed 2, as
+# pilot B is pilot A with seed 2. Equim's offline value-based Mortal (mortal/train_value.py),
+# min_q_weight 5, next-rank auxiliary 0.2; same 500K-game subset, one epoch, net, batch and
+# optimizer as the pilots.
+#
+# Run from mortal/:  MORTAL_CFG=../experiments/configs/cql-qs-b.toml python train_value.py
+# Notes: experiments/v.md
+
+[control]
+version = 4
+online = false
+seed = 2
+
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/cql/qs-b/mortal.pth'
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/cql/qs-b/tb'
+
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+
+batch_size = 2048
+opt_step_every = 1
+save_every = 2000
+
+[dataset]
+file_index = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/quick500k.pth'
+masks_file = '/home/iforgot/mj-data/splits/masks.jsonl'
+# the pilots' loader settings (2 workers; see pilot-qs-a.toml)
+file_batch_size = 20
+reserve_ratio = 0.0
+num_workers = 2
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+obs_fp16 = true
+
+[resnet]
+conv_channels = 192
+num_blocks = 8
+
+[env]
+# u x 100 (D2); Q targets are the kyoku's GRP-Δu in u units (pts / 100, 05 §3.2)
+pts = [90.0, 50.0, -10.0, -130.0]
+
+[cql]
+min_q_weight = 5
+
+[aux]
+next_rank_weight = 0.2
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.1
+max_grad_norm = 1.0
+
+[optim.scheduler]
+peak = 3e-4
+final = 1e-5
+warm_up_steps = 2000
+# the pilots' schedule: one epoch of the subset ran out at step 157,869
+max_steps = 158000
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2

@@ -3,23 +3,31 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 19:10 UTC)
+## Current position (2026-10-11 21:10 UTC)
 
 **Phase 0's exit bar is met** (L0 2026-10-05; σ_set, hanchan/h per box type and featurization are
 logged). Declaring the exit is the user's call. **Phase 1 early research is under way.**
 
 - **Live on the workstation: arm V's quick CQL model A** (`experiments/v.md`), started
   2026-10-11 08:28 UTC at `8e71ad0`, PID 2197357, log `workdir/cql/qs-a/train.log`.
-  - Step 66,000 of ≈ 158K at 18:56 UTC (1.75 steps/s), so it ends ≈ **2026-10-12 10:00 UTC**.
-    Losses so far: dqn 0.22, cql 0.52, next rank 0.77 (below ln 4).
-  - It uses the GPU and ≈ 9 GB of RAM, so **no lab or arena jobs until it ends**.
+  - Step 78,000 of ≈ 158K at 20:48 UTC (1.75 steps/s), so it ends ≈ **2026-10-12 09:30 UTC**.
+    Losses at 66K: dqn 0.22, cql 0.52, next rank 0.77 (below ln 4).
+  - **Then quick CQL model B (seed 2, D54) starts by itself**: `workdir/cql/queue-b.sh`
+    (PID 2332387, log `workdir/cql/queue-b.log`) freezes A and starts B if A's data ran out,
+    and otherwise starts nothing. B ends ≈ **2026-10-13 11:00 UTC**.
+  - Each uses the GPU and ≈ 9 GB of RAM, so **no lab or arena jobs until B ends**.
 - **Arm V online ported** (2026-10-11, `experiments/v.md`):
   - `train_value.py` online and `engine.ValueEngine` (Equim's ε/τ/top-p exploration);
   - `control.head = 'value'` in the client, `TrainPlayer` and `fleet.py start`;
   - config v0 `experiments/configs/v-a.toml`.
   Tested on tiny nets on the CPU (sampler, 1v3 actor side, learner loop with `server.py`). The
-  full-size check waits for model A. Open items for the user are in `v.md` → "Open before V's
+  full-size check waits for model B. Open items for the user are in `v.md` → "Open before V's
   fleet runs".
+  - **D54 (user, 2026-10-11):** seed 2 starts from CQL model B (`v-b.toml`); each seed plays
+    against its own frozen CQL model.
+  - **Finding:** at v0's exploration (ε 0.005, τ 0.05) the trainee takes about one non-greedy
+    action per 90 games, because CQL leaves gaps of ≈ 1.8 u between the best and second-best Q
+    (measured on A at step 78K). The tuning plan has to address it (`v.md`).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -61,8 +69,8 @@ logged). Declaring the exit is the user's call. **Phase 1 early research is unde
   - riichi.dev: the bot token, which checkpoint to deploy, where it runs, and publishing the source
     (AGPL), then the validation game (`experiments/riichidev-adapter.md` → "Before ranked play");
   - the formal Phase 0 exit.
-- **Decisions D48–D53** were made in the last three days (fleet network, obs review at G0, 4090s,
-  triple ron, P1 horizon and critic, P1 seeds and B0 budget). See `08`.
+- **Decisions D48–D54** were made in the last four days (fleet network, obs review at G0, 4090s,
+  triple ron, P1 horizon and critic, P1 seeds and B0 budget, V seeds and opponents). See `08`.
 - **Cloud spend:** ≈ $63 of $14.3K so far; ≈ $4.25/h while all three runs are live.
 
 ### Phase 0 deliverables

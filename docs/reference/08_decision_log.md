@@ -556,6 +556,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The selection test (each seed against its own initialization) is unaffected.
 - **Reopen if:** the head-to-head between P1 and P0 comes out within ≈ 3% of compute, where the B0 asymmetry could decide it.
 
+**D54 (2026-10-11): V's second seed starts from quick CQL model B, and each V seed plays against its own frozen CQL model.** Fills in `05` §2.1–§2.2 for arm V, as D53 did for P1. Decided by the user.
+- **Seeds:**
+  - seed 1 starts from quick CQL model A (`experiments/configs/cql-qs-a.toml`, seed 1) and plays against frozen CQL model A;
+  - seed 2 starts from quick CQL model B and plays against frozen CQL model B (`experiments/configs/v-b.toml`).
+  - CQL model B is model A's config with seed 2 (`cql-qs-b.toml`): same subset, steps, net and optimizer, as pilot B is to pilot A. So V's replicate covers the initialization as well as the run.
+- **Opponents:** `05` §2.2's "same opponents for every arm" means the same rule, 1v3 against the arm-seed's own frozen initialization (`05` §2.4's `baseline.train` row), not the same network. V does not play against pilot A.
+- **Compute:** model B trains on the workstation (≈ 25 h, no cloud spend), after model A and before G0's evaluations need the machine. Like the pilots and CQL model A, it is initialization compute, outside the 3 boxes × 6 days per arm-seed.
+- **Consequences, to state at G0:**
+  - V's head-to-head against P0/P1 (`05` §2.3) compares recipes that include their initializations; seed 2's comparison with P1 seed 2 runs CQL B against pilot B, seed 1's CQL A against pilot A.
+  - The selection test (each seed against its own initialization) is unaffected.
+- **Reopen if:** model B fails the sanity checks in `experiments/v.md` that model A passes.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
