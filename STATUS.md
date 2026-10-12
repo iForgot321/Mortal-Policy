@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-11 22:50 UTC)
+## Current position (2026-10-12 07:10 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -42,6 +42,18 @@ research is under way.**
   - The three watchers still run the old code: the auto-mode classifier blocked restarting them.
     See the handoff.
 
+- **Live in the cloud, billing: the eval box** (user-approved 2026-10-12 as the shared eval and
+  riichi.dev box, 07 §1), up since 07:03 UTC: instance 55513275, EPYC 9684X, 32 cores, $0.464/h,
+  California (riichi.dev TCP connect ≈ 170 ms). `tools/fleet/evalbox.py`; no hard deadline, it
+  bills until `evalbox.py down`.
+  - **It holds the lab registry** (`workdir/lab-lease.json`): lab jobs go through
+    `evalbox.py submit`, and `evalbox.py pull` brings the rows back (append-only check).
+  - First jobs: the deterministic A/A on pilot A (new hardware), and **07's 100K-game
+    illegal-action test** (riichienv self-play, pilot A, 24 workers, ≈ 7–8 h; seeds 1000+;
+    `workdir/riichidev/parity-selfplay-100k.*` on the box, riichienv in
+    `/workspace/venvs/riichidev`). Then the V sweep's evaluation.
+  - Japan had one verified 4090 offer (Zen 2, 27 cores), so the box went where the fleet's
+    ranking put it. Where the bot runs is decided again when the student is ready.
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
   2026-10-11 03:16–03:31 UTC at `b3864a7`. 3 boxes each, ≈ $1.39/h per run, ≈ 114K games/h
   trained per run. ≈ $200 each at the end (432 box-hours; safety stop $250). They end by
@@ -398,5 +410,5 @@ failure modes already met.
 5. **Search pilot (`06` §0):** the oracle stage reports by G0.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
-   - the eval-box queue;
+   - ~~the eval-box queue~~ done 2026-10-12 (`tools/fleet/evalbox.py`, README "The eval box");
    - re-running the cost forecast with D50's 4090 prices.
