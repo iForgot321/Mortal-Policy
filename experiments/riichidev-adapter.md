@@ -108,6 +108,23 @@ that seat as the arena masks it.
    - **AGPL:** push of `main` to the public fork approved. The source of each deployed version
      must be public before it plays (CLAUDE.md rule 9).
    - **riichi.dev allows 4 bots per account at a time** (`01` §3).
-3. **Still to build** (07 operations): a process supervisor with auto-restart, the daily summary,
-   and per-class latency metrics. 07's "0 illegal actions over 100K lab games" needs batched
-   self-play: at one decision per inference call, 100K games take ≈ 8 days on the workstation.
+3. **Operations (07 §1), built 2026-10-12:**
+   - **Latency per decision class:** each game log's `decision` lines carry the class (the move
+     type sent; kans merged) and the ms; each game summary has n, p50, p99 and max per class.
+   - **Supervisor:** `deploy/riichidev_supervise.sh` restarts the bot after a crash (backoff
+     30 s → 10 min; it gives up after 5 crashes within an hour). It never restarts after a game
+     with failures: the bot exits 3 and fails closed. Play stops between games when
+     `workdir/riichidev/STOP` exists, never mid-game (no mid-game reconnection). `--games 0` plays
+     until then.
+   - **Daily summary:** `python3 -m deploy.riichidev_summary` gives, per UTC day: games,
+     placements, mean rank and u, unfinished games, timeouts, chombo (rejected or unparseable
+     actions) and other failures, plus latency per class. The rating isn't in the game messages;
+     read it from the leaderboard.
+   - Tests: `tests/test_riichidev_ops.py` (the restart policy with a fake bot, the summary, the
+     latency classes); with `tests/test_riichidev.py`, 10 pass on the eval box.
+4. **07's "0 illegal actions over 100K lab games": running** on the eval box since 2026-10-12, as
+   20 background chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds 1000–100,999,
+   `--light`: the legality checks without the observation comparison, which passed at scale
+   above; 20 worker processes). Reports `workdir/riichidev/parity-100k-c00…c19.json`.
+   - The deployed version will be the student. The adapter's legality doesn't depend on the
+     network, but a short self-play run with the student goes before its first ranked game.

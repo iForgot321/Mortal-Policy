@@ -48,10 +48,11 @@ research is under way.**
   bills until `evalbox.py down`.
   - **It holds the lab registry** (`workdir/lab-lease.json`): lab jobs go through
     `evalbox.py submit`, and `evalbox.py pull` brings the rows back (append-only check).
-  - First jobs: the deterministic A/A on pilot A (new hardware), and **07's 100K-game
-    illegal-action test** (riichienv self-play, pilot A, 24 workers, ≈ 7–8 h; seeds 1000+;
-    `workdir/riichidev/parity-selfplay-100k.*` on the box, riichienv in
-    `/workspace/venvs/riichidev`). Then the V sweep's evaluation.
+  - **Its deterministic A/A on pilot A passed** (2,000 sets, 0 divergent games; FP32).
+  - **07's 100K-game illegal-action test runs there in the background**: 20 queued chunks of 5,000
+    riichienv self-play games at priority 9, so lab jobs go first
+    (`experiments/riichidev-adapter.md` → "Before ranked play" item 4).
+  - The V sweep's evaluation goes there next (`experiments/v-tuning.md`).
   - Japan had one verified 4090 offer (Zen 2, 27 cores), so the box went where the fleet's
     ranking put it. Where the bot runs is decided again when the student is ready.
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
@@ -86,6 +87,8 @@ research is under way.**
   ranked play"**):** ranked play waits for the π_SL student, as 07 says; riichi.dev allows 4 bots
   per account at a time; **the shared eval/deploy 4090 is approved** (≈ $0.55/h, ≈ $13/day,
   ≈ $400/month); pushing `main` to the public fork is approved (AGPL).
+- **riichi.dev operations built** (2026-10-12): latency per decision class, the supervisor (restarts
+  after crashes only; stops between games on a stop file) and the daily summary.
 - **Waiting on the user:** the riichi.dev bot token, stored outside the repo, for the validation
   game.
 - **Decisions D48–D55** were made in the last four days (fleet network, obs review at G0, 4090s,
@@ -405,8 +408,9 @@ failure modes already met.
    - b24c512 AWR and BC teachers, then the students;
    - the riichi.dev smoke deploy (L1). The adapter and its parity tests are done
      (`experiments/riichidev-adapter.md`); the user decided its inputs on 2026-10-12 (the
-     student; the shared 4090). Next: the validation game (needs the token), a supervisor, the
-     daily summary, latency metrics and batched self-play for the 100K-game illegal-action test.
+     student; the shared 4090). The supervisor, daily summary and latency metrics are built; the
+     100K-game illegal-action test runs on the eval box. Next: the validation game (needs the
+     token).
 5. **Search pilot (`06` §0):** the oracle stage reports by G0.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
