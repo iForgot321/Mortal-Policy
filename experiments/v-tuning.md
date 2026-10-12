@@ -70,9 +70,10 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
 3. **The other three:** in parallel if Vast has the boxes, otherwise one after another. Each ends
    at its 2 h hard deadline: the watchdog pulls the learner's last checkpoint and destroys the
    boxes.
-4. **Evaluation**, on the eval box (`tools/fleet/evalbox.py`, approved 2026-10-12) as soon as each
-   run is pulled; on the workstation after model B finishes (≈ 2026-10-13 11:00 UTC) only if the
-   eval box isn't up. All four on the same machine. For each run:
+4. **Evaluation**, on the workstation after model B finishes (≈ 2026-10-13 11:00 UTC; nothing else
+   runs there meanwhile), or on the eval box (`tools/fleet/evalbox.py`) if it is back first; it
+   closed on 2026-10-12 until the riichi.dev token arrives. All four on the same machine. On the
+   workstation, `python -m lab measure ...` with the same arguments. For each run:
 
    ```bash
    python3 tools/fleet/evalbox.py submit -- measure \
@@ -123,8 +124,7 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
 |---|---|
 | 2026-10-12 ≈ 09:30 | Model A frozen; step 1 the same day |
 | 2026-10-12, after step 1 | The sweep: ≈ 2.5 h if the four runs go in parallel |
-| 2026-10-12, as each run is pulled | The evaluation, on the eval box |
-| 2026-10-13 ≈ 11:00 | Model B finishes, frozen |
+| 2026-10-13 ≈ 11:00 | Model B finishes, frozen; the evaluation starts (≈ 6 h on the workstation) |
 | After the fourth measure | The decision; the chosen values go into `v-a.toml` and `v-b.toml` in one commit |
 | Then | V's runs, after their own rental approval (≈ $210 each) |
 

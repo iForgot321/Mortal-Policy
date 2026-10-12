@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-12 07:10 UTC)
+## Current position (2026-10-12 08:10 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -42,17 +42,17 @@ research is under way.**
   - The three watchers still run the old code: the auto-mode classifier blocked restarting them.
     See the handoff.
 
-- **Live in the cloud, billing: the eval box** (user-approved 2026-10-12 as the shared eval and
-  riichi.dev box, 07 §1), up since 07:03 UTC: instance 55513275, EPYC 9684X, 32 cores, $0.464/h,
-  California (riichi.dev TCP connect ≈ 170 ms). `tools/fleet/evalbox.py`; no hard deadline, it
-  bills until `evalbox.py down`.
-  - **It holds the lab registry** (`workdir/lab-lease.json`): lab jobs go through
-    `evalbox.py submit`, and `evalbox.py pull` brings the rows back (append-only check).
+- **The eval box is closed** (the user, 2026-10-12): it ran 07:03–08:04 UTC (instance 55513275,
+  EPYC 9684X, $0.464/h, ≈ $0.80 with three failed setups). The approval stands; it comes back
+  when the user has the riichi.dev token (planned Tuesday 2026-10-13), for the validation game and
+  the 100K-game test. `tools/fleet/evalbox.py up --yes` (≈ 10 min); the lab lease is released
+  meanwhile, so lab jobs run on the workstation.
   - **Its deterministic A/A on pilot A passed** (2,000 sets, 0 divergent games; FP32).
-  - **07's 100K-game illegal-action test runs there in the background**: 20 queued chunks of 5,000
-    riichienv self-play games at priority 9, so lab jobs go first
+  - **07's 100K-game illegal-action test is paused:** chunk 0 reached 2,800 of 5,000 games with
+    0 failures before the box closed, but no chunk finished, so all 20 run again
     (`experiments/riichidev-adapter.md` → "Before ranked play" item 4).
-  - The V sweep's evaluation goes there next (`experiments/v-tuning.md`).
+  - California, riichi.dev TCP connect ≈ 170 ms. Japan had one verified 4090 offer (Zen 2, 27
+    cores). Where the bot runs is decided again when the student is ready.
   - Japan had one verified 4090 offer (Zen 2, 27 cores), so the box went where the fleet's
     ranking put it. Where the bot runs is decided again when the student is ready.
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
@@ -401,7 +401,8 @@ failure modes already met.
    09:30 UTC) the queue freezes it and starts model B. Then: A's sanity checks, its hash in
    `v.md` and `tools/fleet/frozen.sha256`, `v_qgaps.py` on it to fix the sweep's ε, and the four
    sweep configs, committed. Then the sweep (rental approved 2026-10-11, ≈ $11–15); its
-   evaluation runs after model B (≈ 2026-10-13 11:00 UTC). V's runs need their own approval.
+   evaluation runs on the workstation after model B (≈ 2026-10-13 11:00 UTC), or on the eval box
+   if it is back first (all four on one machine). V's runs need their own approval.
    Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;

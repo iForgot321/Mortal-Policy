@@ -122,9 +122,13 @@ that seat as the arena masks it.
      read it from the leaderboard.
    - Tests: `tests/test_riichidev_ops.py` (the restart policy with a fake bot, the summary, the
      latency classes); with `tests/test_riichidev.py`, 10 pass on the eval box.
-4. **07's "0 illegal actions over 100K lab games": running** on the eval box since 2026-10-12, as
-   20 background chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds 1000–100,999,
+4. **07's "0 illegal actions over 100K lab games": paused.** Queued on the eval box on 2026-10-12
+   as 20 background chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds 1000–100,999,
    `--light`: the legality checks without the observation comparison, which passed at scale
-   above; 20 worker processes). Reports `workdir/riichidev/parity-100k-c00…c19.json`.
+   above; 20 worker processes; reports `workdir/riichidev/parity-100k-c00…c19.json`). The box
+   closed with chunk 0 at 2,800 games, 0 failures (`workdir/fleet/runs/eval/labq/` log); no chunk
+   finished, so all 20 run when the box is back.
+   - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
+     time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
    - The deployed version will be the student. The adapter's legality doesn't depend on the
      network, but a short self-play run with the student goes before its first ranked game.
