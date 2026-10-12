@@ -15,7 +15,7 @@
 #
 # Units: Q targets are the kyoku's GRP-Δu in u units (pts / 100), never standardized (05 §3.2).
 #
-# Frozen inputs: CQL model A cql-qs-a-final.pth (hash in experiments/v.md once frozen),
+# Frozen inputs: CQL model A cql-qs-a-final.pth (f8a867da…, experiments/v.md),
 # GRP-v2 grp-v2-frozen.pth (db28beac…).
 
 [control]

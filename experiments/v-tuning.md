@@ -2,8 +2,8 @@
 
 - **Question:** V's exploration (ε and τ) and its learning rate, for both seeds' runs
   (`experiments/configs/v-a.toml`, `v-b.toml`).
-- **Status:** plan; the rental (≈ $11–15) was approved by the user on 2026-10-11. It starts after
-  model A is frozen and step 1 is committed.
+- **Status:** step 1 done 2026-10-12 (model A frozen at 09:51 UTC; ε fixed below; the four
+  configs committed with this line). The rental (≈ $11–15) was approved by the user on 2026-10-11.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
   outside each seed's 432 box-hours. The evaluation runs on the workstation ($0).
@@ -36,9 +36,12 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
   games. `e0` is kept as the control: Equim's values, the arm as he ran it.
 - **Setting ε:** `v_qgaps.py` on the frozen model A, the last 5 heldout games:
   ε = target ÷ (multi-option decisions per game × the share of a draw that leaves the argmax at
-  τ). Rounded to 2 significant figures, capped at 0.5. On A at step 86,000 this gives **0.053
-  (`e1`) and 0.20 (`e2`)**. The values used are written here and the four configs committed
+  τ). Rounded to 2 significant figures, capped at 0.5. On A at step 86,000 this gave 0.053
+  (`e1`) and 0.20 (`e2`). The values used are written here and the four configs committed
   before the first box is rented. That commit is the pre-registration point.
+  - **Used (frozen A, step 156,000, 2026-10-12):** 155 multi-option decisions per seat-game;
+    off-argmax share 0.1303 at τ 0.5 and 0.2361 at τ 1.0; ε 0.0496 and 0.1915, so **`e1` and
+    `e1-lr` ε = 0.050, `e2` ε = 0.19** (`experiments/configs/v-tune-*.toml`).
 - **Everything else as v0** (`v-a.toml`): top-p 1, batch 512, constant learning rate, weight
   decay 0, clipping 0.5, γ 1, next-rank 0.2, 800 games per actor batch. Each run has its own
   paths (`workdir/v-tune-<run>/` on the box; `fleet.py` pulls the learner to
@@ -122,7 +125,7 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
 
 | When (UTC) | What |
 |---|---|
-| 2026-10-12 ≈ 09:30 | Model A frozen; step 1 the same day |
+| 2026-10-12 09:51 | Model A frozen; step 1 done by ≈ 10:10 |
 | 2026-10-12, after step 1 | The sweep: ≈ 2.5 h if the four runs go in parallel |
 | 2026-10-13 ≈ 11:00 | Model B finishes, frozen; the evaluation starts (≈ 6 h on the workstation) |
 | After the fourth measure | The decision; the chosen values go into `v-a.toml` and `v-b.toml` in one commit |

@@ -42,6 +42,12 @@
 - **Frozen checkpoint:** the last save before the data runs out, as for the pilots (expected
   step 156,000 of ≈ 157,869), copied to `workdir/cql/qs-a/cql-qs-a-final.pth`, read-only, hash
   recorded here.
+  - **Model A, frozen 2026-10-12 09:51 UTC** (by the queue) at step 156,000: sha256
+    `f8a867da0d26fdeaca81114a52e48e0483d8f2f4b71ee902cec78e72a66c8362`, also in
+    `tools/fleet/frozen.sha256`. Sanity checks pass: the data ran out at step 157,869, the
+    pilots' count; every logged loss is finite; from step 20,000 to 156,000 the CQL term fell
+    0.547 → 0.495, the DQN loss 0.240 → 0.205, and the next-rank loss 0.791 → 0.755 (below ln 4).
+    It trained for ≈ 25.5 h on the workstation. Model B started at 09:51:48 UTC.
 - **Sanity checks before it becomes V's initialization (not strength claims):** the data runs
   out at the pilots' step count (± 1%); every logged loss is finite; the CQL term falls and the
   next-rank loss falls below ln 4 ≈ 1.386.
@@ -128,6 +134,16 @@
   - So at v0 (ε 0.005, τ 0.05), a game's ≈ 152 multi-option trainee decisions carry about 0.01
     non-greedy actions, one per ≈ 90 games. The trainee learns Q only for the actions it takes,
     so v0 can correct overvalued greedy actions but almost never finds undervalued ones.
+- **Redone on frozen model A** (2026-10-12, step 156,000; the last 5 heldout games, 20 seat-games,
+  3,096 decisions with ≥ 2 legal actions, 155 per seat-game; GPU). It barely moved from step
+  78,000:
+  - argmax Q matches the human's action in 80.6% of decisions;
+  - the best legal action's Q: median 0.21 u (10th–90th percentile −0.01 to 0.49); all legal
+    actions' Q: median −6.3 u;
+  - best minus second best: median 1.81 u; 25th percentile 0.70; 10th 0.26;
+  - off-argmax share of a draw: 1.5% at τ 0.05; 2.8% at 0.1; 5.6% at 0.2; 13.0% at 0.5; 23.6% at 1.0;
+  - ε for the sweep's targets: 0.0496 (1 per game at τ 0.5) and 0.1915 (7 per game at τ 1.0),
+    used as **0.050 and 0.19** (`experiments/v-tuning.md`).
 
 ## Open before V's fleet runs
 
@@ -138,6 +154,8 @@
    - add it to `tools/fleet/frozen.sha256` (boxes check it, and `fleet.py` needs it as the
      baseline input);
    - redo the exploration measurement above on the frozen model.
-3. **The tuning sweep: planned in `experiments/v-tuning.md`** (2026-10-11), waiting for the
-   user's approval of its rental (≈ $11–15). Its first run is also V's full-size check.
+
+   Done for A on 2026-10-12. B is due ≈ 2026-10-13 11:00 UTC and is frozen by hand.
+3. **The tuning sweep: planned in `experiments/v-tuning.md`** (2026-10-11); the user approved its
+   rental (≈ $11–15) the same day. Its first run is also V's full-size check.
 4. **Rental approval** for V's two runs (≈ $210 each at P1's prices), after the sweep.
