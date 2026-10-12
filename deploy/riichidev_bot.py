@@ -12,7 +12,12 @@ mismatch fails the game, and the runner stops queueing more games (fail closed).
 
 Usage, from the repo root, in the riichidev venv:
     RIICHIDEV_TOKEN=... python -m deploy.riichidev_bot --model PATH --mode validate
-The bot token never goes in the repo, a log or a community box (07 §1).
+The bot token never goes in the repo, a log or a community box (07 §1). Ranked play runs under
+deploy/riichidev_supervise.sh (restarts after a crash, never after a failed game).
+
+Exit codes: 0 when the games are played or the stop file appeared (it is checked between games,
+so a game is never abandoned: riichi.dev has no mid-game reconnection), 3 when a game had
+failures (fail closed), anything else for a crash.
 """
 import argparse
 import asyncio
@@ -28,12 +33,29 @@ URLS = {
     'ranked': 'wss://game.riichi.dev/ws/ranked',
 }
 ACTION_SPACE = 46
+EXIT_FAILED = 3
 TILES = [f'{n}{s}' for s in 'mps' for n in range(1, 10)] + ['E', 'S', 'W', 'N', 'P', 'F', 'C']
 AKA = {'5mr': 34, '5pr': 35, '5sr': 36}
 TILE_INDEX = {t: i for i, t in enumerate(TILES)} | AKA
 KANS = ('daiminkan', 'ankan', 'kakan')
 GAME_EVENTS = ('start_game', 'start_kyoku', 'tsumo', 'dahai', 'chi', 'pon', 'reach',
                'reach_accepted', 'dora', 'hora', 'ryukyoku', 'end_kyoku', 'end_game') + KANS
+
+
+def decision_class(response):
+    """The latency class of a decision (07 §1): the type of move sent, kans merged."""
+    t = response.get('type', '?')
+    return 'kan' if t in KANS else t
+
+
+def latency_summary(by_class):
+    """{class: [ms, ...]} -> {class: {n, p50, p99, max}}."""
+    out = {}
+    for cls, ms in sorted(by_class.items()):
+        s = sorted(ms)
+        out[cls] = {'n': len(s), 'p50': round(s[len(s) // 2], 1),
+                    'p99': round(s[min(len(s) - 1, int(len(s) * 0.99))], 1), 'max': round(s[-1], 1)}
+    return out
 
 
 def deaka(pai):
@@ -216,6 +238,7 @@ async def play_game(url, token, engine, log, source='observation'):
     stream = []
     summary = {'url': url, 'start': time.time(), 'requests': 0, 'timeouts': 0, 'max_ms': 0.0,
                'result': None, 'source': source, 'failures': []}
+    by_class = {}
 
     def write(direction, msg):
         log.write(json.dumps({'t': round(time.time(), 3), 'dir': direction, **msg},
@@ -247,8 +270,10 @@ async def play_game(url, token, engine, log, source='observation'):
                 await ws.send(json.dumps(response, separators=(',', ':')))
                 ms = (time.perf_counter() - t0) * 1000
                 summary['max_ms'] = max(summary['max_ms'], ms)
+                cls = decision_class(response)
+                by_class.setdefault(cls, []).append(ms)
                 write('in', {k: v for k, v in msg.items() if k != 'observation'})
-                write('decision', {**record, 'ms': round(ms, 2)})
+                write('decision', {**record, 'class': cls, 'ms': round(ms, 2)})
                 if seat is not None and observed is not None:
                     a = [event_key(e) for e in observed]
                     b = [event_key(e) for e in streamed]
@@ -278,6 +303,7 @@ async def play_game(url, token, engine, log, source='observation'):
     if seat is not None:
         summary['seat'] = seat.seat
         summary['failures'] += seat.failures
+    summary['latency'] = latency_summary(by_class)
     summary['end'] = time.time()
     return summary
 
@@ -299,7 +325,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     p.add_argument('--model', required=True, help='checkpoint (the lab spec of the deployed version)')
     p.add_argument('--mode', choices=sorted(URLS), default='validate')
-    p.add_argument('--games', type=int, default=1)
+    p.add_argument('--games', type=int, default=1, help='0: until the stop file appears')
     p.add_argument('--device', default='cuda:0')
     p.add_argument('--amp', action='store_true', help='AMP inference (default: true FP32, D43)')
     p.add_argument('--token-file', help='file holding the bot token, outside the repo '
@@ -309,6 +335,8 @@ def main(argv=None):
                    help="which source feeds the bot; the other is checked against it")
     p.add_argument('--keep-going', action='store_true',
                    help='queue more games after a failed one (default: stop)')
+    p.add_argument('--stop-file', default=os.path.join(RUNS_DIR, 'STOP'),
+                   help='checked between games: if it exists, exit 0 before the next game')
     a = p.parse_args(argv)
     if a.mode == 'validate' and a.games != 1:
         raise SystemExit('validation is one game')
@@ -316,7 +344,11 @@ def main(argv=None):
     engine = load_engine(a.model, a.device, a.amp)
     os.makedirs(a.log_dir, exist_ok=True)
     summaries_path = os.path.join(os.path.dirname(a.log_dir), 'summaries.jsonl')
-    for n in range(a.games):
+    n = 0
+    while a.games == 0 or n < a.games:
+        if os.path.exists(a.stop_file):
+            print(f'{a.stop_file} exists: stopping before the next game', flush=True)
+            return 0
         stamp = time.strftime('%Y%m%d-%H%M%S', time.gmtime())
         path = os.path.join(a.log_dir, f'{stamp}-{a.mode}.jsonl')
         with open(path, 'w', encoding='utf-8') as log:
@@ -324,7 +356,8 @@ def main(argv=None):
         summary.update(model=a.model, amp=a.amp, mode=a.mode, log=path)
         with open(summaries_path, 'a', encoding='utf-8') as f:
             f.write(json.dumps(summary, separators=(',', ':')) + '\n')
-        print(f"game {n + 1}/{a.games}: seat {summary.get('seat')}, scores "
+        n += 1
+        print(f"game {n}/{a.games or '∞'}: seat {summary.get('seat')}, scores "
               f"{(summary['result'] or {}).get('scores')}, {summary['requests']} requests, "
               f"max {summary['max_ms']:.0f} ms, {summary['timeouts']} timeouts, "
               f"{len(summary['failures'])} failures"
@@ -332,7 +365,7 @@ def main(argv=None):
               flush=True)
         if summary['failures'] and not a.keep_going:
             print('stopping: failures in this game (see the log)', file=sys.stderr)
-            return 1
+            return EXIT_FAILED
     return 0
 
 
