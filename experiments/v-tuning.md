@@ -2,8 +2,8 @@
 
 - **Question:** V's exploration (ε and τ) and its learning rate, for both seeds' runs
   (`experiments/configs/v-a.toml`, `v-b.toml`).
-- **Status:** plan only. It waits for the user's approval of the rental (≈ $11–15). Nothing runs
-  before then.
+- **Status:** plan; the rental (≈ $11–15) was approved by the user on 2026-10-11. It starts after
+  model A is frozen and step 1 is committed.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
   outside each seed's 432 box-hours. The evaluation runs on the workstation ($0).
@@ -70,11 +70,13 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
 3. **The other three:** in parallel if Vast has the boxes, otherwise one after another. Each ends
    at its 2 h hard deadline: the watchdog pulls the learner's last checkpoint and destroys the
    boxes.
-4. **Evaluation**, on the workstation after model B finishes (≈ 2026-10-13 11:00 UTC; nothing
-   else runs there meanwhile). For each run:
+4. **Evaluation**, on the eval box (`tools/fleet/evalbox.py`, approved 2026-10-12) as soon as each
+   run is pulled; on the workstation after model B finishes (≈ 2026-10-13 11:00 UTC) only if the
+   eval box isn't up. All four on the same machine. For each run:
 
    ```bash
-   python -m lab measure --challenger workdir/fleet/runs/v-tune-<run>/learner-run/mortal.pth \
+   python3 tools/fleet/evalbox.py submit -- measure \
+       --challenger workdir/fleet/runs/v-tune-<run>/learner-run/mortal.pth \
        --champion workdir/cql/qs-a/cql-qs-a-final.pth --arm V --sets 10000 \
        --family A --block v-tune --purpose "V tuning sweep (experiments/v-tuning.md)"
    ```
@@ -82,7 +84,8 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
    - The first run allocates the block and the others reuse it. So all four play the same 10,000
      deal sets, and the differences between runs aren't diluted by different deals.
    - AMP on, the lab default. Its noise is zero-mean between different checkpoints (D43).
-   - ≈ 1.5 h each at the 3060's ≈ 6.8K sets/h, ≈ 6 h in all. 95% CI ≈ ±0.0065 u per run.
+   - ≈ 1.5 h each at the 3060's ≈ 6.8K sets/h (≈ 6 h in all); the eval box's rate is measured
+     by its first A/A. 95% CI ≈ ±0.0065 u per run.
 
 ## Decision rule
 
@@ -119,9 +122,10 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
 | When (UTC) | What |
 |---|---|
 | 2026-10-12 ≈ 09:30 | Model A frozen; step 1 the same day |
-| After approval | The sweep: ≈ 2.5 h if the four runs go in parallel |
-| 2026-10-13 ≈ 11:00 | Model B finishes, frozen; the evaluation starts, ≈ 6 h |
-| 2026-10-13 ≈ 17:00 | The decision; the chosen values go into `v-a.toml` and `v-b.toml` in one commit |
+| 2026-10-12, after step 1 | The sweep: ≈ 2.5 h if the four runs go in parallel |
+| 2026-10-12, as each run is pulled | The evaluation, on the eval box |
+| 2026-10-13 ≈ 11:00 | Model B finishes, frozen |
+| After the fourth measure | The decision; the chosen values go into `v-a.toml` and `v-b.toml` in one commit |
 | Then | V's runs, after their own rental approval (≈ $210 each) |
 
 P0's G0 evaluations need the workstation from 2026-10-16 02:15 UTC, and P1's from 2026-10-17

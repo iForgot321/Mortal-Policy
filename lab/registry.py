@@ -15,6 +15,8 @@ from . import LAB_DIR, REGISTRY_DIR, ROOT, load_seeds
 RUNS = os.path.join(REGISTRY_DIR, 'runs.jsonl')
 NONCES = os.path.join(REGISTRY_DIR, 'nonces.jsonl')
 TABLE = os.path.join(REGISTRY_DIR, 'ablation.md')
+# held while the eval box runs the lab (tools/fleet/evalbox.py): the ledger lives there meanwhile
+LEASE = os.path.join(ROOT, 'workdir', 'lab-lease.json')
 
 
 def now():
@@ -63,6 +65,9 @@ def allocate_nonces(family, count, run_id, purpose, block=None, path=NONCES):
     Family A may reuse a named fixed block (tracking runs). Families B and C
     always get a fresh range, so a confirmation range is never reused (D36).
     """
+    if os.path.abspath(path) == os.path.abspath(NONCES) and os.path.exists(LEASE):
+        raise RuntimeError(f'the eval box holds the lab registry ({LEASE}): queue the job with '
+                           'tools/fleet/evalbox.py submit, or end the lease with evalbox.py down')
     families = load_seeds()
     fam = families[family]
     ledger = _read_jsonl(path)

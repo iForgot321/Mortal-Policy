@@ -214,9 +214,36 @@ replaced in ~11 min. Boxes behind one datacenter NAT share a public IP, and the 
 The image's sshd restarts seconds after it first answers, which is why `provision` waits for two
 answers 20 s apart.
 
-**Not covered yet:** the eval box's GSPRT queue (provision it with `--role eval`, start work by hand),
-interruptible (bid) actors, and checkpoint copies to object storage. Checkpoints come back to the
-workstation instead, because boxes hold no credentials.
+**Not covered yet:** interruptible (bid) actors, and checkpoint copies to object storage.
+Checkpoints come back to the workstation instead, because boxes hold no credentials.
+
+## The eval box (`evalbox.py`)
+
+One 4090 that runs lab jobs from a queue (02 §5), shared with the riichi.dev bot in Phase 1
+(07 §1). Its state is the fleet run `eval` (`workdir/fleet/runs/eval/`); it has no hard deadline
+and bills until `down`.
+
+```bash
+python3 tools/fleet/evalbox.py up                  # show the offer; --yes rents (fleet's ranking, setup_box.sh)
+python3 tools/fleet/evalbox.py submit -- measure --challenger workdir/x.pth --champion workdir/y.pth \
+    --sets 10000 --family A --block b --purpose "..."
+python3 tools/fleet/evalbox.py status              # queue, the running job's last lines, GPU, disk
+python3 tools/fleet/evalbox.py pull                # registry rows, workdir/lab/<run>/, job logs
+python3 tools/fleet/evalbox.py down                # pull, destroy, release the lease
+```
+
+- **The registry lives on the box while it is up.** `up` writes `workdir/lab-lease.json`, and
+  `python -m lab` on the workstation then refuses to allocate nonces. `pull` copies the box's
+  `runs.jsonl` and `nonces.jsonl` back only if the local copies are prefixes of them (append-only),
+  and copies nothing if they forked. Commit the pulled rows as usual.
+- `submit` copies the checkpoints named by `--challenger`, `--champion` or `--model` (repo-relative
+  paths; `--file` adds others) and checks their sha256 on the box. If HEAD moved, it first syncs the
+  committed tree (never the registry) and reruns `setup_box.sh --skip-tests`. The working tree must
+  be clean outside `lab/registry/`.
+- Jobs run one at a time in order (`labq.py` on the box, detached, polling the queue). One job at a
+  time also keeps the nonce ledger safe.
+- Rows made on the box carry its paths (`/workspace/Mortal-Policy/...`); the run dir is
+  `workdir/lab/<run_id>` on both machines, and engines are identified by sha256.
 
 ## Stopping and destroying
 
