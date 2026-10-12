@@ -240,8 +240,13 @@ python3 tools/fleet/evalbox.py down                # pull, destroy, release the 
   paths; `--file` adds others) and checks their sha256 on the box. If HEAD moved, it first syncs the
   committed tree (never the registry) and reruns `setup_box.sh --skip-tests`. The working tree must
   be clean outside `lab/registry/`.
-- Jobs run one at a time in order (`labq.py` on the box, detached, polling the queue). One job at a
-  time also keeps the nonce ledger safe.
+- Jobs run one at a time (`labq.py` on the box, detached, polling the queue): the lowest
+  `--priority` first (default 0), then the earliest. Background work (`--priority 9`) fills idle
+  time and delays a lab job by at most one of its jobs. `--module`/`--python` run another module,
+  e.g. the riichi.dev parity self-play in the box's riichienv venv. One job at a time also keeps
+  the nonce ledger safe.
+- After a sync that changes `labq.py`, the runner restarts if it is idle; otherwise run
+  `evalbox.py restart-runner` once the running job ends.
 - Rows made on the box carry its paths (`/workspace/Mortal-Policy/...`); the run dir is
   `workdir/lab/<run_id>` on both machines, and engines are identified by sha256.
 

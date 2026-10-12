@@ -5,8 +5,10 @@ runs beside training instead of after it. In Phase 1 it also hosts the riichi.de
     up      rent and set it up (fleet.py's offer ranking and setup_box.sh); takes the lab lease
     submit  copy the engines' checkpoints, sync the committed code if it moved, queue one lab job:
               evalbox.py submit -- measure --challenger workdir/x.pth --champion workdir/y.pth ...
+            or, with --module and --python, another module; --priority 9 for background work
     status  the queue, the running job's last lines, GPU and disk
-    pull    the registry rows (checked append-only), the lab run dirs and the job logs
+    pull    the registry rows (checked append-only), the lab run dirs, workdir/riichidev/ and
+            the job logs
     down    pull, destroy, release the lease (refuses while jobs are queued or running, unless --force)
 
 While the box is up it holds the lab registry. `lab/registry/*.jsonl` flow from the box to the
@@ -38,6 +40,7 @@ LEASE = F.REPO / 'workdir' / 'lab-lease.json'
 REGISTRY = F.REPO / 'lab' / 'registry'
 LEDGERS = ('runs.jsonl', 'nonces.jsonl')
 QDIR = 'workdir/labq'
+RIICHIDEV_PY = '/workspace/venvs/riichidev/bin/python'  # riichienv on top of the image's Python
 LAB_COMMANDS = ('measure', 'run', 'confirm', 'aa')
 ENGINE_FLAGS = ('--challenger', '--champion', '--model')
 
@@ -118,7 +121,8 @@ def sync_code(run, box):
     """Push the committed tree, minus the registry, if the box's commit differs; then rerun
     setup_box.sh (idempotent; rebuilds libriichi)."""
     head = head_commit()
-    if resolve(box.get('commit', '')) == head:
+    old = resolve(box.get('commit', ''))
+    if old == head:
         return
     F.retry(F.rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
                                 '--exclude=/lab/registry/', './', F.on_box(box)])
@@ -127,6 +131,24 @@ def sync_code(run, box):
         box['commit'] = head[:12]
         run.save()
     run.event('synced', NAME, commit=head[:12])
+    if not old or subprocess.run(['git', 'diff', '--quiet', old, head, '--', 'tools/fleet/labq.py'],
+                                 cwd=F.REPO).returncode:
+        restart_runner(run, box)
+
+
+def restart_runner(run, box):
+    """Restart the queue runner so it loads new code, only while no job runs: a job outlives its
+    runner, and the next runner would count it as dead and start another beside it."""
+    st = box_status(run, box, as_json=True)
+    if any(j['status'] == 'running' for j in st['jobs']):
+        run.log('labq.py changed while a job runs: run `evalbox.py restart-runner` once it is idle', NAME)
+        return False
+    F.remote(run, box, f'pid=$(cat {QDIR}/runner.pid 2>/dev/null || true)\n'
+                       'if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then kill "$pid"\n'
+                       '    for i in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done\n'
+                       'fi\n')
+    run.log(f'runner restarted: {ensure_runner(run, box)}', NAME)
+    return True
 
 
 def pull(run, box):
@@ -138,6 +160,9 @@ def pull(run, box):
         (REGISTRY / 'ablation.md').write_bytes((staged / 'ablation.md').read_bytes())
     (F.REPO / 'workdir' / 'lab').mkdir(parents=True, exist_ok=True)
     F.retry(F.rsync, run, box, [F.on_box(box, 'workdir/lab/'), str(F.REPO / 'workdir' / 'lab') + '/'], timeout=3600)
+    (F.REPO / 'workdir' / 'riichidev').mkdir(parents=True, exist_ok=True)
+    F.retry(F.rsync, run, box, ['--exclude=STOP', F.on_box(box, 'workdir/riichidev/'),
+                                str(F.REPO / 'workdir' / 'riichidev') + '/'])
     F.retry(F.rsync, run, box, [F.on_box(box, f'{QDIR}/'), f'{run.dir}/labq/'])
     run.log(f'pulled: {added["runs.jsonl"]} new run rows, {added["nonces.jsonl"]} new nonce rows', NAME)
     return added
@@ -184,7 +209,7 @@ def cmd_up(a):
 
 def cmd_submit(a):
     args = a.lab_args[1:] if a.lab_args[:1] == ['--'] else a.lab_args
-    if not args or args[0] not in LAB_COMMANDS:
+    if a.module == 'lab' and (not args or args[0] not in LAB_COMMANDS):
         raise F.FleetError(f'the job is a lab command: one of {", ".join(LAB_COMMANDS)}')
     files = sorted(set(engine_files(args)) | set(a.file))
     run = F.Run.load(RUN)
@@ -198,8 +223,10 @@ def cmd_submit(a):
             for f in files:
                 if got.get(f) != sha256(F.REPO / f):
                     raise F.FleetError(f'{f}: the box copy has another sha256')
-        job = {'id': time.strftime('%Y%m%d-%H%M%S', time.gmtime()), 'args': args, 'submitted': F.now_iso(),
-               'commit': box['commit']}
+        job = {'id': time.strftime('%Y%m%d-%H%M%S', time.gmtime()) + f'-{os.getpid() % 1000:03d}',
+               'args': args, 'submitted': F.now_iso(), 'commit': box['commit'], 'priority': a.priority}
+        if a.module != 'lab':
+            job.update(module=a.module, python=a.python or RIICHIDEV_PY)
         b64 = base64.b64encode((json.dumps(job) + '\n').encode()).decode()
         F.remote(run, box, f'mkdir -p {QDIR}\necho {b64} | base64 -d >> {QDIR}/queue.jsonl\n')
         run.event('submitted', NAME, job=job['id'], args=repr(' '.join(args)))
@@ -216,6 +243,12 @@ def cmd_status(a):
     print(F.remote(run, box, 'nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader\n'
                              'df -h /workspace | tail -1\n', timeout=60).stdout, end='')
     return 0
+
+
+def cmd_restart_runner(a):
+    run = F.Run.load(RUN)
+    with run.locked():
+        return 0 if restart_runner(run, ready_box(run)) else 1
 
 
 def cmd_pull(a):
@@ -256,10 +289,15 @@ def main(argv=None):
     s.set_defaults(fn=cmd_up)
     s = sub.add_parser('submit', help='queue one lab job: submit [--file F] -- measure ...')
     s.add_argument('--file', action='append', default=[], help='another repo-relative file the job needs')
+    s.add_argument('--module', default='lab', help='the module to run (default: the lab)')
+    s.add_argument('--python', help=f'interpreter for --module (default: {RIICHIDEV_PY})')
+    s.add_argument('--priority', type=int, default=0, help='lower runs first; 9 for background work')
     s.add_argument('lab_args', nargs=argparse.REMAINDER)
     s.set_defaults(fn=cmd_submit)
     sub.add_parser('status', help='the queue, GPU and disk').set_defaults(fn=cmd_status)
     sub.add_parser('pull', help='registry rows, lab run dirs, job logs').set_defaults(fn=cmd_pull)
+    sub.add_parser('restart-runner', help='reload labq.py on the box (refuses while a job runs)'
+                   ).set_defaults(fn=cmd_restart_runner)
     s = sub.add_parser('down', help='pull, destroy, release the lease')
     s.add_argument('--force', action='store_true')
     s.set_defaults(fn=cmd_down)
