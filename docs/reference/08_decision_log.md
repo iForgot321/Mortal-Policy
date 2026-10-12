@@ -571,6 +571,15 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 **D55 (2026-10-11): Phase 0 is exited.** `00`'s exit bar was met on 2026-10-05: L0, plus σ_set, hanchan/h per box type and featurization samples/s logged with commit and config (`STATUS.md` → Phase 0 deliverables). Decided by the user.
 - **Carried into Phase 1** (no change to any gate): the remaining fleet items in `STATUS.md` → Next steps (the fleet soak report from P0's health log, the eval-box queue, the cost forecast at D50's 4090 prices), and the population panel's mixed-table arena.
 
+**D56 (2026-10-12): arm V's tuning sweep goes past its 1 box-day allowance, to rerun `v-tune-e1-lr`.** Amends `05` §2.2's tuning allowance for arm V only. Decided by the user.
+- **Why:** the sweep (`experiments/v-tuning.md`) lost run `e1-lr` (learning rate 1e-4) to a `fleet.py` bug: e1's teardown swept labels by prefix and destroyed e1-lr's boxes, which is now fixed. Without it, the learning-rate question goes untested.
+- **Spend:** the rerun is ≈ 6 box-hours, ≈ $3, so the sweep comes to ≈ 31.5 box-hours and ≈ $15.3. The approval was ≈ $11–15.
+- **Consequences, to state at G0:**
+  - The informative runs (e0, e1, e2 and the rerun e1-lr) still total 4 × 6 = 24 box-hours, the allowance.
+  - The ≈ 7.5 box-hours over it bought no configurations: e1's failed first rental (1.1) and the destroyed e1-lr (6.4).
+  - So V's tuning is matched to the other arms' allowance in what it tested, not in what it billed.
+- **Reopen if:** the rerun fails too. Then V keeps 2e-5, and any further rerun is the user's call.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

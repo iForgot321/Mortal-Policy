@@ -8,8 +8,17 @@
     boxes were destroyed by a `fleet.py` bug, now fixed). $12.12 and 25.5 box-hours in all, ≈ 1.5
     over the allowance; inside the approved dollars. Reported to the user, with the option of
     rerunning e1-lr (≈ $3, 6 box-hours).
-  - **Next: 4 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC): e0, e1 final,
-    e1 `t1145` (e0's match), e2.
+  - **e1-lr rerun approved by the user** (2026-10-12; D56, past the allowance). It runs under the
+    same name and config; the void run's records are in `workdir/fleet/runs/v-tune-e1-lr-void1`.
+    - **Its comparison, registered before it starts:** e1's final checkpoint (59,600 online steps)
+      against the rerun's checkpoint nearest 59,600 online steps.
+    - The rerun is snapshotted every 10 min from 60 min after its trainer starts until 5 min
+      before its deadline (`fleet.py snapshot --run v-tune-e1-lr --label m<minutes>`); its final
+      checkpoint also counts.
+    - If even its final has fewer steps, its final is compared with the e1 checkpoint nearest it,
+      as for the others.
+  - **Next: 5 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC): e0, e1 final,
+    e1 `t1145` (e0's match), e2, and the e1-lr rerun's matched checkpoint (≈ 7.5 h).
   - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
