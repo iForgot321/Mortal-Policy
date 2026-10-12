@@ -18,3 +18,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261007-203040-measure | exploratory | SP ablation effect size, pair 2: v5 (no SP) seed 2 vs pilot B (v4) seed 2, fixed N | measure | B [1000300000, +20000) | 20000 | +0.0012 | [-0.0035, +0.0059] |  | measured | -0.0005 | +0.15 | yes | 92ce86e5 |
 | 20261008-150055-AA | exploratory | D51 re-check: deterministic A/A after the triple-ron rule change (rule-based) | A/A | A [0, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 6749abd7+dirty |
 | 20261008-150119-AA | exploratory | D51 re-check: deterministic A/A after the triple-ron rule change (neural, true FP32, D43) | A/A | A [500, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 6749abd7+dirty |
+| 20261012-070327-AA | exploratory | deterministic A/A on the eval box (new hardware, evalbox.py first job) | A/A | A [21000, +2000) | 2000 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 051f641d+dirty |

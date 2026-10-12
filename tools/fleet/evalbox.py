@@ -124,6 +124,11 @@ def sync_code(run, box):
     old = resolve(box.get('commit', ''))
     if old == head:
         return
+    running = [j['id'] for j in box_status(run, box, as_json=True)['jobs'] if j['status'] == 'running']
+    if running:
+        # a lab row records the commit at its end: a sync under a running job would misstate it
+        raise F.FleetError(f'HEAD moved, but job {running[0]} is running: submit again when it ends, '
+                           f'or with --no-sync to queue on the box\'s commit {box.get("commit")}')
     F.retry(F.rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
                                 '--exclude=/lab/registry/', './', F.on_box(box)])
     F.remote_step(run, box, 'setup', 'tools/fleet/setup_box.sh --skip-tests', 40)
@@ -215,7 +220,8 @@ def cmd_submit(a):
     run = F.Run.load(RUN)
     with run.locked():
         box = ready_box(run)
-        sync_code(run, box)
+        if not a.no_sync:
+            sync_code(run, box)
         if files:
             F.retry(F.rsync, run, box, ['-R', *files, F.on_box(box)])
             out = F.remote(run, box, 'sha256sum ' + ' '.join(files) + '\n').stdout
@@ -292,6 +298,7 @@ def main(argv=None):
     s.add_argument('--module', default='lab', help='the module to run (default: the lab)')
     s.add_argument('--python', help=f'interpreter for --module (default: {RIICHIDEV_PY})')
     s.add_argument('--priority', type=int, default=0, help='lower runs first; 9 for background work')
+    s.add_argument('--no-sync', action='store_true', help="queue on the box's commit even if HEAD moved")
     s.add_argument('lab_args', nargs=argparse.REMAINDER)
     s.set_defaults(fn=cmd_submit)
     sub.add_parser('status', help='the queue, GPU and disk').set_defaults(fn=cmd_status)

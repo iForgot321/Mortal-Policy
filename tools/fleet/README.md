@@ -239,7 +239,8 @@ python3 tools/fleet/evalbox.py down                # pull, destroy, release the 
 - `submit` copies the checkpoints named by `--challenger`, `--champion` or `--model` (repo-relative
   paths; `--file` adds others) and checks their sha256 on the box. If HEAD moved, it first syncs the
   committed tree (never the registry) and reruns `setup_box.sh --skip-tests`. The working tree must
-  be clean outside `lab/registry/`.
+  be clean outside `lab/registry/`. It refuses to sync while a job runs (a lab row records the
+  commit at its end); `--no-sync` queues on the box's commit instead.
 - Jobs run one at a time (`labq.py` on the box, detached, polling the queue): the lowest
   `--priority` first (default 0), then the earliest. Background work (`--priority 9`) fills idle
   time and delays a lab job by at most one of its jobs. `--module`/`--python` run another module,

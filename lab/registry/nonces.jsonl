@@ -12,3 +12,4 @@
 {"family": "B", "start": 1000300000, "count": 20000, "run_id": "20261007-203040-measure", "purpose": "SP ablation effect size (fixed N)", "block": null, "time": "2026-10-07T20:30:40-07:00"}
 {"family": "A", "start": 0, "count": 500, "run_id": "20261008-150055-AA", "purpose": "deterministic A/A", "block": "aa-shanten-greedy", "time": "2026-10-08T15:00:55-07:00", "reused": true}
 {"family": "A", "start": 500, "count": 500, "run_id": "20261008-150119-AA", "purpose": "deterministic A/A", "block": "aa-harness-nn", "time": "2026-10-08T15:01:19-07:00", "reused": true}
+{"family": "A", "start": 21000, "count": 2000, "run_id": "20261012-070327-AA", "purpose": "deterministic A/A", "block": "aa-harness", "time": "2026-10-12T07:03:27+00:00"}
