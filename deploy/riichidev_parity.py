@@ -14,12 +14,19 @@ round trip, `possible_actions` from `legal_actions()`. At every request:
 Check 3 needs logs played in every seat by the engine given with --model, in true FP32 (D43),
 e.g. the lab's deterministic A/A. --names limits check 3 to seats with those player names.
 
+--selfplay N plays riichienv games instead, the adapter in all four seats. For 07's 100K-game
+illegal-action test, --light skips the observation comparison (check 2, already passed at scale)
+and keeps the legality checks, and --workers runs games in parallel processes, each with its own
+copy of the engine on the GPU.
+
 Usage, from the repo root, in the riichidev venv:
     python -m deploy.riichidev_parity --model CKPT --logs 'workdir/lab/RUN/logs/*.json.gz' --games 1000
+    python -m deploy.riichidev_parity --model CKPT --selfplay 100000 --light --workers 24
 """
 import argparse
 import gzip
 import json
+import multiprocessing as mp
 import os
 import sys
 import time
@@ -145,7 +152,7 @@ def replay(path, engine, version, names=None):
     return counts, problems
 
 
-def selfplay(seed, engine, version):
+def selfplay(seed, engine, version, check_obs=True):
     """One riichienv game in step mode, the server's flow, with the adapter in all four seats.
 
     `env.step` hands every seat its new events at every step, so its observations can't stand
@@ -154,7 +161,8 @@ def selfplay(seed, engine, version):
     `apply_event` and observed only for the seat being asked, scopes them that way. The
     legal moves come from the step-mode env. At every request, the legal moves are checked
     against libriichi's mask (`Seat.decide`), and the observation against a libriichi
-    `PlayerState` fed the full log, masked for that seat. Returns (counts, problems, ranks)."""
+    `PlayerState` fed the full log, masked for that seat (unless not `check_obs`).
+    Returns (counts, problems, ranks)."""
     from libriichi.state import PlayerState
     from riichienv import RiichiEnv
 
@@ -173,8 +181,9 @@ def selfplay(seed, engine, version):
         for ev in log[cursor:]:
             ev = ev if isinstance(ev, dict) else json.loads(ev)
             mirror.apply_event(ev)
-            for s in range(4):
-                native[s].update(json.dumps(masked_for(ev, s)))
+            if check_obs:
+                for s in range(4):
+                    native[s].update(json.dumps(masked_for(ev, s)))
         cursor = len(log)
         actions = {}
         for s, o in obs.items():
@@ -187,7 +196,7 @@ def selfplay(seed, engine, version):
             response, record = seats[s].decide(observation, legal, request_id)
             fed[s] += record.get('events', [])
             counts['fallbacks'] += bool(record.get('fallback'))
-            same = all(
+            same = not check_obs or all(
                 (a == b).all()
                 for a, b in zip(seats[s].shadow.encode_obs(version, False), native[s].encode_obs(version, False)))
             if not same:
@@ -208,6 +217,21 @@ def selfplay(seed, engine, version):
     return counts, problems, list(env.ranks())
 
 
+_WORKER = {}
+
+
+def _worker_init(model, device, amp):
+    import torch
+    torch.set_num_threads(1)
+    _WORKER['engine'] = load_engine(model, device, amp)
+
+
+def _worker_game(job):
+    seed, check_obs = job
+    engine = _WORKER['engine']
+    return selfplay(seed, engine, engine.version, check_obs)[:2]
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     p.add_argument('--model', required=True)
@@ -220,15 +244,23 @@ def main(argv=None):
     p.add_argument('--names', help='comma-separated player names whose moves are checked (default: all)')
     p.add_argument('--device', default='cuda:0')
     p.add_argument('--amp', action='store_true')
+    p.add_argument('--light', action='store_true', help='--selfplay: skip the observation comparison')
+    p.add_argument('--workers', type=int, default=1, help='--selfplay: parallel processes')
     p.add_argument('--out', default=None, help='report path (default: workdir/riichidev/parity-<time>.json)')
     a = p.parse_args(argv)
 
-    engine = load_engine(a.model, a.device, a.amp)
     names = set(a.names.split(',')) if a.names else None
-    if a.selfplay:
-        jobs = [(seed, lambda seed=seed: selfplay(seed, engine, engine.version)[:2])
-                for seed in range(a.seed_start, a.seed_start + a.selfplay)]
+    seeds = range(a.seed_start, a.seed_start + (a.selfplay or 0))
+    if a.selfplay and a.workers > 1:
+        pool = mp.get_context('spawn').Pool(a.workers, _worker_init, (a.model, a.device, a.amp))
+        results = pool.imap_unordered(_worker_game, [(seed, not a.light) for seed in seeds], chunksize=4)
+        jobs = [(None, lambda: next(results)) for _ in seeds]
+    elif a.selfplay:
+        engine = load_engine(a.model, a.device, a.amp)
+        jobs = [(seed, lambda seed=seed: selfplay(seed, engine, engine.version, not a.light)[:2])
+                for seed in seeds]
     else:
+        engine = load_engine(a.model, a.device, a.amp)
         paths = sorted(glob(a.logs))[:a.games]
         if not paths:
             raise SystemExit(f'no logs match {a.logs}')
@@ -240,11 +272,15 @@ def main(argv=None):
         for k, v in counts.items():
             total[k] = total.get(k, 0) + v
         problems += probs
-        if n % 50 == 0 or n == len(jobs):
+        if n % (50 if len(jobs) <= 10_000 else 1000) == 0 or n == len(jobs):
             print(f'{n}/{len(jobs)} games, {time.time() - t0:.0f} s: {total}', flush=True)
+    if a.selfplay and a.workers > 1:
+        pool.close()
+        pool.join()
     passed = not problems and not total.get('mismatch')
     report = {'model': a.model, 'source': f'selfplay {a.seed_start}+{a.selfplay}' if a.selfplay else a.logs,
               'games': len(jobs), 'amp': a.amp, 'names': sorted(names) if names else None,
+              'light': a.light, 'workers': a.workers,
               'counts': total, 'passed': passed, 'problems': problems[:200],
               'problem_kinds': {k: sum(p['kind'] == k for p in problems) for k in {p['kind'] for p in problems}},
               'seconds': round(time.time() - t0)}
