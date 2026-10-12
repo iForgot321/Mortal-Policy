@@ -17,8 +17,14 @@
       checkpoint also counts.
     - If even its final has fewer steps, its final is compared with the e1 checkpoint nearest it,
       as for the others.
-  - **Next: 5 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC): e0, e1 final,
-    e1 `t1145` (e0's match), e2, and the e1-lr rerun's matched checkpoint (≈ 7.5 h).
+  - **The rerun ran clean** (18:04–19:56 UTC, $2.79): 57,600 online steps, within 10% of e1's, so
+    the finals are compared.
+  - **Next: 5 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC; ≈ 7.5 h):
+    - e0 final, matched to e1 `t1145`;
+    - e1 final;
+    - e1 `t1145`;
+    - e2 final, matched to e1 final;
+    - e1-lr rerun final, matched to e1 final.
   - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
@@ -178,6 +184,7 @@ read-only.
 | `e1` | 10:29–12:22 | 59,600 | 203,200 | $2.85 (+ $0.51 failed) | `38c5f105ee1d…` | (the reference) | valid |
 | `e2` | 10:45–12:37 | 65,600 | 228,800 | $2.82 | `8a50501711f7…` | e1 final (59,600) | valid |
 | `e1-lr` | 11:23–11:54 | 11,200 | 41,600 | $3.21 | `23a5395da246…` | none within 10% | **void** |
+| `e1-lr` rerun (D56) | 18:04–19:56 | 57,600 | 220,800 | $2.79 | `9d1db65f4b6e…` | e1 final (within 10%) | valid |
 
 e1's snapshots (`workdir/fleet/runs/v-tune-e1/snapshots/`, read-only), by step:
 - `t1145` 195,200 (`b44fdc860687…`);
@@ -185,7 +192,13 @@ e1's snapshots (`workdir/fleet/runs/v-tune-e1/snapshots/`, read-only), by step:
 - `t1205` 206,400;
 - `t1215` 211,600.
 
-In all: **$12.12, 25.5 box-hours** (the allowance is 24).
+In all: **$12.12, 25.5 box-hours** (the allowance is 24) before the rerun. **With it: $14.91, 31.5
+box-hours** (D56).
+
+The rerun's snapshots (`workdir/fleet/runs/v-tune-e1-lr/snapshots/`, read-only) weren't needed:
+- `m60` 186,400; `m70` 191,600; `m80` 196,800; `m90` 202,400; `m100` 207,600.
+- Its final has 57,600 online steps against e1's 59,600, 3.4% apart, so the finals are compared
+  as first written.
 
 What happened:
 - **e1's first rental failed** setup on every box (1.1 box-hours, $0.51). Adding A to
@@ -210,6 +223,7 @@ Training, first logged step to last (online, so each sample is seen once):
 | `e1` | 0.037 → 0.020 | 0.39 → 2.04 | 0.74 → 0.57 |
 | `e2` | → 0.017 | → 2.02 | → 0.51 |
 | `e1-lr` | → 0.014 (166,800) | → 2.07 | → 0.36 |
+| `e1-lr` rerun | → 0.012 | → 2.10 | → 0.29 |
 
 - **The logged CQL term rose from ≈ 0.4 to ≈ 2.0 in every run, e0 included.** e0 barely explores,
   so the untried actions' Q rise because the CQL penalty is gone, not because exploration
