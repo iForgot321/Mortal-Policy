@@ -124,6 +124,10 @@ def sync_code(run, box):
     old = resolve(box.get('commit', ''))
     if old == head:
         return
+    if old and not subprocess.run(['git', 'diff', '--quiet', old, head, '--', '.', ':(exclude)*.md',
+                                   ':(exclude)lab/registry', ':(exclude)tools/fleet/evalbox.py'],
+                                  cwd=F.REPO).returncode:
+        return  # only notes, registry rows or this workstation-side script moved
     running = [j['id'] for j in box_status(run, box, as_json=True)['jobs'] if j['status'] == 'running']
     if running:
         # a lab row records the commit at its end: a sync under a running job would misstate it
