@@ -16,7 +16,10 @@ torch = pytest.importorskip('torch')
 
 @pytest.fixture(scope='module')
 def dataloader():
-    os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments', 'configs', 'cql-qs-a.toml'))
+    # on a rented box, setup_box.sh's copy with the workstation root rewritten to the checkout
+    box_cfg = os.path.join(ROOT, 'workdir', 'box', 'configs', 'cql-qs-a.toml')
+    os.environ.setdefault('MORTAL_CFG', box_cfg if os.path.exists(box_cfg)
+                          else os.path.join(ROOT, 'experiments', 'configs', 'cql-qs-a.toml'))
     sys.path.insert(0, os.path.join(ROOT, 'mortal'))
     import dataloader
     return dataloader

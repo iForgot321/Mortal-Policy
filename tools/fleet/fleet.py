@@ -513,6 +513,7 @@ def provision(run, name, role, machine=None, skip_tests=False, allow_zen2=False,
             run.event('provision_failed', name, instance=box['instance'], error=repr(str(e)[:300]))
             if box.get('ip'):
                 try:
+                    run.box_dir(box).mkdir(parents=True, exist_ok=True)
                     rsync(run, box, [f'root@{box["ip"]}:{BOX_ROOT}/workdir/box/', f'{run.box_dir(box)}/box/'], timeout=120)
                 except FleetError:
                     pass
