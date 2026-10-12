@@ -47,8 +47,9 @@ def test_load_config_refuses_a_public_server(tmp_path):
 def test_inputs_are_the_frozen_checkpoints_plus_the_learner_init():
     _, cfg = fleet.load_config(P0)
     actor = fleet.inputs(cfg, 'actor')
-    assert actor == ['workdir/grp-v2/grp-v2-frozen.pth', 'workdir/pilot/qs-a/pilot-qs-a-final.pth',
-                     'workdir/pilot/qs-b/pilot-qs-b-final.pth']  # every frozen input, whichever pilot
+    assert actor == sorted(fleet.frozen_inputs())  # every frozen input, whichever run
+    assert {'workdir/grp-v2/grp-v2-frozen.pth', 'workdir/pilot/qs-a/pilot-qs-a-final.pth',
+            'workdir/pilot/qs-b/pilot-qs-b-final.pth'} <= set(actor)  # P0's GRP and baselines among them
     init = 'workdir/pilot/qs-a/pilot-qs-a-final.pth'
     assert fleet.inputs(cfg, 'learner', init) == actor + [init]
 
