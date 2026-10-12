@@ -12,7 +12,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @pytest.fixture
 def server(tmp_path):
-    os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments', 'configs', 'pilot-qs-a.toml'))
+    # on a rented box, setup_box.sh's copy with the workstation root rewritten to the checkout
+    box_cfg = os.path.join(ROOT, 'workdir', 'box', 'configs', 'pilot-qs-a.toml')
+    os.environ.setdefault('MORTAL_CFG', box_cfg if os.path.exists(box_cfg)
+                          else os.path.join(ROOT, 'experiments', 'configs', 'pilot-qs-a.toml'))
     sys.path.insert(0, os.path.join(ROOT, 'mortal'))
     # prelude reconfigures stdin, which pytest has replaced; logging setup is all it adds
     sys.modules.setdefault('prelude', types.ModuleType('prelude'))

@@ -13,7 +13,10 @@ pytestmark = pytest.mark.skipif(len(FILES) < 3, reason='needs converted data in 
 
 @pytest.fixture(scope='module')
 def loader_mod():
-    os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments', 'configs', 'pilot-qs-a.toml'))
+    # on a rented box, setup_box.sh's copy with the workstation root rewritten to the checkout
+    box_cfg = os.path.join(ROOT, 'workdir', 'box', 'configs', 'pilot-qs-a.toml')
+    os.environ.setdefault('MORTAL_CFG', box_cfg if os.path.exists(box_cfg)
+                          else os.path.join(ROOT, 'experiments', 'configs', 'pilot-qs-a.toml'))
     sys.path.insert(0, os.path.join(ROOT, 'mortal'))
     import dataloader
     from libriichi.dataset import GameplayLoader
