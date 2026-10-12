@@ -3,19 +3,19 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-12 08:10 UTC)
+## Current position (2026-10-12 10:00 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
-- **Live on the workstation: arm V's quick CQL model A** (`experiments/v.md`), started
-  2026-10-11 08:28 UTC at `8e71ad0`, PID 2197357, log `workdir/cql/qs-a/train.log`.
-  - Step 78,000 of ≈ 158K at 20:48 UTC (1.75 steps/s), so it ends ≈ **2026-10-12 09:30 UTC**.
-    Losses at 66K: dqn 0.22, cql 0.52, next rank 0.77 (below ln 4).
-  - **Then quick CQL model B (seed 2, D54) starts by itself**: `workdir/cql/queue-b.sh`
-    (PID 2332387, log `workdir/cql/queue-b.log`) freezes A and starts B if A's data ran out,
-    and otherwise starts nothing. B ends ≈ **2026-10-13 11:00 UTC**.
-  - Each uses the GPU and ≈ 9 GB of RAM, so **no lab or arena jobs until B ends**.
+- **Live on the workstation: arm V's quick CQL model B** (seed 2, D54; `experiments/v.md`),
+  started 2026-10-12 09:51:48 UTC by `workdir/cql/queue-b.sh`, PID 2502168, log
+  `workdir/cql/qs-b/train.log`. It ends ≈ **2026-10-13 11:00 UTC** and is frozen by hand
+  (`cql-qs-b-final.pth`, hash, `tools/fleet/frozen.sha256`). It uses the GPU and ≈ 9 GB of RAM,
+  so **no lab or arena jobs until it ends**.
+- **CQL model A frozen** (2026-10-12 09:51 UTC, step 156,000, sha256 `f8a867da…`, in
+  `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869; losses finite; CQL
+  0.547 → 0.495; next rank 0.755 < ln 4). Its exploration gaps barely moved from step 78K.
 - **Arm V online ported** (2026-10-11, `experiments/v.md`):
   - `train_value.py` online and `engine.ValueEngine` (Equim's ε/τ/top-p exploration);
   - `control.head = 'value'` in the client, `TrainPlayer` and `fleet.py start`;
@@ -31,8 +31,12 @@ research is under way.**
   - **Tuning plan written** (`experiments/v-tuning.md`): 4 two-hour runs on 3 boxes (24
     box-hours, ≈ $11–15): Equim's exploration, two stronger settings, and 1e-4 at the default.
     Picked by a 10K-set lab `measure` each against CQL model A, with a 0.01 u margin favouring the
-    defaults. **Rental approved by the user 2026-10-11 (≈ $11–15).** It starts after model A is
-    frozen and the configs are committed (plan step 1).
+    defaults. **Rental approved by the user 2026-10-11 (≈ $11–15).**
+  - **Step 1 done (2026-10-12, `c27ecae`, the pre-registration):** ε measured on frozen A, so
+    `e1`/`e1-lr` ε 0.050 at τ 0.5, `e2` ε 0.19 at τ 1.0; the four configs
+    `experiments/configs/v-tune-*.toml`. **`v-tune-e1` rented 2026-10-12 09:54 UTC** (3 boxes,
+    ≈ $1.39/h; hard deadline 11:54 UTC); the other three follow once its learner has drained and
+    submitted. Evaluation on the workstation after model B (≈ 6 h).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -53,8 +57,6 @@ research is under way.**
     (`experiments/riichidev-adapter.md` → "Before ranked play" item 4).
   - California, riichi.dev TCP connect ≈ 170 ms. Japan had one verified 4090 offer (Zen 2, 27
     cores). Where the bot runs is decided again when the student is ready.
-  - Japan had one verified 4090 offer (Zen 2, 27 cores), so the box went where the fleet's
-    ranking put it. Where the bot runs is decided again when the student is ready.
 - **Live in the cloud, billing: arm P1, runs `p1-a` (seed 1) and `p1-b` (seed 2),** launched
   2026-10-11 03:16–03:31 UTC at `b3864a7`. 3 boxes each, ≈ $1.39/h per run, ≈ 114K games/h
   trained per run. ≈ $200 each at the end (432 box-hours; safety stop $250). They end by
