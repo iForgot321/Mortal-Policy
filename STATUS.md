@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-12 10:00 UTC)
+## Current position (2026-10-12 10:35 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -34,8 +34,11 @@ research is under way.**
     defaults. **Rental approved by the user 2026-10-11 (≈ $11–15).**
   - **Step 1 done (2026-10-12, `c27ecae`, the pre-registration):** ε measured on frozen A, so
     `e1`/`e1-lr` ε 0.050 at τ 0.5, `e2` ε 0.19 at τ 1.0; the four configs
-    `experiments/configs/v-tune-*.toml`. **`v-tune-e1` rented 2026-10-12 09:54 UTC** (3 boxes,
-    ≈ $1.39/h; hard deadline 11:54 UTC); the other three follow once its learner has drained and
+    `experiments/configs/v-tune-*.toml`. **`v-tune-e1` running since 2026-10-12 10:29 UTC** (3 boxes, ≈ $1.42/h;
+    hard deadline 12:22 UTC; watcher `fleet.py watch --run v-tune-e1 --replace --max-dollars 5`).
+    The first rental (09:54) failed setup on every box ($0.51, kept in
+    `workdir/fleet/runs/v-tune-e1-failed1`): adding A to `frozen.sha256` broke a test that pinned
+    the list (fixed in `ec2059d`). The other three follow once e1's learner has drained and
     submitted. Evaluation on the workstation after model B (≈ 6 h).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
