@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-12 11:35 UTC)
+## Current position (2026-10-12 13:15 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -34,13 +34,13 @@ research is under way.**
     defaults. **Rental approved by the user 2026-10-11 (≈ $11–15).**
   - **Step 1 done (2026-10-12, `c27ecae`, the pre-registration):** ε measured on frozen A, so
     `e1`/`e1-lr` ε 0.050 at τ 0.5, `e2` ε 0.19 at τ 1.0; the four configs
-    `experiments/configs/v-tune-*.toml`. **All four runs running** (watchdog deadlines): `e1` 10:29–12:22 UTC, `e0`
-    10:45–12:36, `e2` 10:45–12:37, `e1-lr` 11:23–12:37 (two boxes stuck loading on Vast). Each has
-    its watcher (`--max-dollars 5`). e1's first rental failed setup on every box ($0.51; a test
-    pinned `frozen.sha256`'s list, fixed in `ec2059d`). Together ≈ 25 box-hours, ≈ 1 over the
-    allowance; ≈ $12, inside the approval. The amounts of training differ, so the comparisons
-    are step-matched against e1 snapshots (amendment in `v-tuning.md`, written before any
-    measurement). Evaluation on the workstation after model B (≈ 6 h).
+    `experiments/configs/v-tune-*.toml`. **Runs done 2026-10-12 12:37 UTC** (`experiments/v-tuning.md` → "The runs"): e0,
+    e1, e2 valid (e0's learner was lost on Vast and resumed from its 11:16 checkpoint); **e1-lr
+    void**: e1's teardown destroyed its boxes at 12:23 (`fleet.py`'s sweep matched labels by
+    prefix; fixed with a test). $12.12, 25.5 box-hours, ≈ 1.5 over the allowance, inside the
+    approved dollars. **Asked the user:** rerun e1-lr (≈ $3) or keep 2e-5. Step-matched
+    comparisons (amendments written before any measurement). **Next: 4 measures** after model B
+    (e0, e1 final, e1 `t1145`, e2; ≈ 6 h). Evaluation on the workstation after model B (≈ 6 h).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).

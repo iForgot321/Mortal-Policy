@@ -4,12 +4,12 @@
   (`experiments/configs/v-a.toml`, `v-b.toml`).
 - **Status:** step 1 done 2026-10-12 (model A frozen at 09:51 UTC; ε fixed below; the four
   configs committed with this line). The rental (≈ $11–15) was approved by the user on 2026-10-11.
-  - **Running 2026-10-12** (watchdog deadlines): `e1` 10:29–12:22 UTC; `e0` 10:45–12:36; `e2`
-    10:45–12:37; `e1-lr` 11:23–12:37.
-  - **Over the allowance by ≈ 1 box-hour:** e1's first rental failed setup on every box (1.1
-    box-hours, $0.51; a test pinned `frozen.sha256`'s list, fixed in `ec2059d`), and two of
-    e1-lr's boxes were stuck loading for 25 min (≈ 0.9 box-hours). That makes ≈ 25 box-hours and
-    ≈ $12 in all, inside the approved dollars. Reported to the user.
+  - **The runs ended 2026-10-12 12:37 UTC** ("The runs" below): e0, e1, e2 valid; e1-lr void (its
+    boxes were destroyed by a `fleet.py` bug, now fixed). $12.12 and 25.5 box-hours in all, ≈ 1.5
+    over the allowance; inside the approved dollars. Reported to the user, with the option of
+    rerunning e1-lr (≈ $3, 6 box-hours).
+  - **Next: 4 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC): e0, e1 final,
+    e1 `t1145` (e0's match), e2.
   - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
@@ -139,6 +139,14 @@ Each run's learner consumes every game once, so its step count measures how much
 
 This adds up to three measures (≈ 1.5 h each on the workstation).
 
+**Clarified and amended 2026-10-12 13:10 UTC, after the runs ended and before any measurement**
+(what happened is in "The runs" below):
+- "Step count" means online steps: the learner's counter minus the initialization's 156,000.
+- A learner that was lost and **resumed from its own checkpoint** doesn't void its run. The run
+  is a single training trajectory with fewer steps, and the step matching above covers that. The
+  void rule still applies to a run whose final checkpoint can't be fairly compared: one with no e1
+  checkpoint within 10% of its online steps.
+
 ## Reported, not decisive
 
 - The realized non-greedy rate. From the behaviour sidecars: an action whose behaviour
@@ -148,6 +156,56 @@ This adds up to three measures (≈ 1.5 h each on the workstation).
 - Training curves: the Q loss (each sample is seen once, so it is out-of-sample), the logged CQL
   term (how far the untried actions' Q rose), policy lag, learner samples/s and steps, cost.
 - The trainee's average score in its training games, which includes exploration's cost.
+
+## The runs (2026-10-12)
+
+All from frozen CQL model A (step 156,000), at `afd3c1f`/`ec2059d`, with a 2 h hard deadline that
+includes setup. Final checkpoints `workdir/fleet/runs/v-tune-<run>/learner-run/mortal.pth`,
+read-only.
+
+| Run | Trained (UTC) | Online steps | Games drained | Cost | Final checkpoint sha256 | Compared with | Status |
+|---|---|---|---|---|---|---|---|
+| `e0` | 10:45–12:36 | 36,800 | ≈ 121K | $2.73 | `428933a46b91…` | e1 `t1145` (39,200) | valid; learner lost and resumed |
+| `e1` | 10:29–12:22 | 59,600 | 203,200 | $2.85 (+ $0.51 failed) | `38c5f105ee1d…` | (the reference) | valid |
+| `e2` | 10:45–12:37 | 65,600 | 228,800 | $2.82 | `8a50501711f7…` | e1 final (59,600) | valid |
+| `e1-lr` | 11:23–11:54 | 11,200 | 41,600 | $3.21 | `23a5395da246…` | none within 10% | **void** |
+
+e1's snapshots (`workdir/fleet/runs/v-tune-e1/snapshots/`, read-only), by step:
+- `t1145` 195,200 (`b44fdc860687…`);
+- `t1155` 200,800;
+- `t1205` 206,400;
+- `t1215` 211,600.
+
+In all: **$12.12, 25.5 box-hours** (the allowance is 24).
+
+What happened:
+- **e1's first rental failed** setup on every box (1.1 box-hours, $0.51). Adding A to
+  `frozen.sha256` broke a test that pinned the list; fixed in `ec2059d`.
+- **e0's learner instance exited** at 11:42 (on Vast's side). The watcher replaced it at 11:53 and
+  restored the 11:16 pull, at step 174,000. That lost ≈ 26 min of training, and the run waited
+  20 min with the actors blocked. It resumed at 12:02 and ran to 192,800.
+- **e1-lr's boxes were destroyed at 12:23 by e1's teardown.** `fleet.py`'s backstop sweep matched
+  labels by the prefix `mp-v-tune-e1-`, which also matches `mp-v-tune-e1-lr-…`. Its last pull was
+  at 11:54 (step 167,200), so it has 11,200 online steps, and no e1 checkpoint is within 10%. Void:
+  the learning rate stays 2e-5 unless it is rerun. Fixed: a box name has no dashes, and the sweep
+  matches `mp-<run>-<box>` exactly, with a test. The live P0/P1 runs' names don't prefix one
+  another, so they were never exposed.
+- Earlier, e1-lr's learner and one actor were stuck loading for 25 min and were replaced
+  (≈ 0.9 box-hours).
+
+Training, first logged step to last (online, so each sample is seen once):
+
+| Run | DQN loss | Logged CQL term | Next-rank loss |
+|---|---|---|---|
+| `e0` | 0.026 (step 174K) → 0.025 | 1.97 → 1.95 | 0.71 → 0.64 |
+| `e1` | 0.037 → 0.020 | 0.39 → 2.04 | 0.74 → 0.57 |
+| `e2` | → 0.017 | → 2.02 | → 0.51 |
+| `e1-lr` | → 0.014 (166,800) | → 2.07 | → 0.36 |
+
+- **The logged CQL term rose from ≈ 0.4 to ≈ 2.0 in every run, e0 included.** e0 barely explores,
+  so the untried actions' Q rise because the CQL penalty is gone, not because exploration
+  visits them.
+- All losses are finite.
 
 ## Timeline
 

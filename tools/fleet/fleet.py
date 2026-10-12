@@ -70,6 +70,9 @@ CPU_RATES = (
 ZEN2 = (re.compile(r'EPYC 7[\dA-Z]\d2'), 31_000)  # e.g. 7742, 7B12, 7K62
 WAIT_RUNNING_S = 25 * 60
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
+# a box's name within its run: no dashes, so a label mp-<run>-<box> names exactly one run even
+# when one run's name extends another's (v-tune-e1, v-tune-e1-lr)
+BOX_NAME_RE = re.compile(r'^[a-z][a-z0-9]{0,15}$')
 # health thresholds, seconds unless noted
 LIMITS = {'submit_s': 1800, 'param_s': 1800, 'checkpoint_s': 3600, 'restarts_1h': 3,
           'unreachable_15m': 5, 'disk_gb': 5, 'mem_gb': 1.5, 'stall_s': 900}
@@ -287,7 +290,8 @@ def sweep(run):
     for iid, inst in listed.items():
         if iid in kept:
             continue
-        if (inst.get('label') or '').startswith(f'mp-{run.name}-'):
+        label = inst.get('label') or ''
+        if label.startswith(f'mp-{run.name}-') and BOX_NAME_RE.match(label[len(f'mp-{run.name}-'):]):
             ok = destroy_instance(iid)
             run.event('swept', instance=iid, label=inst.get('label'), destroyed=ok)
 
@@ -471,6 +475,8 @@ def sync(run, box):
 def provision(run, name, role, machine=None, skip_tests=False, allow_zen2=False, tries=3):
     """Rent, wait for, sync and set up one box under `name`. A failed attempt destroys its box,
     marks the machine bad for this run and, unless the machine was pinned, tries another."""
+    if not BOX_NAME_RE.match(name):
+        raise FleetError(f'box name {name!r}: lowercase letters and digits only')
     for attempt in range(1, tries + 1):
         with run.lock:
             if name in run.boxes:

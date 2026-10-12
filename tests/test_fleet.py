@@ -397,6 +397,12 @@ def test_down_keeps_an_unpulled_learner_that_is_not_running(tmp_path, monkeypatc
     monkeypatch.setattr(fleet, 'destroy_instance', lambda iid: destroyed.append(iid) or True)
     fleet.sweep(run)
     assert destroyed == [3]
+    # another run whose name extends this one's is not this run's (v-tune-e1 swept v-tune-e1-lr)
+    destroyed.clear()
+    monkeypatch.setattr(fleet, 'instances', lambda: {4: {'label': 'mp-t-lr-learner'}, 5: {'label': 'mp-t-lr-actor1'},
+                                                     6: {'label': 'mp-t-actor2'}})
+    fleet.sweep(run)
+    assert destroyed == [6]
 
 
 def test_watchdog_waits_on_the_wall_clock(monkeypatch):
