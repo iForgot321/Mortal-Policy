@@ -4,6 +4,13 @@
   (`experiments/configs/v-a.toml`, `v-b.toml`).
 - **Status:** step 1 done 2026-10-12 (model A frozen at 09:51 UTC; ε fixed below; the four
   configs committed with this line). The rental (≈ $11–15) was approved by the user on 2026-10-11.
+  - **Running 2026-10-12** (watchdog deadlines): `e1` 10:29–12:22 UTC; `e0` 10:45–12:36; `e2`
+    10:45–12:37; `e1-lr` 11:23–12:37.
+  - **Over the allowance by ≈ 1 box-hour:** e1's first rental failed setup on every box (1.1
+    box-hours, $0.51; a test pinned `frozen.sha256`'s list, fixed in `ec2059d`), and two of
+    e1-lr's boxes were stuck loading for 25 min (≈ 0.9 box-hours). That makes ≈ 25 box-hours and
+    ≈ $12 in all, inside the approved dollars. Reported to the user.
+  - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
   outside each seed's 432 box-hours. The evaluation runs on the workstation ($0).
@@ -110,6 +117,27 @@ The learning rate is the second question: v0's 2e-5 is P0's policy rate; Equim's
     effect size the lab's T-std is built around (its bounds are 0 and 0.01 u);
   - 2 h is ≈ 1/70 of a run, and short sweeps favour settings that move fast early (a higher
     learning rate, more exploration), which may not hold over 6 days.
+
+### Amendment: step-matched comparisons (2026-10-12 11:30 UTC, before any measurement)
+
+The four runs didn't get the same amount of training:
+- `e1-lr` lost 38 min: its learner and one actor were stuck loading on Vast for 25 min and were
+  replaced. It trains ≈ 75 min to its hard deadline; the others ≈ 1 h 52 min.
+- The actor boxes differed. In the first hour, e1 made ≈ 92K games/h; e0 and e2, each with a
+  16-core Ryzen 9 5950X actor, ≈ 70–74K/h.
+
+Each run's learner consumes every game once, so its step count measures how much it trained. So:
+- e1 is snapshotted at 11:45, 11:55, 12:05 and 12:15 UTC (`fleet.py snapshot --run v-tune-e1
+  --label t1145` …). 11:45 matches `e1-lr`'s training time.
+- Each other run is compared with the e1 checkpoint (a snapshot or the final one) whose learner
+  step count is nearest its own final count. In the rule above, Δ(`e1`) for that run means the
+  matched checkpoint's Δ.
+- The matched checkpoints are measured like the runs: same command, block and 10,000 sets.
+- e1's final checkpoint is measured and reported in any case. The stop rule uses the chosen
+  run's final checkpoint.
+- If the step counts differ by less than 10%, the final checkpoints are compared as first written.
+
+This adds up to three measures (≈ 1.5 h each on the workstation).
 
 ## Reported, not decisive
 
