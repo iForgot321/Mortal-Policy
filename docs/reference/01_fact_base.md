@@ -84,6 +84,7 @@ Re-verify quarterly. Update this file, not the stage docs, when a fact changes.
   - Under that rule a **triple ron is an abortive draw**: `ryukyoku`, reason `sanchaho`, no payments. A ron on a riichi-declaration discard cancels the deposit, including in that case.
   - `default_mjsoul()` and the Python no-argument `GameRule()` pay all three instead.
   - Reproduce: `tools/rules/riichienv_sanchaho.py`. The server's exact rule object isn't published; this assumes it uses the default.
+- **Bots per account:** at most **4 at a time** [user, 2026-10-12].
 - **Time limit:** **3 s grace per action plus a 15 s bank per kyoku.** A timeout plays tsumogiri or pass, and "timeouts are never penalized". An illegal action is chombo.
 - **Rating:** OpenSkill Weng-Lin Plackett–Luce, with μ₀ = 25, σ₀ = 8.333, τ = 0.3. Displayed as 1500 + 20·(μ − 3σ). Placement only; score is not used. "Stabilizes around ~50 games."
 - **Board, 2026-09-29:**

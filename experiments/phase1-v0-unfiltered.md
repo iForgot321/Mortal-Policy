@@ -42,7 +42,7 @@ every Stage 1 curation ablation. Pipeline proof > numbers this week (doc 05).
   is double-seen. **Operational rule: never run arena jobs concurrently with training
   on this box.**
 - **Incident 2026-07-09 ~07:45 (step ~832k):** dataloader worker crashed on
-  `data/raw/2022/2022010616gm-00a9-0000-d4d83e3e.mjson` — file passes gzip+JSON checks
+  a 2022 file (its name is in the local quarantine list, not published) — file passes gzip+JSON checks
   but is semantically invalid (kakan of 5sr onto pon [5s,5s,5s] → libriichi rule
   violation "fifth 5sr witnessed"; converter bug in the source archive). First such
   file in ~60% of the archive. Fix: dataloader.py now retries failed batches
@@ -64,7 +64,7 @@ every Stage 1 curation ablation. Pipeline proof > numbers this week (doc 05).
   (saturated as expected; pipeline check only).
 - **Bad logs:** full loader-oracle scan completed 2026-07-11
   (`scripts/scan_bad_logs.py`): **exactly 1 invalid file in all 926,957**
-  (`2022010616gm-00a9-0000-d4d83e3e.mjson`, the 5sr kakan). List frozen in
+  (the 2022 file with the 5sr kakan). List frozen in
   `data/stats/bad_files.tsv`; dataset-v1 excludes it.
 - **Wall time:** ~76h GPU total over 3 legs (07-07 01:12 → 07-10 06:48), ~4.3 steps/s
   sustained at batch 512 with AMP+compile.

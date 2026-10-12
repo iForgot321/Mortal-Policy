@@ -20,7 +20,7 @@ The facts below were checked on 2026-10-01 against the HF repo and a local audit
 | `majsoul-jade-*.tar`, `majsoul-throne-*.tar` (2019–2026) | ≈ 30.8 GB | Mahjong Soul ranked games in mjai. **Not used in v1 of the dataset** (§9). |
 
 **Per-game files:**
-- Named `YYYYMMDDHHgm-<type>-0000-<hash>`, for example `2024010100gm-00a9-0000-005a39ba`.
+- Named `YYYYMMDDHHgm-<type>-0000-<hash>`, for example `2024010100gm-00a9-0000-<8 hex digits>`.
 - `00a9` is the houou 4-player hanchan type code. All 6,897 games in 2009 have it.
 - The date and hour come free from the file name.
 

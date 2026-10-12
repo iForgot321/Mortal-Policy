@@ -1,7 +1,8 @@
 # riichi.dev adapter and parity tests (07 §1)
 
 - **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). Not yet
-  connected to riichi.dev: the validation game needs the bot token and the user's go-ahead.
+  connected to riichi.dev: the validation game needs the bot token. The user's decisions of
+  2026-10-12 are under "Before ranked play".
 - **Code:** `deploy/riichidev_bot.py` (the adapter and its WebSocket runner),
   `deploy/riichidev_parity.py` (the parity harness), `tests/test_riichidev.py`.
 - **Environment:** a venv on top of the frozen `mortal` env, adding riichienv 0.4.10 and
@@ -98,15 +99,15 @@ that seat as the arena masks it.
 
 1. **The validation game** (`--mode validate`): one unranked game against tsumogiri bots, and it
    activates the bot. Its log must show no failures, in particular no `event_source_mismatch`.
-2. **Decisions for the user:**
-   - **Which checkpoint is deployed.** 07 deploys the π_SL student as the incumbent (L1); it
-     isn't trained yet. Deploying a pilot first gives an earlier external anchor, but it would
-     sit on the board as the bot's first rating.
-   - **Where it runs.** 07 budgets an on-demand verified 4090 near the server (≈ $0.55/h). A
-     b8c192 student is fast enough on the workstation's 3060, but the workstation must then stay
-     on, and the token lives there.
-   - **AGPL:** the deployed bot's source must be published (CLAUDE.md rule 9). Nothing has been
-     pushed so far.
+2. **Decided by the user, 2026-10-12:**
+   - **Which checkpoint is deployed:** the π_SL student, as 07 says. Ranked play waits for it; no
+     pilot goes on the board first.
+   - **Where it runs:** the 4090 that 07 budgets (on-demand, verified host, ≈ $0.55/h), rented
+     now and shared with the eval box until search is enabled (07 §1). Region: the lowest
+     measured RTT to `game.riichi.dev`.
+   - **AGPL:** push of `main` to the public fork approved. The source of each deployed version
+     must be public before it plays (CLAUDE.md rule 9).
+   - **riichi.dev allows 4 bots per account at a time** (`01` §3).
 3. **Still to build** (07 operations): a process supervisor with auto-restart, the daily summary,
    and per-class latency metrics. 07's "0 illegal actions over 100K lab games" needs batched
    self-play: at one decision per inference call, 100K games take ≈ 8 days on the workstation.

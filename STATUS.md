@@ -70,9 +70,12 @@ research is under way.**
   the plan's scale passed: a 1,000-game replay of the FP32 A/A (622K requests, inputs and moves
   identical to the lab engine's) and 300 riichienv self-play games (193K requests). Not yet
   connected.
-- **Waiting on the user:**
-  - riichi.dev: the bot token, which checkpoint to deploy, where it runs, and publishing the source
-    (AGPL), then the validation game (`experiments/riichidev-adapter.md` → "Before ranked play");
+- **riichi.dev decisions (user, 2026-10-12;** `experiments/riichidev-adapter.md` → "Before
+  ranked play"**):** ranked play waits for the π_SL student, as 07 says; riichi.dev allows 4 bots
+  per account at a time; **the shared eval/deploy 4090 is approved** (≈ $0.55/h, ≈ $13/day,
+  ≈ $400/month); pushing `main` to the public fork is approved (AGPL).
+- **Waiting on the user:** the riichi.dev bot token, stored outside the repo, for the validation
+  game.
 - **Decisions D48–D55** were made in the last four days (fleet network, obs review at G0, 4090s,
   triple ron, P1 horizon and critic, P1 seeds and B0 budget, V seeds and opponents, Phase 0
   exit). See `08`.
@@ -389,9 +392,9 @@ failure modes already met.
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;
    - the riichi.dev smoke deploy (L1). The adapter and its parity tests are done
-     (`experiments/riichidev-adapter.md`); next come the user's inputs, the validation game, a
-     supervisor, the daily summary, latency metrics and batched self-play for the 100K-game
-     illegal-action test.
+     (`experiments/riichidev-adapter.md`); the user decided its inputs on 2026-10-12 (the
+     student; the shared 4090). Next: the validation game (needs the token), a supervisor, the
+     daily summary, latency metrics and batched self-play for the 100K-game illegal-action test.
 5. **Search pilot (`06` §0):** the oracle stage reports by G0.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;

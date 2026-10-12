@@ -45,6 +45,8 @@ This file covers:
 - **One deployed version at a time: the incumbent.** It is replaced only by a **confirmed** successor that passes:
   - a fixed-N family-C confirmation;
   - the population panel with no severe regression (`02` §4.2, D34).
+- riichi.dev allows **4 bots per account at a time** (`01` §3). The incumbent takes one; anything
+  else on the board at the same time shares the other three.
 - **Action-selection mode** (argmax vs sampling from the policy or the search-updated policy) is part of the deployed version. It is chosen by its own T-std (D33), never switched ad hoc.
 
 **Smoke deploy (Phase 1):**
