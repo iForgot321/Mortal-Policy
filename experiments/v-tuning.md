@@ -29,9 +29,14 @@
       is no longer needed;
     - if the extension fails, e0's original final is compared with e1 `t1145` as registered
       above.
-  - **Next: 4 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC; ≈ 6 h): e1
-    final, e0 (extended) `s215600`, e2 final, the e1-lr rerun's final. Each of the last three is
-    compared with e1 final.
+  - **The 4 measures started 2026-10-13 18:01 UTC on the workstation** (model B ended 11:26 UTC
+    and was frozen at 18:01), one after another, in this order: e1 final, e0 (extended)
+    `s215600`, e2 final, the e1-lr rerun's final. Each of the last three is compared with e1
+    final. ≈ 6 h in all.
+    - Block `v-tune`: family A nonces 23,000–32,999, allocated by the first measure.
+    - Queue `workdir/lab/v-tune/measures.sh` (not tracked); it logs each start with the
+      checkpoint's hash, and each end, to `workdir/lab/v-tune/queue.log`, and stops at the first
+      failure. Per-run logs `workdir/lab/v-tune/<run>.log`.
   - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits

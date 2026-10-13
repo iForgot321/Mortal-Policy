@@ -65,6 +65,12 @@
 - **Config:** `experiments/configs/cql-qs-b.toml`, model A's with seed 2 and its own paths
   (`workdir/cql/qs-b/`), as pilot B is pilot A with seed 2. Same frozen checkpoint rule and sanity
   checks as model A; frozen as `workdir/cql/qs-b/cql-qs-b-final.pth`.
+  - **Model B, frozen 2026-10-13 18:01 UTC** (by hand) at step 156,000: sha256
+    `c0ea3b963de2d6121997952791d0908dc15d0126c7c54f46428a3e5d8a6b981f`, also in
+    `tools/fleet/frozen.sha256`. Sanity checks pass: the data ran out at step 157,869 (11:26 UTC),
+    the pilots' count; every logged loss is finite; from step 20,000 to 156,000 the CQL term fell
+    0.547 → 0.494, the DQN loss 0.240 → 0.205, and the next-rank loss 0.789 → 0.750 (below
+    ln 4). It trained for ≈ 25.6 h, as A did, and its losses track A's to the third decimal.
 - **Queue:** `workdir/cql/queue-b.sh` (not tracked), started 2026-10-11 20:53 UTC with
   `setsid -f bash workdir/cql/queue-b.sh 2197357` (PID 2332387). It waits until model A's
   session (the trainer and its workers) has exited, then:
@@ -144,6 +150,15 @@
   - off-argmax share of a draw: 1.5% at τ 0.05; 2.8% at 0.1; 5.6% at 0.2; 13.0% at 0.5; 23.6% at 1.0;
   - ε for the sweep's targets: 0.0496 (1 per game at τ 0.5) and 0.1915 (7 per game at τ 1.0),
     used as **0.050 and 0.19** (`experiments/v-tuning.md`).
+- **Redone on frozen model B** (2026-10-13, step 156,000; the same 5 heldout games, 3,096
+  decisions; `--reference` A). B explores as A does:
+  - argmax Q matches the human's action in 80.4% of decisions, and A's argmax in 94.9%;
+  - the best legal action's Q: median 0.20 u (10th–90th percentile −0.02 to 0.47); all legal
+    actions' Q: median −6.3 u;
+  - best minus second best: median 1.85 u; 25th percentile 0.71; 10th 0.27;
+  - off-argmax share of a draw: 1.5% at τ 0.05; 2.8% at 0.1; 5.5% at 0.2; 12.9% at 0.5; 23.3% at 1.0;
+  - ε for the sweep's targets: 0.0502 and 0.1944, which round to A's 0.050 and 0.19. So the
+    values the sweep picks on A carry over to `v-b.toml` unchanged.
 
 ## Open before V's fleet runs
 
@@ -155,7 +170,7 @@
      baseline input);
    - redo the exploration measurement above on the frozen model.
 
-   Done for A on 2026-10-12. B is due ≈ 2026-10-13 11:00 UTC and is frozen by hand.
+   Done for A on 2026-10-12 and for B on 2026-10-13.
 3. **The tuning sweep: planned in `experiments/v-tuning.md`** (2026-10-11); the user approved its
    rental (≈ $11–15) the same day. Its first run is also V's full-size check.
 4. **Rental approval** for V's two runs (≈ $210 each at P1's prices), after the sweep.

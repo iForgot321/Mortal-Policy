@@ -3,16 +3,19 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-13 02:55 UTC)
+## Current position (2026-10-13 18:05 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
-- **Live on the workstation: arm V's quick CQL model B** (seed 2, D54; `experiments/v.md`),
-  started 2026-10-12 09:51:48 UTC by `workdir/cql/queue-b.sh`, PID 2502168, log
-  `workdir/cql/qs-b/train.log`. It ends ≈ **2026-10-13 11:00 UTC** and is frozen by hand
-  (`cql-qs-b-final.pth`, hash, `tools/fleet/frozen.sha256`). It uses the GPU and ≈ 9 GB of RAM,
-  so **no lab or arena jobs until it ends**.
+- **Live on the workstation: V's tuning sweep measures** (`experiments/v-tuning.md`), started
+  2026-10-13 18:01 UTC by `workdir/lab/v-tune/measures.sh`, one at a time (e1, e0 extended, e2,
+  e1-lr rerun; 10K sets each on block `v-tune`; ≈ 6 h, done ≈ 00:00 UTC Oct 14). Progress in
+  `workdir/lab/v-tune/queue.log`. **No other lab or training job on the workstation until it ends.**
+- **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
+  `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869 at 11:26 UTC; losses
+  finite and within 0.005 of A's). `v_qgaps.py` on B gives ε 0.0502 / 0.1944, so the sweep's
+  values carry over to `v-b.toml`.
 - **CQL model A frozen** (2026-10-12 09:51 UTC, step 156,000, sha256 `f8a867da…`, in
   `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869; losses finite; CQL
   0.547 → 0.495; next rank 0.755 < ln 4). Its exploration gaps barely moved from step 78K.
@@ -39,8 +42,9 @@ research is under way.**
     void**: e1's teardown destroyed its boxes at 12:23 (`fleet.py`'s sweep matched labels by
     prefix; fixed with a test). $12.12, 25.5 box-hours, ≈ 1.5 over the allowance, inside the
     approved dollars. **e1-lr rerun** (D56, approved by the user) ran clean 18:04–19:56 UTC; **the sweep's four runs are done: $14.91, 31.5 box-hours.** **e0 extended** to e1's step count (the user; D56): done 2026-10-13 02:49 UTC, $1.09. **The sweep is done: $16.00, 33.9 box-hours**; every comparison is with e1's final. Step-matched
-    comparisons (amendments written before any measurement). **Next: 4 measures** after model B
-    (e1 final, e0 extended, e2, e1-lr rerun; ≈ 6 h). Evaluation on the workstation after model B (≈ 6 h).
+    comparisons (amendments written before any measurement). **The 4 measures run on the
+    workstation since 2026-10-13 18:01 UTC** (above); then the decision rule, `v-a.toml` and
+    `v-b.toml`, and V's run approval.
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -403,13 +407,10 @@ failure modes already met.
 2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
    seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
    (`experiments/p1.md`), queued after P0's evaluations.
-3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): when CQL model A ends (≈ 2026-10-12
-   09:30 UTC) the queue freezes it and starts model B. Then: A's sanity checks, its hash in
-   `v.md` and `tools/fleet/frozen.sha256`, `v_qgaps.py` on it to fix the sweep's ε, and the four
-   sweep configs, committed. Then the sweep (rental approved 2026-10-11, ≈ $11–15); its
-   evaluation runs on the workstation after model B (≈ 2026-10-13 11:00 UTC), or on the eval box
-   if it is back first (all four on one machine). V's runs need their own approval.
-   Arm H follows V.
+3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): CQL models A and B are frozen and
+   the sweep's runs are done. Its 4 measures run on the workstation (2026-10-13 18:01 UTC, ≈ 6 h).
+   Then: the decision rule, the chosen values into `v-a.toml` and `v-b.toml` in one commit, and
+   the user's approval for V's runs (≈ $210 per seed). Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;

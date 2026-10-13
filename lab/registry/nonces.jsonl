@@ -13,3 +13,4 @@
 {"family": "A", "start": 0, "count": 500, "run_id": "20261008-150055-AA", "purpose": "deterministic A/A", "block": "aa-shanten-greedy", "time": "2026-10-08T15:00:55-07:00", "reused": true}
 {"family": "A", "start": 500, "count": 500, "run_id": "20261008-150119-AA", "purpose": "deterministic A/A", "block": "aa-harness-nn", "time": "2026-10-08T15:01:19-07:00", "reused": true}
 {"family": "A", "start": 21000, "count": 2000, "run_id": "20261012-070327-AA", "purpose": "deterministic A/A", "block": "aa-harness", "time": "2026-10-12T07:03:27+00:00"}
+{"family": "A", "start": 23000, "count": 10000, "run_id": "20261013-110149-measure", "purpose": "V tuning sweep (experiments/v-tuning.md)", "block": "v-tune", "time": "2026-10-13T11:01:49-07:00"}
