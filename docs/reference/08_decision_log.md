@@ -579,6 +579,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The ≈ 7.5 box-hours over it bought no configurations: e1's failed first rental (1.1) and the destroyed e1-lr (6.4).
   - So V's tuning is matched to the other arms' allowance in what it tested, not in what it billed.
 - **Reopen if:** the rerun fails too. Then V keeps 2e-5, and any further rerun is the user's call.
+- **Added the same day (the user): e0 is extended to e1's step count.** e0 ended at 36,800 online steps, against e1's 59,600, after its learner was lost on Vast. It continues from its final checkpoint (the optimizer state is restored) to step 215,600, in run `v-tune-e0-ext`, ≈ 1 h on 3 boxes, ≈ $1.5. The sweep then comes to ≈ $16.4 and ≈ 34.5 box-hours. All three comparisons are then with e1's final. That's simpler, and fairer between e0 and e2.
 
 ## Cut list (v1 items removed, and what would bring each back)
 

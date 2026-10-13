@@ -19,12 +19,18 @@
       as for the others.
   - **The rerun ran clean** (18:04–19:56 UTC, $2.79): 57,600 online steps, within 10% of e1's, so
     the finals are compared.
-  - **Next: 5 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC; ≈ 7.5 h):
-    - e0 final, matched to e1 `t1145`;
-    - e1 final;
-    - e1 `t1145`;
-    - e2 final, matched to e1 final;
-    - e1-lr rerun final, matched to e1 final.
+  - **e0 extended to e1's step count** (the user, 2026-10-12; D56). Registered before it starts:
+    - run `v-tune-e0-ext`, config `v-tune-e0.toml`, from e0's final checkpoint (192,800; its
+      optimizer state is restored, as at e0's mid-run resume);
+    - a poller reads the learner's log and snapshots it as soon as its step reaches 215,600, e1's
+      final (`fleet.py snapshot --run v-tune-e0-ext --label s215600`), then downs the run;
+    - **that snapshot is e0's checkpoint for the decision**, compared with e1's final. e1 `t1145`
+      is no longer needed;
+    - if the extension fails, e0's original final is compared with e1 `t1145` as registered
+      above.
+  - **Next: 4 measures on the workstation after model B** (≈ 2026-10-13 11:00 UTC; ≈ 6 h): e1
+    final, e0 (extended) `s215600`, e2 final, the e1-lr rerun's final. Each of the last three is
+    compared with e1 final.
   - Step-matched comparisons: amendment under the decision rule.
 - **Budget:** V's tuning allowance, ≤ 1 box-day (`05` §2.2). Four runs × 3 boxes × 2 h = 24
   box-hours, setup included. That is ≈ $11 at P1's prices (≈ $1.39/h per 3-box run). It sits
