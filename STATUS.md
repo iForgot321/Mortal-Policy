@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-12 20:30 UTC)
+## Current position (2026-10-13 02:55 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -38,7 +38,7 @@ research is under way.**
     e1, e2 valid (e0's learner was lost on Vast and resumed from its 11:16 checkpoint); **e1-lr
     void**: e1's teardown destroyed its boxes at 12:23 (`fleet.py`'s sweep matched labels by
     prefix; fixed with a test). $12.12, 25.5 box-hours, ≈ 1.5 over the allowance, inside the
-    approved dollars. **e1-lr rerun** (D56, approved by the user) ran clean 18:04–19:56 UTC; **the sweep's four runs are done: $14.91, 31.5 box-hours.** **e0 is being extended** to e1's step count (the user; D56, ≈ $1.5) so all comparisons are with e1's final. Step-matched
+    approved dollars. **e1-lr rerun** (D56, approved by the user) ran clean 18:04–19:56 UTC; **the sweep's four runs are done: $14.91, 31.5 box-hours.** **e0 extended** to e1's step count (the user; D56): done 2026-10-13 02:49 UTC, $1.09. **The sweep is done: $16.00, 33.9 box-hours**; every comparison is with e1's final. Step-matched
     comparisons (amendments written before any measurement). **Next: 4 measures** after model B
     (e1 final, e0 extended, e2, e1-lr rerun; ≈ 6 h). Evaluation on the workstation after model B (≈ 6 h).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;

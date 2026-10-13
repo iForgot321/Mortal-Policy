@@ -19,7 +19,8 @@
       as for the others.
   - **The rerun ran clean** (18:04–19:56 UTC, $2.79): 57,600 online steps, within 10% of e1's, so
     the finals are compared.
-  - **e0 extended to e1's step count** (the user, 2026-10-12; D56). Registered before it starts:
+  - **e0 extended to e1's step count** (the user, 2026-10-12; D56); **done 2026-10-13 02:49 UTC,
+    $1.09, snapshot at exactly 215,600.** Registered before it started:
     - run `v-tune-e0-ext`, config `v-tune-e0.toml`, from e0's final checkpoint (192,800; its
       optimizer state is restored, as at e0's mid-run resume);
     - a poller reads the learner's log and snapshots it as soon as its step reaches 215,600, e1's
@@ -191,6 +192,7 @@ read-only.
 | `e2` | 10:45–12:37 | 65,600 | 228,800 | $2.82 | `8a50501711f7…` | e1 final (59,600) | valid |
 | `e1-lr` | 11:23–11:54 | 11,200 | 41,600 | $3.21 | `23a5395da246…` | none within 10% | **void** |
 | `e1-lr` rerun (D56) | 18:04–19:56 | 57,600 | 220,800 | $2.79 | `9d1db65f4b6e…` | e1 final (within 10%) | valid |
+| `e0` extended (D56) | + 10-13 02:10–02:49 | 59,600 | + 81,600 | + $1.09 | `fd08435f4ffe…` (`s215600`) | e1 final (same step) | valid |
 
 e1's snapshots (`workdir/fleet/runs/v-tune-e1/snapshots/`, read-only), by step:
 - `t1145` 195,200 (`b44fdc860687…`);
@@ -199,7 +201,13 @@ e1's snapshots (`workdir/fleet/runs/v-tune-e1/snapshots/`, read-only), by step:
 - `t1215` 211,600.
 
 In all: **$12.12, 25.5 box-hours** (the allowance is 24) before the rerun. **With it: $14.91, 31.5
-box-hours** (D56).
+box-hours** (D56). **With e0's extension: $16.00, 33.9 box-hours.**
+
+e0's extension (`workdir/fleet/runs/v-tune-e0-ext/`):
+- It resumed from e0's final checkpoint and ran from step 192,800 to 215,600 on 3 boxes.
+- The poller snapshotted it at exactly 215,600 (`snapshots/s215600.pth`, read-only) and
+  downed the run.
+- Losses: DQN 0.025 → 0.022, logged CQL term 1.96 → 1.99, next rank 0.636 → 0.608; all finite.
 
 The rerun's snapshots (`workdir/fleet/runs/v-tune-e1-lr/snapshots/`, read-only) weren't needed:
 - `m60` 186,400; `m70` 191,600; `m80` 196,800; `m90` 202,400; `m100` 207,600.
