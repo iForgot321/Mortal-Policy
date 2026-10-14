@@ -406,18 +406,51 @@ question was whether some weight holds the gap near A's 1.81 u over 10,000 steps
   1,000 steps, with argmax = human unchanged at 0.80. All five arms correct A's overestimate of
   its greedy moves (median best legal Q 0.21 → 0.01–0.03 u).
 
-**Proposed next (free; the user's decision).** Fix V's online step at its cause rather than by
-tuning one weight, with two more replay arms (≈ 30 min each):
-- **Cal-QL:** CQL 5 with the push-down floored at the behaviour policy's return, which is in
-  the batch as the kyoku's Q target. An untried action is pushed down only while its Q is above
-  that return. So it is held near or below the greedy move's value, and once below it isn't
-  pushed further (no widening without limit). Whether the gap stays near A's, or the untried
-  actions climb to the floor, is what the arm measures.
-- **Weight 0.03**, to see whether the switch near 0 is gradual or sharp.
+### Cal-QL and weight 0.03 (2026-10-14 19:34–20:35 UTC, the user asked for them)
 
-If Cal-QL holds the gap: an `08` entry, then the user's approval for one short online cloud run
-(≈ $3, measured against A as in the sweep). The next fallback is mixed batches: offline Tenhou
-data with the CQL term, mixed into the online batches.
+Two more replay arms, the same data, order and seed: **Cal-QL** (weight 5, with the push-down
+floored at the kyoku's return; `--calql`, added in `79a4f7f`) and plain CQL at
+**0.03**. Outputs are in `workdir/v-replay/calql5` and `mq0.03` (read-only). The logged CQL term
+is the plain one in every arm.
+
+| Arm | median gap at 1K (u) | at 10K | change over the last 3K | gap, 10th percentile | median legal Q | median best Q | argmax = A | argmax = human | off-argmax at τ 0.05 | ½·MSE |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A (step 0) | — | 1.81 | — | 0.26 | −6.27 | 0.21 | 1 | 0.806 | 0.015 | — |
+| weight 0 | 0.63 | 0.034 | −0.018 | 0.005 | −0.13 | 0.009 | 0.735 | 0.668 | 0.437 | 0.024 |
+| **weight 0.03** | 2.08 | **2.94** | +0.26 | **0.25** | **−6.21** | 0.016 | **0.965** | **0.802** | **0.014** | 0.027 |
+| weight 0.1 | 3.19 | 4.31 | +0.20 | 0.49 | −7.71 | 0.024 | 0.969 | 0.804 | 0.008 | 0.030 |
+| weight 5 | 7.07 | 8.83 | +0.17 | 1.66 | −15.3 | 0.030 | 0.972 | 0.802 | 0.002 | 0.090 |
+| Cal-QL 5 | 5.04 | 5.55 | −0.04 | 1.12 | −7.40 | **2.31** | 0.971 | 0.803 | 0.003 | **2.15** |
+
+- **Cal-QL as written fails:** the gap levels off (≈ 5.5 u, flat over the last 6K steps), but
+  the taken move's value is inflated about 2.3 u above its return, and the fit to the
+  returns is ≈ 100× worse (½·MSE 2.15).
+  - Why: once the other actions sit at the floor, the logsumexp no longer falls when they are
+    pushed down. The term's only remaining gradient is the push-up on the taken action, held
+    back only by the TD loss. At equilibrium, Q(taken) − return ≈ weight × (1 − its softmax
+    share), ≈ 1.2 u with 2 legal actions and ≈ 2.5 u with 14.
+  - So with a discrete logsumexp, the floor needs a small weight, or a push-down term without
+    the matching push-up. That's a new design, not this arm.
+- **Weight 0.03 comes closest to holding A.**
+  - Over 10K steps it keeps A's argmax (96.5%) and agreement with humans (0.80).
+  - It keeps the near-ties as A had them: the 10th-percentile gap is 0.25 against 0.26, and the
+    exploration rate at τ 0.05 is 1.4% against 1.5%, flat from step 1K to 10K.
+  - It corrects A's overestimate of its greedy move (0.21 → 0.02 u), and the untried actions
+    stay where A put them (median −6.2 u).
+  - **But the median gap still widens:** 1.81 → 2.94 u, +0.1 u per 1K steps, not slowing.
+    The switch from collapse to widening lies between 0 and 0.03.
+- **What 10K steps doesn't show:** the online runs took ≈ 60K steps, and this replay's 10K is
+  one pass over its 14,000 logs (≈ 5.1M decisions). Whether 0.03's drift levels off, or keeps
+  widening until exploration dies (as at 0.1 and above), needs a longer run.
+
+**Proposed next (free; the user's decision): a 60K-step replay at weight 0.03** on 84,000 of
+the 160,000 sweep logs. That's one pass with no repeats, about the online runs' length, ≈ 3 h on
+the workstation.
+- If the median gap levels off and the exploration rate holds near A's: an `08` entry (V's
+  online step gets the CQL term at 0.03, not 0), then the user's approval for one short online
+  cloud run (≈ $3), measured against A as in the sweep.
+- If it keeps widening: weight 0.01 next, or a push-down-only conservative term (the near-ties
+  held, no push-up on the taken action).
 
 V stays stopped until then.
 

@@ -39,8 +39,12 @@ research is under way.**
   first). **The replay sweep over the weight** (2026-10-14 11:34–13:04 UTC): 0.1, 0.3 and 1
   all widen the gap (4.3 / 5.6 / 6.9 u at 10K steps, still growing) and pin the policy to A
   (≈ 97%). No fixed weight holds it on greedy data: the untried actions have no target, so the
-  weight sets the speed of the push-down, not an equilibrium. Proposed next (free): Cal-QL
-  (the push-down floored at the kyoku's return) and weight 0.03. **The user's decision.**
+  weight sets the speed of the push-down, not an equilibrium. **Cal-QL and weight 0.03**
+  (2026-10-14 19:34–20:35 UTC): Cal-QL levels the gap at ≈ 5.5 u but inflates the taken move
+  2.3 u above its return (½·MSE 2.15), so it fails as written. **0.03 comes closest:** A's argmax
+  96.5%, near-ties and exploration rate as A's (1.4% vs 1.5%), but the median gap still drifts
+  1.81 → 2.94 u in 10K steps. Proposed next (free, ≈ 3 h): a 60K-step replay at 0.03 on fresh
+  logs, to see whether the drift levels off. **The user's decision.**
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
   released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
