@@ -1,8 +1,9 @@
 # riichi.dev adapter and parity tests (07 §1)
 
-- **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). Not yet
-  connected to riichi.dev: the validation game needs the bot token. The user's decisions of
-  2026-10-12 are under "Before ranked play".
+- **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). The
+  validation game passed on 2026-10-14. **The 100K-game test found two adapter bugs** (item 4);
+  they're to be fixed before it runs again. The user's decisions of 2026-10-12 are under "Before
+  ranked play".
 - **Code:** `deploy/riichidev_bot.py` (the adapter and its WebSocket runner),
   `deploy/riichidev_parity.py` (the parity harness), `tests/test_riichidev.py`.
 - **Environment:** a venv on top of the frozen `mortal` env, adding riichienv 0.4.10 and
@@ -139,13 +140,42 @@ that seat as the arena masks it.
      read it from the leaderboard.
    - Tests: `tests/test_riichidev_ops.py` (the restart policy with a fake bot, the summary, the
      latency classes); with `tests/test_riichidev.py`, 10 pass on the eval box.
-4. **07's "0 illegal actions over 100K lab games": running again since 2026-10-14 06:28 UTC**
-   (all 20 chunks from the start, 12 workers each, priority 9; ≈ 21 h). First queued on the eval box on 2026-10-12
-   as 20 background chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds 1000–100,999,
-   `--light`: the legality checks without the observation comparison, which passed at scale
-   above; 20 worker processes; reports `workdir/riichidev/parity-100k-c00…c19.json`). The box
-   closed with chunk 0 at 2,800 games, 0 failures (`workdir/fleet/runs/eval/labq/` log); no chunk
-   finished, so all 20 run when the box is back.
+4. **07's "0 illegal actions over 100K lab games": failed, with two adapter bugs in 25K games**
+   (2026-10-14). The setup: 20 chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds
+   1000–100,999, `--light`: the legality checks without the observation comparison, which passed
+   at scale above; 12 workers each, priority 9; reports `workdir/riichidev/parity-100k-c00…c19.json`).
+   - First queued on the eval box on 2026-10-12, which closed before any chunk finished (chunk 0
+     had reached 2,800 games with 0 failures).
+   - Run again 06:28–11:30 UTC on 2026-10-14. Chunks 0–4 finished; the box was closed at the
+     user's request with chunk 5 at 600 games and 14 chunks queued.
+
+   | Chunk | Seeds | Requests | Fallbacks | Adapter failures | Result |
+   |---|---|---|---|---|---|
+   | c00 | 1000–5999 | 3,162,105 | 0 | 0 | pass |
+   | c01 | 6000–10,999 | 3,151,731 | 0 | 0 | pass |
+   | c02 | 11,000–15,999 | 3,161,816 | 0 | 1 | fail |
+   | c03 | 16,000–20,999 | 3,154,260 | 2 | 6 | fail |
+   | c04 | 21,000–25,999 | 3,198,549 | 0 | 0 | pass |
+
+   No illegal move reached riichienv: every response was one of its legal moves, with the
+   fallback where the adapter had none. The two bugs:
+   - **Chankan is missed** (c03; seeds 20281 and 20282, seat 1, both after actor 0's kakan of 6p).
+     riichienv asks seat 1 for `hora` or `none` (robbing the kan). libriichi offers the ron on the
+     `kakan` event, which isn't the last event in the request, so the adapter logs an
+     `unrequested_action`. After the remaining events, libriichi's mask is empty and it gives no
+     reaction (`mask_mismatch`: libriichi [] vs riichienv [43, 45]; `no_reaction`). The fallback
+     then passes. The network wanted the ron (p ≈ 0.88). This costs points, not legality. Likely
+     cause: riichienv puts the events that follow a kakan before the chankan request, and
+     libriichi's state moves past the chance.
+   - **A chi riichienv doesn't offer** (c02; seed 14176, seat 1, after actor 0's tsumogiri 4m).
+     libriichi's mask had chi-low and pass (bits 38 and 45); riichienv didn't ask seat 1 at all,
+     so the bot answered nothing on the server. That's harmless here, but the two rule sets
+     disagree on when a chi is allowed: kuikae, the last tile and a lack of a legal discard after
+     the call are the candidates.
+
+   Next: replay the three seeds on the workstation (free; `--selfplay 1 --seed-start <seed>`),
+   find each cause and fix it, add regression tests, then run the 100K test again on the next
+   eval-box rental. That rental needs the user's go-ahead.
    - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
      time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
    - **Compared 2026-10-14 on the new box** (EPYC 9474F, 32 cores, 4090; 200 games, seeds

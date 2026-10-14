@@ -23,14 +23,19 @@ research is under way.**
   steps; with CQL 5 it widens to 8.8 u and the policy stays pinned to A. V needs an online step
   between the two (a small CQL weight, Cal-QL or mixed offline batches: a design change, so `08`
   first). Proposed next: a free replay sweep at weights 0.1/0.3/1. **The user's decision.**
-- **Eval box live** (since 2026-10-14 06:17 UTC; instance 55876675, $0.65/h, California). It
-  holds the lab lease while up: lab jobs go through `evalbox.py submit`.
-  - **Running:** the 100K-game illegal-action test, 20 chunks at 12 workers (≈ 21 h).
+- **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
+  when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
+  released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
+  it, and ask first.
   - **The riichi.dev validation game passed** (2026-10-14 07:34 UTC; pilot A; 0 failures, 0
     timeouts, p50 ≈ 10 ms). `main` was pushed first at the user's word (`b7eecce`). Ranked
     play waits for the π_SL student (decided 2026-10-12).
-  - The token is in `~/.config/riichidev/token`, and in `/root/.config/riichidev/token` on the
-    box (outside the repo, mode 600). The box is ≈ 196 ms from `game.riichi.dev`.
+  - **The 100K-game test found two adapter bugs in 25K games** (5 of 20 chunks finished,
+    `experiments/riichidev-adapter.md` item 4). No illegal move reached the server, but:
+    chankan (robbing a kan) is missed, because the adapter's fallback passes instead (seeds
+    20281 and 20282); and libriichi offers a chi that riichienv doesn't (seed 14176). Both are
+    to be fixed and replayed on the workstation (free) before the test runs again.
+  - The token is in `~/.config/riichidev/token` (mode 600); the box's copy went with the box.
 - **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
   `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869 at 11:26 UTC; losses
   finite and within 0.005 of A's). `v_qgaps.py` on B gives ε 0.0502 / 0.1944, so the sweep's
@@ -435,8 +440,9 @@ failure modes already met.
    - the riichi.dev smoke deploy (L1). The adapter and its parity tests are done
      (`experiments/riichidev-adapter.md`); the user decided its inputs on 2026-10-12 (the
      student; the shared 4090). The supervisor, daily summary and latency metrics are built; the
-     100K-game illegal-action test runs on the eval box. Next: the validation game (needs the
-     token).
+     validation game passed (2026-10-14). The 100K-game test found two adapter bugs (chankan
+     missed; a chi riichienv doesn't offer). Next: fix them on the workstation (free), then run
+     the test again on the next eval-box rental, which needs the user's go-ahead.
 5. **Search pilot (`06` §0):** the oracle stage reports by G0.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
