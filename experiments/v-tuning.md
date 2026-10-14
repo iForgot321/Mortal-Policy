@@ -378,11 +378,46 @@ within 1,000 steps: A's overestimation of its greedy moves is corrected first.
   online batches. Any of them changes V's design, so a `08` entry comes first, and V's runs need
   a new approval.
 
-**Proposed next (free; the user's decision):** the same replay at weights 0.1, 0.3 and 1
-(≈ 31 min each) to find one where the gap stays near A's over 10,000 steps. Then, with an `08`
-entry and the user's approval, one short online cloud run at that weight (≈ $3), measured
-against A like the sweep (10K sets on block `v-tune`, on the eval box). A steady gap is only a
-precondition; the measure decides.
+### Replay sweep over the CQL weight (2026-10-14 11:34–13:04 UTC, the user asked for it)
+
+The same replay at weights 0.1, 0.3 and 1: the same data, order and seed as the weight 0 and 5
+arms, ≈ 30 min each. Outputs are in `workdir/v-replay/mq0.1`, `mq0.3` and `mq1` (read-only). The
+question was whether some weight holds the gap near A's 1.81 u over 10,000 steps.
+
+| Weight | median gap at 1K steps (u) | at 10K | change over the last 3K | median legal Q | argmax = A | argmax = human | off-argmax at τ 0.05 | logged CQL term | ½·MSE |
+|---|---|---|---|---|---|---|---|---|---|
+| A (step 0) | — | 1.81 | — | −6.27 | 1 | 0.806 | 0.015 | ≈ 0.50 | — |
+| 0 | 0.63 | 0.034 | −0.018 | −0.13 | 0.735 | 0.668 | 0.437 | 1.74 | 0.024 |
+| 0.1 | 3.19 | 4.31 | +0.20 | −7.71 | 0.969 | 0.804 | 0.008 | 0.151 | 0.030 |
+| 0.3 | 4.35 | 5.62 | +0.22 | −9.18 | 0.971 | 0.804 | 0.005 | 0.110 | 0.036 |
+| 1 | 5.59 | 6.92 | +0.10 | −11.2 | 0.969 | 0.803 | 0.003 | 0.084 | 0.050 |
+| 5 | 7.07 | 8.83 | +0.17 | −15.3 | 0.972 | 0.802 | 0.002 | 0.067 | 0.090 |
+
+- **No weight in the sweep holds the gap.** Every positive weight widens it, more for larger
+  weights. It widens most in the first 1,000 steps and is still growing at 10,000. Even 0.1
+  more than doubles A's gap (1.81 → 4.31 u). The switch from collapse to widening lies between
+  0 and 0.1.
+- **Why there's no stable weight on this data:** every taken action is the argmax, so the
+  untried actions have no target. Only the CQL push-down acts on them, and nothing stops it. The
+  weight sets the speed, not an equilibrium. Online, explored actions get targets, but at
+  e1's rate that's ≈ 1 action per game, and a wider gap makes a Boltzmann draw leave the argmax
+  less often (0.008 at τ 0.05 for weight 0.1, against A's 0.015).
+- **Every CQL arm keeps A's policy.** They change ≈ 3% of A's argmaxes, all within the first
+  1,000 steps, with argmax = human unchanged at 0.80. All five arms correct A's overestimate of
+  its greedy moves (median best legal Q 0.21 → 0.01–0.03 u).
+
+**Proposed next (free; the user's decision).** Fix V's online step at its cause rather than by
+tuning one weight, with two more replay arms (≈ 30 min each):
+- **Cal-QL:** CQL 5 with the push-down floored at the behaviour policy's return, which is in
+  the batch as the kyoku's Q target. An untried action is pushed down only while its Q is above
+  that return. So it is held near or below the greedy move's value, and once below it isn't
+  pushed further (no widening without limit). Whether the gap stays near A's, or the untried
+  actions climb to the floor, is what the arm measures.
+- **Weight 0.03**, to see whether the switch near 0 is gradual or sharp.
+
+If Cal-QL holds the gap: an `08` entry, then the user's approval for one short online cloud run
+(≈ $3, measured against A as in the sweep). The next fallback is mixed batches: offline Tenhou
+data with the CQL term, mixed into the online batches.
 
 V stays stopped until then.
 

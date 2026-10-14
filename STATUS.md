@@ -22,7 +22,11 @@ research is under way.**
   with the online step, no exploration): without CQL the median gap falls 1.81 → 0.034 u in 10K
   steps; with CQL 5 it widens to 8.8 u and the policy stays pinned to A. V needs an online step
   between the two (a small CQL weight, Cal-QL or mixed offline batches: a design change, so `08`
-  first). Proposed next: a free replay sweep at weights 0.1/0.3/1. **The user's decision.**
+  first). **The replay sweep over the weight** (2026-10-14 11:34–13:04 UTC): 0.1, 0.3 and 1
+  all widen the gap (4.3 / 5.6 / 6.9 u at 10K steps, still growing) and pin the policy to A
+  (≈ 97%). No fixed weight holds it on greedy data: the untried actions have no target, so the
+  weight sets the speed of the push-down, not an equilibrium. Proposed next (free): Cal-QL
+  (the push-down floored at the kyoku's return) and weight 0.03. **The user's decision.**
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
   released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
