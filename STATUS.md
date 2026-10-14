@@ -14,9 +14,12 @@ research is under way.**
   0), e0 extended −0.874, e2 −0.922, e1-lr −1.168. The decision rule keeps e1; the stop rule
   fires, so V's runs don't launch. `v_qgaps.py`: **the Q function collapsed in every run** (all
   legal actions within ≈ 0.5 u, median best–second gap 0.013 u against A's 1.81; argmax = human
-  21–38% against 81%). Leading suspect: online drops the CQL term (Equim's design). Units are
-  clean at the config level; the 1v3 target scale and action alignment are unchecked. **Next
-  steps are the user's decision.**
+  21–38% against 81%). **The interface checks are clean** (2026-10-14,
+  `experiments/v_online_check.py`): actions align in the 1v3 path, and the targets have the same
+  scale as on Tenhou. Leading hypothesis: online drops the CQL term, and with the dueling head
+  each correction of the overestimated argmax raises the other actions' Q. Proposed next: a free
+  offline replay test, `min_q_weight` 0 against 5 (`experiments/v-tuning.md`). **The user's
+  decision.**
 - **Eval box live** (since 2026-10-14 06:17 UTC; instance 55876675, $0.65/h, California). It
   holds the lab lease while up: lab jobs go through `evalbox.py submit`.
   - **Running:** the 100K-game illegal-action test, 20 chunks at 12 workers (≈ 21 h).

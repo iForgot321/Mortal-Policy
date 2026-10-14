@@ -300,11 +300,46 @@ diverging → masking bug; for a value learner, the critic is the policy):
    online mode does). Without it nothing holds the untried actions down. Gradient flows only
    through the taken action, so the trunk drifts and the rest of the Q head follows. e1-lr's
    larger collapse at 5× the learning rate fits this.
-3. **Not yet checked (the interface half of step 1):** the Q-target scale on 1v3 logs against
-   Tenhou logs, and the alignment of the trainee's actions with its observations in the 1v3 logs.
-   Both are local and free.
+3. **The interface half of step 1: checked 2026-10-14, clean** (the user asked for the checks;
+   `experiments/v_online_check.py`, output `workdir/lab/v-tune/online-check.txt`). The script
+   reads e1's measure logs (`20261013-110149-measure`; the first 200 logs, which the arena writes as the
+   training actors do) through the trainer's own loader (`FileDatasetsIter`, `value_targets`),
+   and 100 Tenhou heldout games. FP32, no TF32.
 
-Next steps are the user's decision: V stays stopped until then.
+   | Seats | Decisions | Q target sd (u) | mean | e1: argmax = logged | A: argmax = logged | MSE e1 | MSE A |
+   |---|---|---|---|---|---|---|---|
+   | 1v3 challenger (e1 played) | 29,654 | 0.250 | −0.070 | **0.987** (1.000 where gap > 0.05) | 0.333 | 0.058 | 9.66 |
+   | 1v3 champion (A played) | 96,067 | 0.248 | +0.026 | 0.371 | **0.9996** (1.000 where gap > 0.05) | 0.060 | 0.135 |
+   | Tenhou heldout (humans) | 62,634 | 0.256 | +0.002 | 0.363 | 0.810 | 0.064 | 0.376 |
+
+   - **Alignment:** each model reproduces its own logged moves. Every miss is at a near-tie
+     (gap ≤ 0.05 u), where the lab's AMP and this FP32 pass can flip the argmax. So
+     observations, actions and masks line up in the 1v3 path.
+   - **Units:** the targets have the same scale on 1v3 seats and on Tenhou (sd ≈ 0.25 u).
+   - **The 10× lower online loss** is explained without a bug. The trainer logs ½·MSE. Offline,
+     A's loss (0.376 / 2 ≈ 0.19, as logged) is dominated by human moves that CQL pushed ≈ 6 u
+     down. On greedy play the taken action is the argmax, and e1's ½·MSE on its own seats is
+     ≈ 0.03, as logged online. e1 explains little of the target variance (MSE 0.058 against
+     variance 0.062).
+   - **A overestimates its own greedy moves:** MSE 0.135 against a target variance of 0.062 on
+     the seats it played. Its Q(best) has a median of 0.21 u, against a mean target of +0.03.
+
+**So step 1 of `05` §8 is clean, and the collapse comes from the online design.** The Q head is
+dueling: Q = V + A(a) − mean of A over the legal actions (`model.DQN`). Online, only the taken
+action has a target, and it is almost always the argmax, whose Q starts too high. Each correction
+lowers V and that action's A, and through the mean term raises every other legal action's Q.
+The CQL term held the others down offline; online it is dropped (`min_q_weight = 0`), so the
+spread shrinks until the argmax is noise. Exploration then leaves the argmax most of the time,
+and the trainee learns from near-random play. A hypothesis that fits the measurements, not yet
+tested.
+
+**Proposed next (free, on the workstation; the user's decision):** fine-tune A offline on the
+champion seats of the sweep's measure logs (A's own greedy play), with `min_q_weight` 0 against 5,
+lr 2e-5, a few thousand steps each, with `v_qgaps.py` along the way. If 0 collapses and 5 doesn't,
+the fix is to keep the CQL term online. That changes V's design (a `08` entry first), and V's
+runs need a new approval.
+
+V stays stopped until then.
 
 ## Timeline
 
