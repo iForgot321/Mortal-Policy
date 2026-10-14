@@ -255,7 +255,13 @@ num_layers = 2
         assert trainer.poll() is None, text[-2000:]
         assert 'drained 8 logs' in text, text[-2000:]
         assert 'total steps: 104' in text, text[-2000:]
-        state = torch.load(w / 'mortal.pth', weights_only=True)
+        # the trainer logs a save interval's line just before it writes the checkpoint (atomically):
+        # a slow box read step 100 here (p1-a's replacement learner, 2026-10-14)
+        while True:
+            state = torch.load(w / 'mortal.pth', weights_only=True)
+            if state['steps'] >= 104 or time.time() > deadline:
+                break
+            time.sleep(0.5)
         assert state['steps'] >= 104 and state['config']['control']['online']
         with socket.create_connection(('127.0.0.1', port)) as c:
             send_msg(c, {'type': 'get_param', 'param_version': -1})
