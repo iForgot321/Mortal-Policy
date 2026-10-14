@@ -29,10 +29,13 @@
       is no longer needed;
     - if the extension fails, e0's original final is compared with e1 `t1145` as registered
       above.
-  - **The 4 measures started 2026-10-13 18:01 UTC on the workstation** (model B ended 11:26 UTC
-    and was frozen at 18:01), one after another, in this order: e1 final, e0 (extended)
-    `s215600`, e2 final, the e1-lr rerun's final. Each of the last three is compared with e1
-    final. ≈ 6 h in all.
+  - **The 4 measures ran 2026-10-13 18:01 – 2026-10-14 01:16 UTC on the workstation** (model B
+    ended 11:26 UTC and was frozen at 18:01), one after another, in this order: e1 final, e0
+    (extended) `s215600`, e2 final, the e1-lr rerun's final. Each of the last three is compared
+    with e1 final. ≈ 1 h 48 min each (≈ 5.6K sets/h).
+  - **Result: the stop rule fires.** e1 is kept, but its own Δ is −0.729 u (95% CI entirely
+    below 0), so V's runs don't launch. Every run's Q function collapsed ("Results" below).
+    Reported to the user 2026-10-14.
     - Block `v-tune`: family A nonces 23,000–32,999, allocated by the first measure.
     - Queue `workdir/lab/v-tune/measures.sh` (not tracked); it logs each start with the
       checkpoint's hash, and each end, to `workdir/lab/v-tune/queue.log`, and stops at the first
@@ -248,6 +251,60 @@ Training, first logged step to last (online, so each sample is seen once):
   so the untried actions' Q rise because the CQL penalty is gone, not because exploration
   visits them.
 - All losses are finite.
+
+## Results (2026-10-14)
+
+Each run's final checkpoint against frozen CQL model A, 10,000 sets on block `v-tune` (family A
+nonces 23,000–32,999), AMP, 40,000 games each (`lab/registry/runs.jsonl`):
+
+| Run | Lab run | Online steps | Δu | 95% CI | Avg rank | Avg pt |
+|---|---|---|---|---|---|---|
+| `e1` | `20261013-110149-measure` | 59,600 | **−0.729** | [−0.736, −0.722] | 3.44 | −73.8 |
+| `e0` extended (`s215600`) | `20261013-124951-measure` | 59,600 | −0.874 | [−0.881, −0.867] | 3.59 | −89.0 |
+| `e2` | `20261013-143617-measure` | 65,600 | −0.922 | [−0.928, −0.916] | 3.65 | −93.8 |
+| `e1-lr` rerun | `20261013-162554-measure` | 57,600 | −1.168 | [−1.172, −1.164] | 3.89 | −120.3 |
+
+- **Decision rule:** neither e0 nor e2 is 0.01 u above e1, and e1-lr isn't either, so e1's
+  exploration and 2e-5 are kept.
+- **Stop rule: fires.** e1's CI is entirely below 0. Each run's challenger finishes 3rd or 4th
+  against three copies of the model it started from, so V's runs don't launch.
+
+**`v_qgaps.py` on each final** (`--reference` frozen A; the same 5 heldout games, 3,096
+decisions; `workdir/lab/v-tune/qgaps.txt`), against frozen A from `experiments/v.md`:
+
+| | A | `e1` | `e0` ext | `e2` | `e1-lr` |
+|---|---|---|---|---|---|
+| argmax = human | 0.806 | 0.381 | 0.351 | 0.316 | 0.214 |
+| argmax differs from A | — | 0.613 | 0.639 | 0.686 | 0.785 |
+| Q of legal actions, pct 1/50/99 | −11.3 / −6.3 / 0.49 | −0.31 / −0.08 / 0.14 | −0.24 / −0.09 / 0.07 | −0.30 / −0.11 / 0.06 | −0.49 / −0.15 / 0.14 |
+| best − second best, median | 1.81 | 0.014 | 0.013 | 0.012 | 0.013 |
+| off-argmax share of a draw at τ 0.05 | 0.015 | 0.68 | 0.69 | 0.71 | 0.67 |
+
+- **The Q function collapsed in every run.** The CQL model's spread of values (untried actions
+  ≈ 6 u down) is gone: all legal actions' Q sit within ≈ 0.5 u of each other, and the median gap
+  from the best to the second best is ≈ 0.013 u. The argmax is close to noise. It matches the
+  human's action in 21–38% of decisions (A: 81%).
+- **So the exploration targets no longer hold.** ε was set for gaps of ≈ 1.8 u. With gaps of
+  ≈ 0.01 u, a Boltzmann draw leaves the argmax ≈ 70% of the time even at τ 0.05, and in e0 too.
+  The trainee's training games become close to random play, which is a feedback loop.
+- The logged CQL term rising from ≈ 0.4 to ≈ 2.0 in every run (above) was the same collapse
+  seen from the training side. e0 was already at 1.97 at step 174K.
+
+**Diagnosis, in `05` §8's order** (units or interface bug → KL too low → LR too high → critic
+diverging → masking bug; for a value learner, the critic is the policy):
+1. **Units: checked at the config level, clean.** Offline and online use the same `pts`
+   ([90, 50, −10, −130], u = pts / 100), the same data loader (`value_targets = True`) and the
+   same loss code. The online DQN loss (≈ 0.02) is ≈ 10× lower than the offline one (≈ 0.2), which a
+   flat Q fitting lower-variance 1v3 targets could explain, but it isn't checked yet.
+2. **The one designed difference: online drops the CQL term** (`min_q_weight = 0`, as Equim's
+   online mode does). Without it nothing holds the untried actions down. Gradient flows only
+   through the taken action, so the trunk drifts and the rest of the Q head follows. e1-lr's
+   larger collapse at 5× the learning rate fits this.
+3. **Not yet checked (the interface half of step 1):** the Q-target scale on 1v3 logs against
+   Tenhou logs, and the alignment of the trainee's actions with its observations in the 1v3 logs.
+   Both are local and free.
+
+Next steps are the user's decision: V stays stopped until then.
 
 ## Timeline
 

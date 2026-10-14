@@ -3,15 +3,23 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-13 18:05 UTC)
+## Current position (2026-10-14 06:15 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
-- **Live on the workstation: V's tuning sweep measures** (`experiments/v-tuning.md`), started
-  2026-10-13 18:01 UTC by `workdir/lab/v-tune/measures.sh`, one at a time (e1, e0 extended, e2,
-  e1-lr rerun; 10K sets each on block `v-tune`; ≈ 6 h, done ≈ 00:00 UTC Oct 14). Progress in
-  `workdir/lab/v-tune/queue.log`. **No other lab or training job on the workstation until it ends.**
+- **Arm V stopped by its pre-registered stop rule** (2026-10-14; `experiments/v-tuning.md` →
+  "Results"). The sweep's 4 measures (2026-10-13 18:01 – 2026-10-14 01:16 UTC, workstation) put
+  every online checkpoint far below the CQL model it started from: e1 −0.729 u (CI entirely below
+  0), e0 extended −0.874, e2 −0.922, e1-lr −1.168. The decision rule keeps e1; the stop rule
+  fires, so V's runs don't launch. `v_qgaps.py`: **the Q function collapsed in every run** (all
+  legal actions within ≈ 0.5 u, median best–second gap 0.013 u against A's 1.81; argmax = human
+  21–38% against 81%). Leading suspect: online drops the CQL term (Equim's design). Units are
+  clean at the config level; the 1v3 target scale and action alignment are unchecked. **Next
+  steps are the user's decision.**
+- **Eval box coming back** (2026-10-14 06:09 UTC, instance 55876675, $0.65/h, California) for
+  the riichi.dev validation game; the token is in `~/.config/riichidev/token` (outside the repo,
+  mode 600). It holds the lab lease while up: lab jobs go through `evalbox.py submit`.
 - **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
   `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869 at 11:26 UTC; losses
   finite and within 0.005 of A's). `v_qgaps.py` on B gives ε 0.0502 / 0.1944, so the sweep's
@@ -42,9 +50,8 @@ research is under way.**
     void**: e1's teardown destroyed its boxes at 12:23 (`fleet.py`'s sweep matched labels by
     prefix; fixed with a test). $12.12, 25.5 box-hours, ≈ 1.5 over the allowance, inside the
     approved dollars. **e1-lr rerun** (D56, approved by the user) ran clean 18:04–19:56 UTC; **the sweep's four runs are done: $14.91, 31.5 box-hours.** **e0 extended** to e1's step count (the user; D56): done 2026-10-13 02:49 UTC, $1.09. **The sweep is done: $16.00, 33.9 box-hours**; every comparison is with e1's final. Step-matched
-    comparisons (amendments written before any measurement). **The 4 measures run on the
-    workstation since 2026-10-13 18:01 UTC** (above); then the decision rule, `v-a.toml` and
-    `v-b.toml`, and V's run approval.
+    comparisons (amendments written before any measurement). **Measured 2026-10-14: the stop
+    rule fired** (above).
 - **Box-side deadline built and armed on all 9 boxes** (2026-10-11, user-approved;
   `tools/fleet/README.md`). An hour after each run's hard deadline, actors destroy themselves and
   the learner stops itself (its checkpoints survive).
@@ -407,10 +414,10 @@ failure modes already met.
 2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
    seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
    (`experiments/p1.md`), queued after P0's evaluations.
-3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): CQL models A and B are frozen and
-   the sweep's runs are done. Its 4 measures run on the workstation (2026-10-13 18:01 UTC, ≈ 6 h).
-   Then: the decision rule, the chosen values into `v-a.toml` and `v-b.toml` in one commit, and
-   the user's approval for V's runs (≈ $210 per seed). Arm H follows V.
+3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): **stopped by the sweep's stop rule
+   (2026-10-14).** The Q function collapses online. Diagnosis per `05` §8, with the user: the
+   1v3 Q-target scale and action alignment (local, free), then whether to keep the CQL term
+   online. V's runs need a fix and a new approval. Arm H follows V.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - b24c512 AWR and BC teachers, then the students;
