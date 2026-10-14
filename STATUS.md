@@ -17,9 +17,12 @@ research is under way.**
   21–38% against 81%). **The interface checks are clean** (2026-10-14,
   `experiments/v_online_check.py`): actions align in the 1v3 path, and the targets have the same
   scale as on Tenhou. Leading hypothesis: online drops the CQL term, and with the dueling head
-  each correction of the overestimated argmax raises the other actions' Q. Proposed next: a free
-  offline replay test, `min_q_weight` 0 against 5 (`experiments/v-tuning.md`). **The user's
-  decision.**
+  each correction of the overestimated argmax raises the other actions' Q. **The replay test
+  confirms it** (2026-10-14, `experiments/v_replay_test.py`; A fine-tuned on its own greedy play
+  with the online step, no exploration): without CQL the median gap falls 1.81 → 0.034 u in 10K
+  steps; with CQL 5 it widens to 8.8 u and the policy stays pinned to A. V needs an online step
+  between the two (a small CQL weight, Cal-QL or mixed offline batches: a design change, so `08`
+  first). Proposed next: a free replay sweep at weights 0.1/0.3/1. **The user's decision.**
 - **Eval box live** (since 2026-10-14 06:17 UTC; instance 55876675, $0.65/h, California). It
   holds the lab lease while up: lab jobs go through `evalbox.py submit`.
   - **Running:** the 100K-game illegal-action test, 20 chunks at 12 workers (≈ 21 h).

@@ -333,11 +333,56 @@ spread shrinks until the argmax is noise. Exploration then leaves the argmax mos
 and the trainee learns from near-random play. A hypothesis that fits the measurements, not yet
 tested.
 
-**Proposed next (free, on the workstation; the user's decision):** fine-tune A offline on the
-champion seats of the sweep's measure logs (A's own greedy play), with `min_q_weight` 0 against 5,
-lr 2e-5, a few thousand steps each, with `v_qgaps.py` along the way. If 0 collapses and 5 doesn't,
-the fix is to keep the CQL term online. That changes V's design (a `08` entry first), and V's
-runs need a new approval.
+### Replay test (2026-10-14, the user asked for it; `experiments/v_replay_test.py`)
+
+- **Setup:** frozen A fine-tuned on fixed data of its own greedy play: the champion seats of
+  14,000 logs drawn from the four sweep measures, ≈ 5.1M decisions.
+  - The online trainer's step: ½·MSE on the taken action + CQL × weight + 0.2 × next rank; AMP;
+    AdamW without weight decay; clipping 0.5; constant lr 2e-5; batch 512; a fresh optimizer.
+  - 10,000 steps per arm. Both arms get the same files in the same order (seed 1).
+  - Every 1,000 steps a probe on `v_qgaps.py`'s set: the last 5 Tenhou heldout games, 3,096
+    decisions with ≥ 2 legal actions.
+  - ≈ 31 min per arm on the workstation. Outputs in `workdir/v-replay/mq0`, `mq5` (read-only):
+    `probe.tsv`, `run.log`, and `final.pth` (weights only).
+- There is no exploration and no feedback: the data never changes, and every taken action is A's
+  argmax.
+
+| Steps | weight 0: median gap (u) | median legal Q | argmax = A | off-argmax at τ 0.05 | logged CQL term | weight 5: median gap | median legal Q | argmax = A | off-argmax at τ 0.05 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 (A) | 1.81 | −6.27 | 1 | 0.015 | — | 1.81 | −6.27 | 1 | 0.015 |
+| 1,000 | 0.63 | −2.43 | 0.951 | 0.040 | 0.50 | 7.07 | −13.6 | 0.968 | 0.002 |
+| 2,000 | 0.29 | −1.11 | 0.925 | 0.087 | 0.95 | 7.60 | −14.2 | 0.969 | 0.003 |
+| 4,000 | 0.11 | −0.43 | 0.876 | 0.205 | 1.48 | 8.34 | −14.9 | 0.970 | 0.003 |
+| 6,000 | 0.068 | −0.26 | 0.822 | 0.290 | 1.64 | 8.37 | −15.1 | 0.972 | 0.002 |
+| 8,000 | 0.044 | −0.17 | 0.787 | 0.374 | 1.70 | 8.71 | −15.2 | 0.974 | 0.002 |
+| 10,000 | **0.034** | −0.13 | 0.735 | 0.437 | 1.74 | **8.83** | −15.3 | 0.972 | 0.002 |
+
+argmax = human: weight 0, 0.806 → 0.668; weight 5, 0.806 → 0.802. ½·MSE: weight 0 ≈ 0.024;
+weight 5 ≈ 0.090. The median best legal Q falls from 0.21 to ≈ 0.01–0.06 u in both arms
+within 1,000 steps: A's overestimation of its greedy moves is corrected first.
+
+- **The hypothesis holds.** Without the CQL term, the online step alone collapses the Q
+  spread, with no exploration and no feedback. In 10,000 steps the median gap falls 1.81 → 0.034
+  u, and it is still falling (the online e1 reached 0.013 at 59,600 steps). The logged CQL term
+  rises 0.50 → 1.74, the online runs' signature (≈ 2.0). The online runs add exploration's
+  feedback on top, from a starting point that already decays.
+- **Full-strength CQL (5) does the opposite.** When every taken action is the argmax, the term
+  pushes the others down without limit: the median gap widens to 8.8 u and the untried actions
+  sink to ≈ −15 u. The argmax stays A's (97%), and exploration at τ 0.05 almost never leaves it
+  (0.2%). The model can't learn anything new, and its taken-action fit is worse (½·MSE 0.090
+  against 0.024).
+- **So:** in `05` §8's terms, the arm's design, not its units, interface or learning rate. V's
+  online step needs something between the two. The standard remedies for offline-to-online
+  fine-tuning: a small CQL weight that holds the gap steady, calibrated CQL (Cal-QL: the
+  push-down floored at a reference value), or mixing offline data with the CQL term into the
+  online batches. Any of them changes V's design, so a `08` entry comes first, and V's runs need
+  a new approval.
+
+**Proposed next (free; the user's decision):** the same replay at weights 0.1, 0.3 and 1
+(≈ 31 min each) to find one where the gap stays near A's over 10,000 steps. Then, with an `08`
+entry and the user's approval, one short online cloud run at that weight (≈ $3), measured
+against A like the sweep (10K sets on block `v-tune`, on the eval box). A steady gap is only a
+precondition; the measure decides.
 
 V stays stopped until then.
 
