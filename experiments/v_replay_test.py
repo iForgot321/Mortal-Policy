@@ -7,8 +7,12 @@ decay, clipping 0.5, constant lr, a fresh optimizer), and a chosen CQL weight. E
 The hypothesis: with min_q_weight 0, training only the taken (argmax) action shrinks the spread
 of the dueling head's Q until the argmax is noise; with the CQL term it doesn't.
 
-Usage, from the repo root (both arms get the same files in the same order):
+With --calql, the CQL push-down is floored at the kyoku's return (Cal-QL, Nakamoto et al. 2023):
+an action's Q is pushed down only while it is above it.
+
+Usage, from the repo root (all arms get the same files in the same order):
     python experiments/v_replay_test.py --min-q-weight 0 --out workdir/v-replay/mq0
+    python experiments/v_replay_test.py --min-q-weight 5 --calql --out workdir/v-replay/calql5
 """
 import argparse, os, random, sys, time
 import numpy as np
@@ -32,6 +36,8 @@ A = f'{R}/workdir/cql/qs-a/cql-qs-a-final.pth'
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--min-q-weight', type=float, required=True)
+ap.add_argument('--calql', action='store_true',
+                help="Cal-QL: push an action's Q down only while it is above the kyoku's return (the Q target)")
 ap.add_argument('--out', required=True)
 ap.add_argument('--steps', type=int, default=10000)
 ap.add_argument('--probe-every', type=int, default=1000)
@@ -144,9 +150,17 @@ for obs, actions, masks, q_target, ranks in batches:
         q_out = dqn(phi, masks)
         q = q_out[range(len(actions)), actions]
         dqn_loss = 0.5 * mse(q, q_target)
+        # logged as the plain CQL term in every arm, so the arms compare
         cql_loss = q_out.logsumexp(-1).mean() - q.mean()
+        if a.calql:
+            # Cal-QL's floor: the behaviour policy's return from this state
+            floor = q_target[:, None].to(q_out.dtype)
+            q_push = torch.maximum(q_out, floor).masked_fill(~masks, -torch.inf)
+            push = q_push.logsumexp(-1).mean() - q.mean()
+        else:
+            push = cql_loss
         next_rank_loss = ce(aux_net(phi)[0], ranks)
-        loss = dqn_loss + cql_loss * a.min_q_weight + next_rank_loss * 0.2
+        loss = dqn_loss + push * a.min_q_weight + next_rank_loss * 0.2
     scaler.scale(loss).backward()
     scaler.unscale_(optimizer)
     clip_grad_norm_(chain.from_iterable(g['params'] for g in optimizer.param_groups), 0.5)

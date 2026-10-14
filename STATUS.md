@@ -8,6 +8,16 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **`p1-a` (P1 seed 1) has trained nothing since 2026-10-13 23:47 UTC** (found 2026-10-14
+  19:30 UTC; `experiments/p1.md` → "Incident").
+  - What happened: its learner died, the replacement's checkpoint copy failed, and the health
+    check reported the never-started learner as `ok` for 19 h (`tools/fleet/fleet.py:1002`).
+  - Cost: ≈ 58 box-hours and ≈ $34 with no training.
+  - State: the training state is safe on the workstation (step 2,807,600). Its two idle actors
+    still bill ≈ $1.14/h; stopping them was blocked by the safety check.
+  - **The user's decision:** resume `p1-a` or end it, and fix the check first.
+- **The workstation rebooted at ≈ 19:00 UTC on 2026-10-14.** The watchers and watchdogs for `p0-a`
+  and `p1-b` were restarted at 19:32 UTC with the handoff's commands; both runs are healthy.
 - **Arm V stopped by its pre-registered stop rule** (2026-10-14; `experiments/v-tuning.md` →
   "Results"). The sweep's 4 measures (2026-10-13 18:01 – 2026-10-14 01:16 UTC, workstation) put
   every online checkpoint far below the CQL model it started from: e1 −0.729 u (CI entirely below
