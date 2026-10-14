@@ -163,6 +163,8 @@ def restart_runner(run, box):
 def pull(run, box):
     staged = run.dir / 'registry'
     staged.mkdir(exist_ok=True)
+    # a fresh box has no workdir/lab until its first lab job, and rsync fails on a missing source
+    F.remote(run, box, f'mkdir -p workdir/lab workdir/riichidev {QDIR}\n', timeout=60)
     F.retry(F.rsync, run, box, [F.on_box(box, 'lab/registry/'), f'{staged}/'])
     added = merge_ledgers(REGISTRY, staged)
     if any(added.values()):
