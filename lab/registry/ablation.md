@@ -19,3 +19,7 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261008-150055-AA | exploratory | D51 re-check: deterministic A/A after the triple-ron rule change (rule-based) | A/A | A [0, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 6749abd7+dirty |
 | 20261008-150119-AA | exploratory | D51 re-check: deterministic A/A after the triple-ron rule change (neural, true FP32, D43) | A/A | A [500, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 6749abd7+dirty |
 | 20261012-070327-AA | exploratory | deterministic A/A on the eval box (new hardware, evalbox.py first job) | A/A | A [21000, +2000) | 2000 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | 051f641d+dirty |
+| 20261013-110149-measure | exploratory | V tuning sweep: v-tune-e1 vs CQL model A | measure | A [23000, +10000) | 10000 | -0.7289 | [-0.7359, -0.7219] |  | measured | +0.9379 | -73.79 | yes | 2d348870 |
+| 20261013-124951-measure | exploratory | V tuning sweep: v-tune-e0-ext vs CQL model A | measure | A [23000, +10000) | 10000 | -0.8740 | [-0.8807, -0.8675] |  | measured | +1.0901 | -89.04 | yes | 2d348870+dirty |
+| 20261013-143617-measure | exploratory | V tuning sweep: v-tune-e2 vs CQL model A | measure | A [23000, +10000) | 10000 | -0.9216 | [-0.9277, -0.9155] |  | measured | +1.1491 | -93.75 | yes | 2d348870+dirty |
+| 20261013-162554-measure | exploratory | V tuning sweep: v-tune-e1-lr vs CQL model A | measure | A [23000, +10000) | 10000 | -1.1683 | [-1.1721, -1.1645] |  | measured | +1.3868 | -120.34 | yes | 2d348870+dirty |
