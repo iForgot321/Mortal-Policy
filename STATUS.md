@@ -17,9 +17,12 @@ research is under way.**
   21–38% against 81%). Leading suspect: online drops the CQL term (Equim's design). Units are
   clean at the config level; the 1v3 target scale and action alignment are unchecked. **Next
   steps are the user's decision.**
-- **Eval box coming back** (2026-10-14 06:09 UTC, instance 55876675, $0.65/h, California) for
-  the riichi.dev validation game; the token is in `~/.config/riichidev/token` (outside the repo,
-  mode 600). It holds the lab lease while up: lab jobs go through `evalbox.py submit`.
+- **Eval box live** (since 2026-10-14 06:17 UTC; instance 55876675, $0.65/h, California). It
+  holds the lab lease while up: lab jobs go through `evalbox.py submit`.
+  - **Running:** the 100K-game illegal-action test, 20 chunks at 12 workers (≈ 21 h).
+  - **Ready:** the riichi.dev validation game, waiting for the user's word to push `main`.
+  - The token is in `~/.config/riichidev/token`, and in `/root/.config/riichidev/token` on the
+    box (outside the repo, mode 600). The box is ≈ 196 ms from `game.riichi.dev`.
 - **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
   `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869 at 11:26 UTC; losses
   finite and within 0.005 of A's). `v_qgaps.py` on B gives ε 0.0502 / 0.1944, so the sweep's

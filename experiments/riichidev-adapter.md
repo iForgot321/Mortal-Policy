@@ -99,6 +99,16 @@ that seat as the arena masks it.
 
 1. **The validation game** (`--mode validate`): one unranked game against tsumogiri bots, and it
    activates the bot. Its log must show no failures, in particular no `event_source_mismatch`.
+   - **Ready on the eval box, 2026-10-14 06:30 UTC; waiting for the push of `main`.**
+     `deploy/riichidev_bot.py` changed after the 2026-10-12 push, so its source isn't public yet
+     (rule 9).
+     - The token is in `~/.config/riichidev/token` on the workstation, and in
+       `/root/.config/riichidev/token` on the box. Both are outside the repo, mode 600, with the
+       same sha256.
+     - The riichidev venv was rebuilt at `/workspace/venvs/riichidev`; its 10 tests pass there.
+   - **Latency (TCP connect to `game.riichi.dev`):** ≈ 196 ms from the box (California),
+     ≈ 134 ms from the workstation. Pick the ranked-play region by this measure before ranked
+     play starts.
 2. **Decided by the user, 2026-10-12:**
    - **Which checkpoint is deployed:** the π_SL student, as 07 says. Ranked play waits for it; no
      pilot goes on the board first.
@@ -122,7 +132,8 @@ that seat as the arena masks it.
      read it from the leaderboard.
    - Tests: `tests/test_riichidev_ops.py` (the restart policy with a fake bot, the summary, the
      latency classes); with `tests/test_riichidev.py`, 10 pass on the eval box.
-4. **07's "0 illegal actions over 100K lab games": paused.** Queued on the eval box on 2026-10-12
+4. **07's "0 illegal actions over 100K lab games": running again since 2026-10-14 06:28 UTC**
+   (all 20 chunks from the start, 12 workers each, priority 9; ≈ 21 h). First queued on the eval box on 2026-10-12
    as 20 background chunks of 5,000 riichienv self-play games (pilot A, FP32, seeds 1000–100,999,
    `--light`: the legality checks without the observation comparison, which passed at scale
    above; 20 worker processes; reports `workdir/riichidev/parity-100k-c00…c19.json`). The box
@@ -130,5 +141,9 @@ that seat as the arena masks it.
    finished, so all 20 run when the box is back.
    - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
      time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
+   - **Compared 2026-10-14 on the new box** (EPYC 9474F, 32 cores, 4090; 200 games, seeds
+     200,000–200,199; all three passed with the same 127,879 requests): 150 s with 12 workers,
+     149 s with 20, 148 s with 30. That's ≈ 0.75 s per game whatever the count, so the chunks
+     run with 12 and leave CPU for the bot.
    - The deployed version will be the student. The adapter's legality doesn't depend on the
      network, but a short self-play run with the student goes before its first ranked game.
