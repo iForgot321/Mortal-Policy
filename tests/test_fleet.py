@@ -282,6 +282,100 @@ def test_budget_rebase_excludes_hours_before_it(monkeypatch):
     assert fleet.cost(run) == pytest.approx(6.0)  # cost still counts everything
 
 
+def fault_run(tmp_path, monkeypatch, boxes, **data):
+    monkeypatch.setattr(fleet, 'RUNS', tmp_path)
+    run = fleet.Run('t')
+    run.dir.mkdir()
+    run.data = {'run': 't', 'config': 'experiments/configs/p0.toml', 'port': 5000, 'init': None, 'procs': 1,
+                'boxes': boxes, 'retired': [], 'bad_machines': [], **data}
+    run.save()
+    return run
+
+
+def test_a_replacement_whose_bring_up_failed_is_not_reported_ok(tmp_path, monkeypatch):
+    """p1-a, 2026-10-14: the replacement learner's checkpoint push failed, and health said
+    `ok | not started` for 19 h."""
+    import json
+    box = {'name': 'learner', 'role': 'learner', 'instance': 1, 'ip': '192.0.2.1', 'ssh_port': 22,
+           'status': 'ready', 'created_ts': 0, 'dph': 0.5}
+    run = fault_run(tmp_path, monkeypatch, {'learner': box})
+    monkeypatch.setattr(fleet, 'instances', lambda: {1: {'actual_status': 'running'}})
+    monkeypatch.setattr(fleet, 'remote', lambda *a, **k: subprocess.CompletedProcess(
+        [], 0, json.dumps({'started': False}) + '\n', ''))
+    assert fleet.health(run, quiet=True)['learner'][:2] == ('ok', ['not started'])  # set up, not yet started
+    box['pending_start'] = True
+    assert fleet.health(run, quiet=True)['learner'][:2] == ('fail', ['not started'])
+
+    # replace(): a failed push leaves the new box pending; bring_up pushes the state before starting
+    calls = []
+    new = {'name': 'learner', 'role': 'learner', 'instance': 2, 'status': 'ready', 'created_ts': 0, 'dph': 0.5}
+
+    def provision(run_, name, role, allow_zen2=False):
+        run_.boxes[name] = new
+        return new
+
+    def push_state(run_, b):
+        calls.append('push')
+        if len(calls) == 1:
+            raise fleet.FleetError('rsync exited 255: Broken pipe')
+    monkeypatch.setattr(fleet, 'pull', lambda *a, **k: None)
+    monkeypatch.setattr(fleet, 'destroy_box', lambda run_, b: run_.boxes.pop(b['name']))
+    monkeypatch.setattr(fleet, 'provision', provision)
+    monkeypatch.setattr(fleet, 'push_state', push_state)
+    monkeypatch.setattr(fleet, 'start', lambda run_, b: calls.append('start') or b.pop('pending_start'))
+    monkeypatch.setattr(fleet, 'join', lambda run_, names=None: calls.append('join'))
+    run.boxes['actor1'] = {'name': 'actor1', 'role': 'actor', 'instance': 3, 'status': 'running'}
+    with pytest.raises(fleet.FleetError, match='Broken pipe'):
+        fleet.replace(run, 'learner', 0)
+    assert run.boxes['learner'] is new and new['pending_start'] and calls == ['push']
+    assert json.loads(run.path.read_text())['boxes']['learner']['pending_start']  # survives a watcher restart
+    fleet.bring_up(run, new)
+    assert calls == ['push', 'push', 'start', 'join'] and 'pending_start' not in new
+
+
+def test_exclusions_leave_a_fault_out_of_the_budget_only(tmp_path, monkeypatch):
+    import argparse
+    now = 1_000_000.0
+    iso = lambda t: datetime.fromtimestamp(t).astimezone().isoformat()  # noqa: E731
+    run = fault_run(tmp_path, monkeypatch, {
+        'learner': {'name': 'learner', 'role': 'learner', 'instance': 1, 'created_ts': now - 10 * 3600, 'dph': 0.5},
+        'actor1': {'name': 'actor1', 'role': 'actor', 'instance': 2, 'created_ts': now - 3 * 3600, 'dph': 0.5}})
+    monkeypatch.setattr(fleet.time, 'time', lambda: now)
+    assert fleet.box_hours(run) == pytest.approx(13.0)
+    ns = lambda s, e: argparse.Namespace(run='t', start=iso(s), end=iso(e), reason='idle')  # noqa: E731
+    assert fleet.cmd_exclude(ns(now - 4 * 3600, now - 2 * 3600)) == 0  # learner 2 h + actor 1 h
+    run = fleet.Run.load('t')
+    assert run.data['budget_exclusions'][0]['box_hours'] == pytest.approx(3.0)
+    assert fleet.box_hours(run) == pytest.approx(10.0) and fleet.cost(run) == pytest.approx(6.5)
+    for s, e, match in ((now - 3 * 3600, now - 1 * 3600, 'overlaps'), (now - 3600, now + 60, 'in the past'),
+                        (now - 1800, now - 3600, 'in the past')):
+        with pytest.raises(fleet.FleetError, match=match):
+            fleet.cmd_exclude(ns(s, e))
+    run.data['budget_rebase'] = {'at': iso(now - 5 * 3600), 'box_hours': 5.0}
+    run.save()
+    with pytest.raises(fleet.FleetError, match='rebase'):
+        fleet.cmd_exclude(ns(now - 6 * 3600, now - 5.5 * 3600))
+
+
+def test_deadline_extension_moves_the_watchdog_and_the_boxes(tmp_path, monkeypatch):
+    import argparse
+    run = fault_run(tmp_path, monkeypatch, {
+        'actor1': {'name': 'actor1', 'role': 'actor', 'instance': 2, 'ip': '192.0.2.2', 'status': 'running'}},
+        hard_deadline='2030-10-17T15:23:18+00:00', watchdog=None)
+    spawned, armed = [], []
+    monkeypatch.setattr(fleet, 'spawn_watchdog', lambda run_, until: spawned.append(until) or run_.data.update(
+        hard_deadline=datetime.fromtimestamp(until, fleet.timezone.utc).isoformat(timespec='seconds')))
+    monkeypatch.setattr(fleet, 'arm_deadline', lambda run_, b: armed.append((b['name'], fleet.hard_deadline(run_))))
+    ns = argparse.Namespace(run='t', disarm=False, respawn_watchdog=False, extend_hours=21.0, reason=None)
+    with pytest.raises(fleet.FleetError, match='reason'):
+        fleet.cmd_deadline(ns)
+    ns.reason = 'p1-a idle'
+    assert fleet.cmd_deadline(ns) == 0
+    new = datetime.fromisoformat('2030-10-18T12:23:18+00:00').timestamp()
+    assert spawned == [new] and armed == [('actor1', new)]
+    assert fleet.Run.load('t').data['hard_deadline'] == '2030-10-18T12:23:18+00:00'
+
+
 deadline = load('box_deadline')
 
 

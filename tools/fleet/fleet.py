@@ -189,7 +189,14 @@ def box_hours(run):
     (training discarded by a fault) don't count."""
     spent = sum(h for _, h in billed(run))
     rebase = run.data.get('budget_rebase')
-    return spent - rebase['box_hours'] if rebase else spent
+    spent -= rebase['box_hours'] if rebase else 0
+    # stretches a fault left the run billing without training (`exclude`)
+    return spent - sum(x['box_hours'] for x in run.data.get('budget_exclusions', []))
+
+
+def billed_between(run, t0, t1):
+    """Box-hours billed between two unix times, every box counted."""
+    return sum(h for _, h in billed(run, until=t1)) - sum(h for _, h in billed(run, until=t0))
 
 
 def snapshot_label(fraction):
@@ -754,6 +761,7 @@ def start(run, box):
     out = remote(run, box, '\n'.join(lines) + '\n', timeout=180).stdout.strip()
     with run.lock:
         box['status'] = 'running'
+        box.pop('pending_start', None)
         run.save()
     run.event('started', box['name'], procs=','.join(procs), detail=repr(out.replace('\n', '; ')))
     try:
@@ -910,7 +918,7 @@ def push_state(run, learner):
         run.log('no pulled checkpoint; the learner starts from the run init', learner['name'])
         return
     remote(run, learner, f'mkdir -p {os.path.dirname(state_file)}\n')
-    rsync(run, learner, [str(local), f'root@{learner["ip"]}:{state_file}'])
+    retry(rsync, run, learner, [str(local), f'root@{learner["ip"]}:{state_file}'])
     run.event('pushed_state', learner['name'], age_s=round(time.time() - local.stat().st_mtime))
 
 
@@ -999,7 +1007,10 @@ def health(run, quiet=False):
                 except (json.JSONDecodeError, IndexError):
                     probe = None
         verdict, problems = assess(box['role'], status, probe, capacity)
-        if box['status'] in ('creating', 'ready') and verdict == 'fail' and problems == ['not started']:
+        # set up and not yet started is fine, unless the box is a replacement whose bring-up failed:
+        # p1-a's learner sat `ok | not started` for 19 h after its checkpoint push failed (2026-10-14)
+        if (box['status'] in ('creating', 'ready') and not box.get('pending_start')
+                and verdict == 'fail' and problems == ['not started']):
             verdict, problems = 'ok', ['not started']
         return box['name'], (verdict, problems, probe)
 
@@ -1047,15 +1058,26 @@ def replace(run, name, since, allow_zen2=False):
             run.save()
     # Zen 2 only for actors: the learner featurizes, and per-core speed matters there
     new = provision(run, name, role, allow_zen2=allow_zen2 and role == 'actor')
-    if role == 'learner':
-        push_state(run, new)
-        start(run, new)
+    with run.lock:
+        # until start() clears it, health reports the box as failed and watch retries the bring-up
+        new['pending_start'] = True
+        run.save()
+    bring_up(run, new)
+    run.event('recovered', name, instance=new['instance'], after_s=round(time.time() - since))
+
+
+def bring_up(run, box):
+    """Bring a provisioned replacement into the run: a learner gets the last pulled checkpoint
+    before it starts (start alone would copy the run's init), then the actors join it. Every
+    step is safe to repeat."""
+    if box['role'] == 'learner':
+        push_state(run, box)
+        start(run, box)
         if run.live('actor'):
             join(run)
     else:
-        join(run, [name])
-        start(run, new)
-    run.event('recovered', name, instance=new['instance'], after_s=round(time.time() - since))
+        join(run, [box['name']])
+        start(run, box)
 
 
 def kill_watchdog(run):
@@ -1325,7 +1347,11 @@ def cmd_watch(a):
                 waited = time.time() - t0
                 box = run.boxes[name]
                 try:
-                    if verdict == 'fail' and waited < 2 * a.grace * 60:
+                    if verdict == 'fail' and waited < 2 * a.grace * 60 and box.get('pending_start'):
+                        # a replacement whose bring-up failed: finish it
+                        bring_up(run, box)
+                        run.event('recovered', name, instance=box['instance'], after_s=round(waited))
+                    elif verdict == 'fail' and waited < 2 * a.grace * 60:
                         # box up, processes not: a reboot, a dead tunnel or a wedged trainer
                         if box['role'] == 'actor' and 'tunnel down' in problems:
                             join(run, [name])
@@ -1340,6 +1366,9 @@ def cmd_watch(a):
                             run.log(f'{verdict} for {waited / 60:.0f} min; not replacing (no --replace)', name)
                 except FleetError as e:
                     run.event('recovery_failed', name, error=repr(str(e)[:300]))
+                    if (run.boxes.get(name) or {}).get('pending_start'):
+                        # retry the bring-up on this box before renting another
+                        bad_since[name] = time.time()
             if a.budget_box_hours:
                 # D49: frozen checkpoints at fractions of the arm-seed's budget, then the final one
                 used = box_hours(run)
@@ -1414,12 +1443,22 @@ def cmd_down(a):
 def cmd_deadline(a):
     """Arm (or --disarm) every live box's own deadline; --respawn-watchdog first restarts the
     workstation watchdog at the same deadline, so it runs the current code."""
+    if a.extend_hours and not a.reason:
+        raise FleetError('--extend-hours needs a --reason')
     run = Run.load(a.run)
     with run.locked():
         hard = hard_deadline(run)
         if hard is None:
             raise FleetError(f'run {run.name} has no hard deadline (up --hard-hours)')
-        if a.respawn_watchdog:
+        if a.extend_hours:
+            # time a fault cost the run (`exclude`); the watchdog and the boxes move with it
+            old = run.data.get('hard_deadline') or run.data['watchdog']['deadline']
+            hard += a.extend_hours * 3600
+            run.data['hard_deadline'] = datetime.fromtimestamp(hard, timezone.utc).isoformat(timespec='seconds')
+            run.save()
+            run.event('deadline_extended', old=old, new=run.data['hard_deadline'], hours=a.extend_hours,
+                      reason=repr(a.reason))
+        if a.respawn_watchdog or a.extend_hours:
             if hard <= time.time():
                 raise FleetError('the hard deadline has passed')
             kill_watchdog(run)
@@ -1452,6 +1491,8 @@ def cmd_status(a):
     if d.get('budget_rebase'):
         r = d['budget_rebase']
         print(f'  budget rebased at {r["at"]}: {r["box_hours"]:.1f} box-hours before it excluded ({r["reason"]})')
+    for x in d.get('budget_exclusions', []):
+        print(f'  budget excludes {x["from"]} to {x["to"]}: {x["box_hours"]:.1f} box-hours ({x["reason"]})')
     for s in d.get('snapshots', {}).values():
         print(f'  snapshot {s["label"]:<5} step {s["steps"]:,} at {s["box_hours"]} box-hours: {s["path"]} ({s["sha256"][:12]})')
     if d.get('watchdog'):
@@ -1489,6 +1530,30 @@ def cmd_rebase(a):
         run.data['budget_rebase'] = {'at': a.at, 'box_hours': round(excluded, 3), 'reason': a.reason}
         run.save()
         run.event('budget_rebase', at=a.at, excluded_box_hours=round(excluded, 2), reason=repr(a.reason))
+    return 0
+
+
+def cmd_exclude(a):
+    """Leave a past stretch out of the run's compute budget: the boxes billed, but a fault kept
+    the run from training (p1-a, 2026-10-14). Cost still counts it. Recorded with its reason."""
+    run = Run.load(a.run)
+    with run.locked():
+        t0, t1 = datetime.fromisoformat(a.start).timestamp(), datetime.fromisoformat(a.end).timestamp()
+        if not t0 < t1 <= time.time():
+            raise FleetError('the stretch must be in the past, start before end')
+        rebase = run.data.get('budget_rebase')
+        if rebase and t0 < datetime.fromisoformat(rebase['at']).timestamp():
+            raise FleetError('the stretch starts before the rebase, which already excludes it')
+        for x in run.data.get('budget_exclusions', []):
+            if t0 < datetime.fromisoformat(x['to']).timestamp() and datetime.fromisoformat(x['from']).timestamp() < t1:
+                raise FleetError(f'overlaps the exclusion {x["from"]} to {x["to"]}')
+        hours = billed_between(run, t0, t1)
+        run.data.setdefault('budget_exclusions', []).append(
+            {'from': a.start, 'to': a.end, 'box_hours': round(hours, 3), 'reason': a.reason})
+        run.save()
+        run.event('budget_exclusion', start=a.start, end=a.end, excluded_box_hours=round(hours, 2),
+                  reason=repr(a.reason))
+    print(f'{run.name}: {hours:.2f} box-hours excluded; {box_hours(run):.1f} counted')
     return 0
 
 
@@ -1564,12 +1629,18 @@ def main(argv=None):
     s.add_argument('--disarm', action='store_true', help='remove it instead')
     s.add_argument('--respawn-watchdog', action='store_true',
                    help='first restart the workstation watchdog at the same deadline (to run current code)')
+    s.add_argument('--extend-hours', type=float, help='move the hard deadline later (time a fault cost the run)')
+    s.add_argument('--reason', help='why, with --extend-hours')
     p('status', cmd_status, 'run state and cost')
     s = p('sync', cmd_sync, 'push the working tree to running boxes (restart their processes to use it)')
     s.add_argument('--name', action='append')
     s.add_argument('--allow-dirty', action='store_true')
     s = p('rebase', cmd_rebase, 'restart the compute budget at a time training restarted from its init')
     s.add_argument('--at', required=True, help='ISO time, e.g. 2026-10-10T02:14:11+00:00')
+    s.add_argument('--reason', required=True)
+    s = p('exclude', cmd_exclude, 'leave a stretch a fault kept from training out of the compute budget')
+    s.add_argument('--from', dest='start', required=True, help='ISO time')
+    s.add_argument('--to', dest='end', required=True, help='ISO time')
     s.add_argument('--reason', required=True)
     s = p('ssh', cmd_ssh, 'print the ssh command for a box')
     s.add_argument('--name', required=True)
