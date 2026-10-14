@@ -3,21 +3,25 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-14 06:15 UTC)
+## Current position (2026-10-14 20:30 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
-- **`p1-a` (P1 seed 1) has trained nothing since 2026-10-13 23:47 UTC** (found 2026-10-14
-  19:30 UTC; `experiments/p1.md` → "Incident").
-  - What happened: its learner died, the replacement's checkpoint copy failed, and the health
-    check reported the never-started learner as `ok` for 19 h (`tools/fleet/fleet.py:1002`).
-  - Cost: ≈ 58 box-hours and ≈ $34 with no training.
-  - State: the training state is safe on the workstation (step 2,807,600). Its two idle actors
-    still bill ≈ $1.14/h; stopping them was blocked by the safety check.
-  - **The user's decision:** resume `p1-a` or end it, and fix the check first.
-- **The workstation rebooted at ≈ 19:00 UTC on 2026-10-14.** The watchers and watchdogs for `p0-a`
-  and `p1-b` were restarted at 19:32 UTC with the handoff's commands; both runs are healthy.
+- **`p1-a` (P1 seed 1) resumed 2026-10-14 20:22 UTC** after ≈ 20 h idle (`experiments/p1.md` →
+  "Incident"). Its learner died at 23:47 UTC on Oct 13; the replacement's checkpoint copy failed,
+  and the health check reported the never-started learner as `ok` for 19 h.
+  - **Fixed** (`9e0e989`): failed bring-ups are reported and retried, checkpoint first.
+    `fleet.py exclude` and `deadline --extend-hours` were added. The flaky setup test that
+    failed the first new learner was fixed in `5ceefe6`.
+  - **Resumed** from the workstation's mirror (step 2,807,600). The idle 59.08 box-hours are left
+    out of the budget (206.1 counted at the resume). The hard deadline moved 21 h, to **2026-10-18
+    12:23 UTC**, and `full` is expected ≈ 2026-10-17 23:00 UTC.
+  - **Spend (approved by the user, 2026-10-14):** `p1-a`'s safety stop raised to **$275** (≈ $257
+    projected). P0 + P1 come to ≈ $705, against ≈ $640 approved on 2026-10-11.
+- **The workstation rebooted at ≈ 19:00 UTC on 2026-10-14.** All three runs' watchers and
+  watchdogs are back, every watcher on the fixed code (`p0-a` and `p1-b` restarted at 19:49 UTC
+  at the user's go-ahead).
 - **Arm V stopped by its pre-registered stop rule** (2026-10-14; `experiments/v-tuning.md` →
   "Results"). The sweep's 4 measures (2026-10-13 18:01 – 2026-10-14 01:16 UTC, workstation) put
   every online checkpoint far below the CQL model it started from: e1 −0.729 u (CI entirely below
