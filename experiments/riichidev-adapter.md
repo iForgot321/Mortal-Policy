@@ -99,9 +99,16 @@ that seat as the arena masks it.
 
 1. **The validation game** (`--mode validate`): one unranked game against tsumogiri bots, and it
    activates the bot. Its log must show no failures, in particular no `event_source_mismatch`.
-   - **Ready on the eval box, 2026-10-14 06:30 UTC; waiting for the push of `main`.**
-     `deploy/riichidev_bot.py` changed after the 2026-10-12 push, so its source isn't public yet
-     (rule 9).
+   - **Passed, 2026-10-14 07:34 UTC, on the eval box** (`validation_result: passed`). Pilot A,
+     FP32, observation-fed, code `b7eecce` (pushed to the public fork first, at the user's word;
+     `riichidev_bot.py` had changed since the 2026-10-12 push).
+     - Seat 0, 1st (scores 56,300 / 23,000 / −2,300 / 23,000).
+     - 102 requests; 0 failures (no `event_source_mismatch`), 0 timeouts.
+     - Latency p50 ≈ 10 ms in every class. The maximum was 466 ms, one discard, probably the
+       first call's warm-up.
+     - The token appears 0 times in the game log, the summary and the runner's output.
+     - Log `workdir/riichidev/games/20261014-073426-validate.jsonl`, summary
+       `workdir/riichidev/summaries.jsonl` (pulled).
      - The token is in `~/.config/riichidev/token` on the workstation, and in
        `/root/.config/riichidev/token` on the box. Both are outside the repo, mode 600, with the
        same sha256.

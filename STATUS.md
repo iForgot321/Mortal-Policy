@@ -20,7 +20,9 @@ research is under way.**
 - **Eval box live** (since 2026-10-14 06:17 UTC; instance 55876675, $0.65/h, California). It
   holds the lab lease while up: lab jobs go through `evalbox.py submit`.
   - **Running:** the 100K-game illegal-action test, 20 chunks at 12 workers (≈ 21 h).
-  - **Ready:** the riichi.dev validation game, waiting for the user's word to push `main`.
+  - **The riichi.dev validation game passed** (2026-10-14 07:34 UTC; pilot A; 0 failures, 0
+    timeouts, p50 ≈ 10 ms). `main` was pushed first at the user's word (`b7eecce`). Ranked
+    play waits for the π_SL student (decided 2026-10-12).
   - The token is in `~/.config/riichidev/token`, and in `/root/.config/riichidev/token` on the
     box (outside the repo, mode 600). The box is ≈ 196 ms from `game.riichi.dev`.
 - **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
