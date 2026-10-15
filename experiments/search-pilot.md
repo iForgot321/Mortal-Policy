@@ -5,9 +5,10 @@
     cloud box;
   - the run waits for G0, which picks the blueprint ("family-A self-play of the leading arm").
     The user asked to wait until the P0 and P1 runs finish (2026-10-15);
-  - the belief stage: S-1's v1 sampler is built and tested (below), but uniform rejection can't
-    handle opponents in riichi, so the constraint-preserving swap moves (MCMC) of D38 come next;
-    then likelihood weights and the latency harness.
+  - the belief stage: S-1 particles are built and tested (below). A swap-move chain gives 64
+    valid particles at 255 of the smoke run's 256 riichi decisions, riichi opponents included.
+    Next: the opponents' action likelihoods (D38's weights), then the belief condition and the
+    latency harness.
 - **Labels:** the oracle stage is a lab-only diagnostic: never a strength result, never deployed
   (06 §0). The pilot's verdict is the recovery ratio, belief gain ÷ oracle gain.
 
@@ -128,3 +129,41 @@ until they are fixed.
     riichi hands to tenpai), then run a Metropolis chain of tile swaps between unknown slots
     whose target is uniform over consistent histories. Particles then need only the likelihood
     weights.
+
+## Belief stage: S-1 particles, swap-move chain (2026-10-15)
+
+- **Chain** (`Layout::chain_until`, D38's constraint-preserving moves):
+  - It swaps the tiles of two unseen slots, the first in an opponent's hand.
+  - A swap is rejected when it breaks a constraint: what an opponent had to hold, and by when;
+    the arena's tsumogiri rule; a riichi hand being tenpai after its riichi discard.
+  - The proposal is symmetric, so the chain's stationary distribution is uniform over the
+    histories consistent with the public events: the prior D38 asks for. Particles then carry
+    no proposal weight; only the action likelihoods will weight them.
+  - The undealt tiles of each particle are shuffled, an exact step for them.
+  - The chain starts from one v1 sample whose riichi hands are repaired to tenpai by greedy swaps
+    (the best of 32 per step). A 2,000-swap burn-in forgets the start, and there are 200 swaps
+    between particles.
+  - Each particle must still replay the seat's view. The one rule the chain doesn't model, a
+    riichi player's later ankan keeping its waits, is caught there.
+- **Fixes on the way:**
+  - The v1 sampler's look-ahead now runs an exact bipartite matching of needs to slots.
+  - Counting arguments missed two kinds competing for one slot, typically a pair cut from hand
+    over two turns. Under the arena's tsumogiri rule, the draw between the two discards can't be
+    that tile.
+- **Smoke run's 256 riichi decisions, 64 particles each:** 0.2 s in all on 16 cores.
+
+  | Opponents in riichi | Roots | Valid / drawn | Roots short of 64 |
+  |---|---|---|---|
+  | 0 | 189 | 12,096 / 12,096 | 0 |
+  | 1 | 59 | 3,718 / 3,969 | 1 (a riichi ankan of 9m) |
+  | 2 | 8 | 512 / 512 | 0 |
+
+- **The chain samples the right distribution** (`the_chain_agrees_with_importance_sampling`):
+  - The test uses 6 roots at turns 4–6, where the uniform proposal's importance weights are
+    reliable (ESS 475–1,889 of 12,000).
+  - The mean count of each tile kind in each opponent's hand agrees with the chain's over 612
+    comparisons: mean z² 1.04, max |z| 3.91.
+  - With only 50 swaps between particles it was 1.22 and 4.34: autocorrelation, so the default
+    is 200.
+  - Later in a kyoku the importance weights collapse (ESS often below 10 of 4,000), which is
+    why the chain is needed.

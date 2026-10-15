@@ -214,9 +214,15 @@ fn root_reaction_takes_discards_and_riichi_only() {
 }
 
 mod particles {
-    use super::super::belief::{root_rng, sample_root};
+    use super::super::belief::{ChainParams, root_rng, sample_root};
+
+    const PARAMS: ChainParams = ChainParams {
+        burn_in: 500,
+        thin: 20,
+        max_starts: 20,
+    };
     use super::super::particle::Layout;
-    use super::super::replay::{root_stop, visible};
+    use super::super::replay::{replay_seen_by, root_stop, visible};
     use super::*;
 
     /// Roots of every kyoku with the true board at each, a sample of them.
@@ -269,8 +275,9 @@ mod particles {
             let truth = replay(board, &events, until).unwrap();
             let seat = decision_seat(&truth).unwrap() as usize;
             let want = truth.agent_context().player_states[seat].encode_obs(4, false);
-            let belief = sample_root(&events, until, 4, 400, &mut root_rng(7, i)).unwrap();
+            let belief = sample_root(&events, until, 4, PARAMS, &mut root_rng(7, i)).unwrap();
             assert_eq!(belief.seat as usize, seat);
+            assert_eq!(belief.particles.len(), belief.drawn);
             for p in &belief.particles {
                 assert_eq!(counts(&p.board), full);
                 let got = p.state.agent_context().player_states[seat].encode_obs(4, false);
@@ -278,7 +285,7 @@ mod particles {
             }
             accepted += belief.particles.len();
         }
-        assert!(accepted > 100, "{accepted}");
+        assert!(accepted > 200, "{accepted}");
     }
 
     /// Leaks are hard failures (06 §2): the sampler gives the same particles
@@ -288,15 +295,105 @@ mod particles {
         for (i, (_, events, until)) in true_roots(13).into_iter().enumerate() {
             let seat = super::super::belief::root_seat(&events, until).unwrap();
             let seen: Vec<_> = events.iter().map(|e| visible(e, seat)).collect();
-            let a = sample_root(&events, until, 2, 100, &mut root_rng(3, i)).unwrap();
-            let b = sample_root(&seen, until, 2, 100, &mut root_rng(3, i)).unwrap();
-            assert_eq!(a.tries, b.tries);
+            let a = sample_root(&events, until, 2, PARAMS, &mut root_rng(3, i)).unwrap();
+            let b = sample_root(&seen, until, 2, PARAMS, &mut root_rng(3, i)).unwrap();
+            assert_eq!(a.particles.len(), b.particles.len());
             for (x, y) in a.particles.iter().zip(&b.particles) {
-                assert_eq!(counts(&x.board), counts(&y.board));
                 assert_eq!(x.board.haipai, y.board.haipai);
                 assert_eq!(x.board.yama, y.board.yama);
-                assert!((x.log_w - y.log_w).abs() < 1e-12);
+                assert_eq!(x.board.ura_indicators, y.board.ura_indicators);
             }
         }
+    }
+
+    /// Weighted mean and squared standard error of the count of each tile
+    /// kind in each seat's concealed hand at the root. `n_eff` is the
+    /// sample size the error assumes: the ESS for importance weights.
+    fn hand_stats(states: &[(BoardState, f64)]) -> [[(f64, f64); 34]; 4] {
+        let lw: Vec<f64> = states.iter().map(|&(_, w)| w).collect();
+        let n_eff = ess(&lw);
+        let max = lw.iter().copied().fold(f64::MIN, f64::max);
+        let total: f64 = lw.iter().map(|w| (w - max).exp()).sum();
+        let mut out = [[(0., 0.); 34]; 4];
+        for (s, row) in out.iter_mut().enumerate() {
+            for (k, cell) in row.iter_mut().enumerate() {
+                let (mut m, mut m2) = (0., 0.);
+                for (state, w) in states {
+                    let w = (w - max).exp() / total;
+                    let x = f64::from(state.agent_context().player_states[s].tehai()[k]);
+                    m += w * x;
+                    m2 += w * x * x;
+                }
+                *cell = (m, (m2 - m * m).max(0.) / n_eff);
+            }
+        }
+        out
+    }
+
+    fn ess(log_w: &[f64]) -> f64 {
+        let max = log_w.iter().copied().fold(f64::MIN, f64::max);
+        let w: Vec<f64> = log_w.iter().map(|x| (x - max).exp()).collect();
+        let (s, s2): (f64, f64) = (w.iter().sum(), w.iter().map(|x| x * x).sum());
+        s * s / s2
+    }
+
+    /// The chain's stationary distribution is the uniform prior over
+    /// consistent histories. Early in a kyoku the uniform proposal's
+    /// importance weights are reliable, and the two must agree on what each
+    /// opponent holds: every difference within its standard error.
+    #[test]
+    fn the_chain_agrees_with_importance_sampling() {
+        let (mut z2, mut n, mut worst) = (0., 0, 0_f64);
+        let mut roots_used = 0;
+        for (i, (_, events, until)) in true_roots(1).into_iter().enumerate() {
+            let turn = events[..until]
+                .iter()
+                .filter(|e| matches!(e, Event::Tsumo { .. }))
+                .count();
+            if !(4..=6).contains(&turn) || i % 3 != 0 || roots_used == 6 {
+                continue;
+            }
+            let seat = super::super::belief::root_seat(&events, until).unwrap();
+            let seen: Vec<_> = events.iter().map(|e| visible(e, seat)).collect();
+            let layout = Layout::new(&seen[..root_stop(&seen, until)], seat).unwrap();
+            let replay_ok = |b: Board| replay_seen_by(b, &seen, until, seat).ok();
+
+            let mut rng = root_rng(11, i);
+            let sis: Vec<_> = (0..12_000)
+                .filter_map(|_| layout.sample(&mut rng).ok())
+                .filter_map(|(b, lw)| replay_ok(b).map(|st| (st, lw)))
+                .collect();
+            let lw: Vec<f64> = sis.iter().map(|&(_, w)| w).collect();
+            if ess(&lw) < 400. {
+                continue;
+            }
+            let chain: Vec<_> = layout
+                .chain(3000, 2000, 200, 20, &mut rng)
+                .unwrap()
+                .into_iter()
+                .filter_map(|b| replay_ok(b).map(|st| (st, 0.)))
+                .collect();
+            let (a, b) = (hand_stats(&sis), hand_stats(&chain));
+            for s in (0..4).filter(|&s| s != seat as usize) {
+                for k in 0..34 {
+                    let ((ma, va), (mb, vb)) = (a[s][k], b[s][k]);
+                    if va + vb > 0. {
+                        let z = (ma - mb) / (va + vb).sqrt();
+                        z2 += z * z;
+                        n += 1;
+                        worst = worst.max(z.abs());
+                    }
+                }
+            }
+            roots_used += 1;
+            eprintln!("root {i}: turn {turn}, ESS {:.0}", ess(&lw));
+        }
+        let mean_z2 = z2 / f64::from(n);
+        eprintln!("{roots_used} roots, {n} comparisons: mean z² {mean_z2:.2}, max |z| {worst:.2}");
+        assert!(roots_used >= 3, "{roots_used}");
+        assert!(
+            mean_z2 < 1.5 && worst < 5.,
+            "mean z² {mean_z2}, max |z| {worst}"
+        );
     }
 }

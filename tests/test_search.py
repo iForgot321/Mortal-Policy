@@ -12,7 +12,7 @@ sys.path.insert(0, ROOT)
 
 from conftest import make_engine  # noqa: E402
 from lab.arena import ShantenGreedyEngine  # noqa: E402
-from libriichi.search import rollouts, root_observations, self_play  # noqa: E402
+from libriichi.search import Beliefs, rollouts, root_observations, self_play  # noqa: E402
 from search.value import GRP_STATE_FILE, GrpValue, next_kyoku, start_row  # noqa: E402
 
 KEY = 0x5ea7c4
@@ -157,6 +157,36 @@ def test_calls_and_kans_replay_and_reproduce(tmp_path):
     assert sum(same) >= 0.95 * len(same)
     for out in outs[1::2]:
         assert json.loads(out.log[-1])['type'] == 'end_kyoku'
+        assert sum(out.scores) + 1000 * out.kyotaku_left == 100_000
+
+
+def test_beliefs_sample_the_seats_view_and_roll_out(greedy_games):
+    """Particles come from the deciding seat's view only: the same particles from the full log
+    and from the log with the other hands and draws hidden. Each rolls out to the end."""
+    paths, _ = greedy_games
+    seed, kys = kyokus(paths[0])
+    pairs = roots_of(seed, kys[0])[4:7]
+
+    def hide(lines, seat):
+        out = []
+        for line in lines:
+            ev = json.loads(line)
+            if ev['type'] == 'start_kyoku':
+                ev['tehais'] = [h if s == seat else ['?'] * 13 for s, h in enumerate(ev['tehais'])]
+            elif ev['type'] == 'tsumo' and ev['actor'] != seat:
+                ev['pai'] = '?'
+            out.append(json.dumps(ev))
+        return out
+
+    seats = [json.loads(lines[i])['actor'] for (_, lines, i), _ in pairs]
+    full = Beliefs([(lines, i) for (_, lines, i), _ in pairs], 8, seed=1)
+    seen = Beliefs([(hide(lines, s), i) for ((_, lines, i), _), s in zip(pairs, seats)], 8, seed=1)
+    assert full.seats() == seats == seen.seats()
+    assert full.counts() == [(8, 8)] * len(pairs)
+    for r in range(len(pairs)):
+        assert all(full.tiles(r, p) == seen.tiles(r, p) for p in range(8))
+    jobs = [(r, p, a) for r, (_, a) in enumerate(pairs) for p in range(8)]
+    for out in full.rollouts(ShantenGreedyEngine(), jobs):
         assert sum(out.scores) + 1000 * out.kyotaku_left == 100_000
 
 

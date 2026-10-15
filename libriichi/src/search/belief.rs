@@ -22,15 +22,23 @@ pub struct Particle {
     pub board: Board,
     /// Replayed to the root.
     pub state: BoardState,
-    /// Log importance weight of the uniform proposal (`Layout::sample`).
-    pub log_w: f64,
 }
 
 pub struct RootBelief {
     pub seat: u8,
     pub particles: Vec<Particle>,
-    /// Samples drawn, accepted or not.
-    pub tries: usize,
+    /// Particles the chain gave, valid or not.
+    pub drawn: usize,
+    /// Why particles failed, or why the chain couldn't start: the first few.
+    pub errors: Vec<String>,
+}
+
+/// How the chain runs (`Layout::chain`).
+#[derive(Clone, Copy)]
+pub struct ChainParams {
+    pub burn_in: usize,
+    pub thin: usize,
+    pub max_starts: usize,
 }
 
 /// The seat that decides at `events[until]`.
@@ -41,38 +49,52 @@ pub fn root_seat(events: &[Event], until: usize) -> Result<u8> {
     }
 }
 
-/// Up to `n` particles that replay the deciding seat's view to the root,
-/// from at most `max_tries` samples.
+/// `n` particles from the deciding seat's view, keeping those that replay
+/// it to the root. A root whose chain can't start gets none.
 pub fn sample_root(
     events: &[Event],
     until: usize,
     n: usize,
-    max_tries: usize,
+    params: ChainParams,
     rng: &mut ChaCha12Rng,
 ) -> Result<RootBelief> {
     let seat = root_seat(events, until)?;
     let seen: Vec<Event> = events.iter().map(|e| visible(e, seat)).collect();
     let layout = Layout::new(&seen[..root_stop(&seen, until)], seat)?;
+    let mut errors = vec![];
     let mut particles = Vec::with_capacity(n);
-    let mut tries = 0;
-    while particles.len() < n && tries < max_tries {
-        tries += 1;
-        // a dead end (no tile fits a slot) counts as a rejection
-        let Ok((board, log_w)) = layout.sample(rng) else {
-            continue;
-        };
-        if let Ok(state) = replay_seen_by(board.clone(), &seen, until, seat) {
-            particles.push(Particle {
-                board,
-                state,
-                log_w,
-            });
-        }
-    }
+    // a riichi player's later ankan must keep its waits, which only the
+    // replay checks: draw up to 4n to make up for those
+    let drawn = layout
+        .chain_until(
+            n,
+            4 * n,
+            params.burn_in,
+            params.thin,
+            params.max_starts,
+            rng,
+            |board| match replay_seen_by(board.clone(), &seen, until, seat) {
+                Ok(state) => {
+                    particles.push(Particle { board, state });
+                    true
+                }
+                Err(e) => {
+                    if errors.len() < 4 {
+                        errors.push(format!("{e:#}"));
+                    }
+                    false
+                }
+            },
+        )
+        .unwrap_or_else(|e| {
+            errors.push(format!("{e:#}"));
+            0
+        });
     Ok(RootBelief {
         seat,
         particles,
-        tries,
+        drawn,
+        errors,
     })
 }
 
@@ -90,21 +112,28 @@ pub struct Beliefs {
 #[pymethods]
 impl Beliefs {
     #[new]
-    #[pyo3(signature = (roots, n, *, seed, max_tries))]
+    #[pyo3(signature = (roots, n, *, seed, burn_in = 2000, thin = 200, max_starts = 20))]
     fn new(
         roots: Vec<BeliefRoot>,
         n: usize,
         seed: u64,
-        max_tries: usize,
+        burn_in: usize,
+        thin: usize,
+        max_starts: usize,
         py: Python<'_>,
     ) -> Result<Self> {
+        let params = ChainParams {
+            burn_in,
+            thin,
+            max_starts,
+        };
         let roots = py.allow_threads(move || {
             roots
                 .par_iter()
                 .enumerate()
                 .map(|(i, (lines, until))| {
                     let events = parse(lines)?;
-                    sample_root(&events, *until, n, max_tries, &mut root_rng(seed, i))
+                    sample_root(&events, *until, n, params, &mut root_rng(seed, i))
                         .with_context(|| format!("root {i} (decision at event {until})"))
                 })
                 .collect::<Result<Vec<_>>>()
@@ -113,23 +142,20 @@ impl Beliefs {
     }
 
     /// The deciding seat of each root.
-    fn seats(&self) -> Vec<u8> {
-        self.roots.iter().map(|r| r.seat).collect()
+    fn seats(&self) -> Vec<usize> {
+        self.roots.iter().map(|r| r.seat as usize).collect()
     }
 
-    /// `(accepted, tries)` per root.
+    /// Per root, why particles failed or the chain couldn't start.
+    fn errors(&self) -> Vec<Vec<String>> {
+        self.roots.iter().map(|r| r.errors.clone()).collect()
+    }
+
+    /// `(valid, drawn)` particles per root.
     fn counts(&self) -> Vec<(usize, usize)> {
         self.roots
             .iter()
-            .map(|r| (r.particles.len(), r.tries))
-            .collect()
-    }
-
-    /// The proposal's log importance weights, per root and particle.
-    fn log_weights(&self) -> Vec<Vec<f64>> {
-        self.roots
-            .iter()
-            .map(|r| r.particles.iter().map(|p| p.log_w).collect())
+            .map(|r| (r.particles.len(), r.drawn))
             .collect()
     }
 
