@@ -83,15 +83,29 @@ def runner():
             time.sleep(POLL_S)
             continue
         job = min(pending, key=lambda p: p[:2])[2]
-        module = job.get('module', 'lab')
-        st = {'status': 'running', 'started': now(), 'args': job['args']}
-        write_state(job['id'], st)
-        print(f'{now()} {job["id"]}: {module} {" ".join(job["args"])}', flush=True)
-        with open(os.path.join(Q, f'{job["id"]}.log'), 'ab') as log:
-            rc = subprocess.run([job.get('python', sys.executable), '-u', '-m', module, *job['args']], cwd=ROOT,
-                                stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT).returncode
-        write_state(job['id'], {**st, 'status': 'done' if rc == 0 else 'failed', 'exit': rc, 'ended': now()})
-        print(f'{now()} {job["id"]}: exit {rc}', flush=True)
+        print(f'{now()} {job["id"]}: {job.get("module", "lab")} {" ".join(job["args"])}', flush=True)
+        st = run_job(job)
+        print(f'{now()} {job["id"]}: exit {st.get("exit")}{" (" + st["note"] + ")" if "note" in st else ""}',
+              flush=True)
+
+
+def run_job(job):
+    """Run one job to its end and record its state. A job that can't start (e.g. its interpreter is
+    missing) fails with a note instead of killing the runner, which would stall the queue."""
+    st = {'status': 'running', 'started': now(), 'args': job['args']}
+    write_state(job['id'], st)
+    with open(os.path.join(Q, f'{job["id"]}.log'), 'ab') as log:
+        try:
+            rc = subprocess.run([job.get('python', sys.executable), '-u', '-m', job.get('module', 'lab'),
+                                 *job['args']], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log,
+                                stderr=subprocess.STDOUT).returncode
+        except OSError as e:
+            st = {**st, 'status': 'failed', 'exit': None, 'note': f'did not start: {e}', 'ended': now()}
+            write_state(job['id'], st)
+            return st
+    st = {**st, 'status': 'done' if rc == 0 else 'failed', 'exit': rc, 'ended': now()}
+    write_state(job['id'], st)
+    return st
 
 
 def status(as_json):

@@ -41,6 +41,7 @@ REGISTRY = F.REPO / 'lab' / 'registry'
 LEDGERS = ('runs.jsonl', 'nonces.jsonl')
 QDIR = 'workdir/labq'
 RIICHIDEV_PY = '/workspace/venvs/riichidev/bin/python'  # riichienv on top of the image's Python
+RIICHIDEV_PKGS = ('riichienv==0.4.10', 'websockets==17.2')  # as deploy/__init__.py
 LAB_COMMANDS = ('measure', 'run', 'confirm', 'aa')
 ENGINE_FLAGS = ('--challenger', '--champion', '--model')
 
@@ -239,11 +240,26 @@ def cmd_submit(a):
                'args': args, 'submitted': F.now_iso(), 'commit': box['commit'], 'priority': a.priority}
         if a.module != 'lab':
             job.update(module=a.module, python=a.python or RIICHIDEV_PY)
+            ensure_python(run, box, job['python'])
         b64 = base64.b64encode((json.dumps(job) + '\n').encode()).decode()
         F.remote(run, box, f'mkdir -p {QDIR}\necho {b64} | base64 -d >> {QDIR}/queue.jsonl\n')
         run.event('submitted', NAME, job=job['id'], args=repr(' '.join(args)))
         print(ensure_runner(run, box))
     return 0
+
+
+def ensure_python(run, box, python):
+    """A job's interpreter must exist on the box, or the job can't start. The riichidev venv is built
+    on first use (deploy/__init__.py's recipe); any other interpreter is the caller's to provide."""
+    if F.remote(run, box, f'test -x {python} && echo ok || true\n').stdout.strip() == 'ok':
+        return
+    if python != RIICHIDEV_PY:
+        raise F.FleetError(f'{python}: no such interpreter on the box')
+    venv = python.rsplit('/bin/', 1)[0]
+    run.log(f'building the riichidev venv at {venv}', NAME)
+    F.remote(run, box, f'set -e\n{F.BOX_PY} -m venv --system-site-packages {venv}\n'
+                       f'{python} -m pip install -q {" ".join(RIICHIDEV_PKGS)}\n'
+                       f'cd {F.BOX_ROOT} && {python} -c "import riichienv, websockets, deploy"\n', timeout=900)
 
 
 def cmd_status(a):

@@ -2,6 +2,7 @@
 needs, and the lab lease. The box side runs only on a rented box (tools/fleet/README.md)."""
 import importlib.util
 import os
+import sys
 
 import pytest
 
@@ -11,6 +12,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location('evalbox', os.path.join(ROOT, 'tools', 'fleet', 'evalbox.py'))
 evalbox = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evalbox)
+spec = importlib.util.spec_from_file_location('labq', os.path.join(ROOT, 'tools', 'fleet', 'labq.py'))
+labq = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(labq)
 
 
 def write(d, name, text):
@@ -59,3 +63,14 @@ def test_lease_blocks_only_the_real_ledger(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match='eval box'):
         registry.allocate_nonces('B', 10, 'r2', 'x', path=real)
     registry.allocate_nonces('B', 10, 'r3', 'x', path=str(tmp_path / 'other.jsonl'))
+
+
+def test_a_job_that_cannot_start_fails_without_killing_the_runner(tmp_path, monkeypatch):
+    """A missing interpreter once killed the runner and stalled the queue for hours (2026-10-15)."""
+    monkeypatch.setattr(labq, 'Q', str(tmp_path))
+    job = {'id': 'j1', 'args': ['--x'], 'module': 'deploy.riichidev_parity', 'python': '/no/such/python'}
+    st = labq.run_job(job)
+    assert st['status'] == 'failed' and st['exit'] is None and 'did not start' in st['note']
+    assert labq.state('j1') == st
+    ok = labq.run_job({'id': 'j2', 'args': ['-c', 'pass'], 'module': 'json.tool', 'python': sys.executable})
+    assert ok['status'] in ('done', 'failed') and labq.state('j2')['exit'] == ok['exit']
