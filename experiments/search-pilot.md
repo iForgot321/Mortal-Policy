@@ -43,10 +43,10 @@
     - an open kan's dora is logged before the discard that reveals it;
     - a riichi's acceptance is logged before a call on the riichi discard.
 
-## Design as built (to confirm before the run)
+## Design as built (the user confirmed 1 and 6, D58)
 
-These fill in what 06 §0 leaves open. Each is a choice, not a fact, and the run should not start
-until they are fixed.
+These fill in what 06 §0 leaves open. The user fixed the oracle's knowledge (1) and the primary
+rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
 
 1. **What the oracle knows.** The opponents' hands and every past draw are the true ones; the
    undealt tiles are dealt again for each rollout.

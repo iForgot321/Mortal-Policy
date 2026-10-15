@@ -597,6 +597,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - Otherwise, V's online step is viable for ≈ 60K steps. V's runs are ≈ 70× longer and need their own approval. Because of the replay's slow drifts, each `p25`/`p50` snapshot would also get a `v_qgaps.py` check.
 - **Reopen if:** the online checkpoint's gap structure departs from the replay's direction, collapsing (median gap < 0.5 u) or freezing (off-argmax at τ 0.05 < 0.5%). Then the replay doesn't predict online training, and the weight is re-chosen online.
 
+**D58 (2026-10-15): the search pilot's oracle, primary rule and belief proposal.** Fills in what `06` §0 left open and amends S-1's v1 proposal (D38). Decided by the user.
+- **The oracle knows the opponents' true hands and every past draw; the undealt tiles are dealt again for each rollout.**
+  - Why: the wall's order is chance that no inference can recover. An oracle that knew it would know the evaluation's own outcome, ura indicators included, so the recovery ratio would measure clairvoyance, not belief quality.
+  - The true-wall bound is still reported (`clairvoyant_gain`).
+- **The primary decision rule is the plain one:** switch away from the policy's choice when the paired z of the rollouts' estimated gain exceeds 2. It has no free scale. The regularized rule (λ = 0.05 and 0.1 u) and z > 0 are reported as secondary.
+- **The belief's proposal is a learned model of the opponents' concealed hands**, the learned proposal D38 allows.
+  - Why: D38's uniform proposal, reweighted by the blueprint's action likelihoods, is worse than a constant base rate at predicting an opponent's tenpai (`experiments/search-pilot.md`). Uniform hands are almost never structured like real ones (0.5% of particle opponents are tenpai against 17.6%), and 64 reweighted particles can't reach the posterior.
+  - The model is trained on blueprint self-play, where the truth is known, with an exact density (autoregressive over tile kinds). Sampled hands are completed into consistent histories by the existing chain.
+  - Its test is calibration on held-out self-play (06 §2's tenpai and wait-set measures). The action-likelihood correction is kept only if it improves that calibration.
+  - A full-history likelihood also scores *when* each tile arrived, which a hand model leaves uniform, so the correction may collapse again. Rollouts need only the current hands and the wall.
+- **Reopen if:** the learned belief fails calibration (worse than the base rate on tenpai), or recovery fails with a calibrated belief. That would be `06` §0's "oracle passes, belief fails" branch.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

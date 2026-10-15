@@ -30,7 +30,7 @@ riichi.dev allows **3 s per action plus a 15 s bank per kyoku on your own GPU**,
 | # | Condition | What it measures | Use |
 |---|---|---|---|
 | 1 | **Policy only** | Baseline | — |
-| 2 | **Oracle search**: S-3 with the *true* hidden state, taken from the trusted arena seed | Whether action evaluation and continuations are useful once hidden-state inference is removed as a source of error | **Lab-only diagnostic.** Isolated from deployment code paths; never cited as a strength result |
+| 2 | **Oracle search**: S-3 with the *true* hidden state, taken from the trusted arena seed: the opponents' hands and past draws, with the undealt tiles dealt again per rollout (D58) | Whether action evaluation and continuations are useful once hidden-state inference is removed as a source of error | **Lab-only diagnostic.** Isolated from deployment code paths; never cited as a strength result |
 | 3 | **Belief search**: S-3 with uniform-proposal particles (§2) | The deployable version | Pilot verdict |
 
 **Metric:** recovery ratio = (belief gain) ÷ (oracle gain), where gain = class-restricted paired GRP-Δu against the policy (common worlds, paired standard error).
@@ -98,7 +98,7 @@ w ∝ prior(trajectory) × Π_opponent-actions π_blueprint(action | opponent's 
       / proposal(trajectory | public history)
 ```
 
-- **v1 proposal = uniform** over consistent deals and draws. Rejection-sample from the unseen-tile multiset, subject to the constraints. With a uniform proposal and a uniform prior, the weight is the likelihood alone.
+- **v1 proposal = uniform** over consistent deals and draws. **Superseded for the pilot by D58:** the uniform proposal's belief is worse than a base rate, so the proposal is a learned hand model. Rejection-sample from the unseen-tile multiset, subject to the constraints. With a uniform proposal and a uniform prior, the weight is the likelihood alone.
 - **A learned proposal** (LBS-style) is allowed **only** once a *joint* sampler with a computable density exists. For example, an autoregressive model over hands and draw slots, with the D38 correction. The summary heads (tenpai, waits, value) alone are **not** a joint sampler.
 
 **Maintenance:**
