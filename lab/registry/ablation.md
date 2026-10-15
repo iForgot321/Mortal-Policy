@@ -23,3 +23,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261013-124951-measure | exploratory | V tuning sweep: v-tune-e0-ext vs CQL model A | measure | A [23000, +10000) | 10000 | -0.8740 | [-0.8807, -0.8675] |  | measured | +1.0901 | -89.04 | yes | 2d348870+dirty |
 | 20261013-143617-measure | exploratory | V tuning sweep: v-tune-e2 vs CQL model A | measure | A [23000, +10000) | 10000 | -0.9216 | [-0.9277, -0.9155] |  | measured | +1.1491 | -93.75 | yes | 2d348870+dirty |
 | 20261013-162554-measure | exploratory | V tuning sweep: v-tune-e1-lr vs CQL model A | measure | A [23000, +10000) | 10000 | -1.1683 | [-1.1721, -1.1645] |  | measured | +1.3868 | -120.34 | yes | 2d348870+dirty |
+| 20261014-234559-measure | exploratory | p0-a p50 vs pilot A (halfway check) | measure | A [33000, +10000) | 10000 | -0.0334 | [-0.0410, -0.0257] |  | measured | +0.0454 | -3.44 | yes | 1645b88f+dirty |
