@@ -164,7 +164,7 @@ def free_port():
 
 def test_online_learner_loop(tmp_path, arena_run, dataloader):
     """server.py + train_value.py online on tiny nets (CPU): drains submitted 1v3 logs,
-    trains on the trainee's seat without CQL, submits parameters and saves."""
+    trains on the trainee's seat with the online CQL weight (D57), submits parameters and saves."""
     import subprocess
     import time
     from common import send_msg, recv_msg
@@ -211,6 +211,8 @@ peak = 2e-5
 final = 2e-5
 warm_up_steps = 0
 max_steps = 0
+[online]
+min_q_weight = 0.03
 [online.remote]
 host = '127.0.0.1'
 port = {port}
@@ -254,6 +256,7 @@ num_layers = 2
         text = (w / 'trainer.log').read_text()
         assert trainer.poll() is None, text[-2000:]
         assert 'drained 8 logs' in text, text[-2000:]
+        assert 'min_q_weight: 0.03' in text, text[-2000:]
         assert 'total steps: 104' in text, text[-2000:]
         # the trainer logs a save interval's line just before it writes the checkpoint (atomically):
         # a slow box read step 100 here (p1-a's replacement learner, 2026-10-14)

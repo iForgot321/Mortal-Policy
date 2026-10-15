@@ -8,8 +8,8 @@ in one AdamW, Q target = the decision's kyoku GRP-Δu (MC, γ = 1), loss
   over `dataset.file_index`, with the Q6/Q8 masks;
 - online (`control.online = true`, `control.head = 'value'`): drains the
   trainee's 1v3 logs from server.py (actors run engine.ValueEngine) and trains
-  on them without the CQL term, as Equim did; submits parameters every
-  `submit_every` steps.
+  on them with the CQL term at `online.min_q_weight` (default 0, as Equim did;
+  D57); submits parameters every `submit_every` steps.
 Changed, as in the pilot quick students (`train_offline_phase1.py`) and P0:
 - rewards in fixed u units, never standardized (05 §3.2, D37);
 - GroupNorm, `control.seed`, fp16 obs storage, atomic checkpoints;
@@ -53,8 +53,10 @@ def train():
     opt_step_every = config['control']['opt_step_every']
     save_every = config['control']['save_every']
     submit_every = config['control'].get('submit_every', save_every)
-    # Equim's online mode drops the CQL term; it is still logged
-    min_q_weight = 0 if online else config['cql']['min_q_weight']
+    # Equim's online mode drops the CQL term (still logged). Without it the Q function collapses
+    # on the trainee's own greedy play (experiments/v-tuning.md), so D57 keeps a small weight
+    min_q_weight = (config['online'].get('min_q_weight', 0) if online
+                    else config['cql']['min_q_weight'])
     next_rank_weight = config['aux']['next_rank_weight']
     assert save_every % opt_step_every == 0
 
@@ -94,6 +96,7 @@ def train():
             m.compile()
 
     logging.info(f'version: {version}')
+    logging.info(f'min_q_weight: {min_q_weight}')
     logging.info(f'obs shape: {obs_shape(version)}')
     logging.info(f'mortal params: {parameter_count(mortal):,}')
     logging.info(f'dqn params: {parameter_count(dqn):,}')

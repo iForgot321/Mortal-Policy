@@ -581,6 +581,22 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Reopen if:** the rerun fails too. Then V keeps 2e-5, and any further rerun is the user's call.
 - **Added the same day (the user): e0 is extended to e1's step count.** e0 ended at 36,800 online steps, against e1's 59,600, after its learner was lost on Vast. It continues from its final checkpoint (the optimizer state is restored) to step 215,600, in run `v-tune-e0-ext`, ≈ 1 h on 3 boxes, ≈ $1.5. The sweep then comes to ≈ $16.4 and ≈ 34.5 box-hours. All three comparisons are then with e1's final. That's simpler, and fairer between e0 and e2.
 
+**D57 (2026-10-15): arm V's online step keeps the CQL term, at weight 0.03, and one 2 h online run from CQL model A tests it before any V run.** Amends `05` §2.1's V row ("online value learning (no CQL)"). Decided by the user.
+- **Why** (`experiments/v-tuning.md` → "Results" and the replay sections):
+  - The sweep's four online runs had no CQL term. All lost to A, by 0.73–1.17 u, and their Q functions collapsed.
+  - The replay test reproduces the collapse with weight 0. At the offline weight (5), the policy freezes instead.
+  - Over 60K replay steps, 0.03 drifts the least both ways. 0.01 trades a smaller median-gap drift for faster-closing near-ties. Cal-QL, as written, inflates the taken action.
+- **What changes:**
+  - `train_value.py` reads `online.min_q_weight`. The default is 0, so earlier configs are unchanged.
+  - `experiments/configs/v-cql03.toml` is `v-tune-e1.toml` plus the weight.
+- **The test:**
+  - Run `v-cql03` on 3 boxes under a 2 h hard deadline, as the sweep. ≈ $3, approved by the user on 2026-10-15.
+  - It is measured against A on the sweep's block (10,000 sets, family A), so it compares directly with `e1` (−0.729 u). `v_qgaps.py` checks its gap structure.
+- **Reading, fixed before the run:**
+  - If the 95% CI is entirely below 0, the term doesn't rescue online V at this length. V stays stopped, and the next design (offline batches mixed in, or a push-down-only term) is the user's choice.
+  - Otherwise, V's online step is viable for ≈ 60K steps. V's runs are ≈ 70× longer and need their own approval. Because of the replay's slow drifts, each `p25`/`p50` snapshot would also get a `v_qgaps.py` check.
+- **Reopen if:** the online checkpoint's gap structure departs from the replay's direction, collapsing (median gap < 0.5 u) or freezing (off-argmax at τ 0.05 < 0.5%). Then the replay doesn't predict online training, and the weight is re-chosen online.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

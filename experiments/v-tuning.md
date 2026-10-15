@@ -546,6 +546,29 @@ gap −0.007 / −0.013, off-argmax +0.0031 / +0.0015, argmax = A −0.0019 / �
 3. Measured against A on the workstation as in the sweep, together with `v_qgaps.py` for the
    gap structure.
 
+### Online test at CQL 0.03 (D57; approved by the user 2026-10-15)
+
+- **Run `v-cql03`.** Config `experiments/configs/v-cql03.toml`: e1's settings with
+  `online.min_q_weight = 0.03` (`train_value.py` reads it; the default 0 leaves earlier configs
+  unchanged). From frozen A, 3 boxes, 2 h hard deadline, a watcher with `--replace` and a $5
+  safety stop, as the sweep.
+
+  ```bash
+  python3 tools/fleet/fleet.py up --run v-cql03 --config experiments/configs/v-cql03.toml \
+      --init workdir/cql/qs-a/cql-qs-a-final.pth --hard-hours 2 \
+      --set dataset.num_workers=4 --set control.num_threads=8 --yes
+  setsid -f python3 tools/fleet/fleet.py watch --run v-cql03 --replace --max-dollars 5 \
+      > workdir/fleet/runs/v-cql03/watch.out 2>&1 < /dev/null
+  ```
+
+- **Measured** on the workstation after the queued halfway measures of P0 and P1: the sweep's
+  command and block, against A, with 10,000 sets on family A and the `v-tune` block. Then
+  `v_qgaps.py` on the final checkpoint.
+- **Reading** (D57, fixed before the run):
+  - a 95% CI entirely below 0: the term doesn't rescue online V at this length;
+  - otherwise, viable for ≈ 60K steps, with V's runs needing their own approval;
+  - compared directly with e1's −0.729 u, the same settings without the term.
+
 ## Timeline
 
 | When (UTC) | What |
