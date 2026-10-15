@@ -690,6 +690,167 @@ impl Layout {
     }
 }
 
+impl Layout {
+    /// A latent history whose concealed hands at the root are `hands`
+    /// (counts by tile id, red fives apart; the deciding seat's own is
+    /// ignored). Each opponent's open entries get its hand and the tiles it
+    /// must have held: a bipartite matching meets every need in time and
+    /// keeps excluded draws clear, then `shuffle` swaps within each
+    /// opponent's entries spread the arrangement. A riichi hand must be
+    /// tenpai, or there is no such history. The undealt slots get the rest
+    /// of the tiles in random order. The board still has to replay the seat's
+    /// view (`replay_seen_by`).
+    pub fn complete(
+        &self,
+        hands: &[[u8; KINDS]; 4],
+        shuffle: usize,
+        rng: &mut impl Rng,
+    ) -> Result<Board> {
+        let open = Open::new(self);
+        let mut pool = full_counts();
+        let mut take = |kind: usize, what: &str| -> Result<()> {
+            ensure!(
+                pool[kind] > 0,
+                "more {} than exist ({what})",
+                must_tile!(kind)
+            );
+            pool[kind] -= 1;
+            Ok(())
+        };
+        for &(_, t) in &self.known {
+            take(t.as_usize(), "seen")?;
+        }
+        let mut tiles = vec![Tile::default(); open.slots.len()];
+        for s in (0..4).filter(|&s| s != self.seat as usize) {
+            let slots: Vec<(usize, usize)> = open.entries[s]
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &e)| match e {
+                    Entry::Open(u) => Some((i, u)),
+                    Entry::Seen(_) => None,
+                })
+                .collect();
+            // what goes in them: the needs, then the hand (no deadline)
+            let mut items: Vec<Need> = self.needs[s].clone();
+            for (kind, &n) in hands[s].iter().enumerate() {
+                items.extend((0..n).map(|_| Need {
+                    kind: kind as u8,
+                    bound: usize::MAX,
+                }));
+            }
+            ensure!(
+                items.len() == slots.len(),
+                "seat {s}: {} tiles for {} open entries",
+                items.len(),
+                slots.len(),
+            );
+            for item in &items {
+                take(item.kind as usize, "a hand or a need")?;
+            }
+            items.shuffle(rng);
+            let holder = match_items(&items, &slots, &open.not)
+                .with_context(|| format!("seat {s}: the hand doesn't fit its history"))?;
+            for (k, &(_, u)) in slots.iter().enumerate() {
+                tiles[u] = must_tile!(items[holder[k]].kind);
+            }
+        }
+        for s in (0..4).filter(|&s| s != self.seat as usize) {
+            ensure!(
+                open.riichi_shanten(s, &tiles) <= 0,
+                "seat {s}'s hand isn't tenpai at its riichi",
+            );
+        }
+
+        // spread each opponent's arrangement, keeping it consistent
+        let hand_slots: Vec<Vec<usize>> = (0..4)
+            .map(|s| {
+                open.entries[s]
+                    .iter()
+                    .filter_map(|&e| match e {
+                        Entry::Open(u) => Some(u),
+                        Entry::Seen(_) => None,
+                    })
+                    .collect()
+            })
+            .collect();
+        for _ in 0..shuffle {
+            let s = open.owner[rng.random_range(0..open.in_hands)];
+            let us = &hand_slots[s];
+            let (u, v) = (
+                us[rng.random_range(0..us.len())],
+                us[rng.random_range(0..us.len())],
+            );
+            if tiles[u] == tiles[v] {
+                continue;
+            }
+            tiles.swap(u, v);
+            if !(open.fits(s, &tiles) && open.riichi_shanten(s, &tiles) <= 0) {
+                tiles.swap(u, v);
+            }
+        }
+
+        let mut rest: Vec<Tile> = (0..KINDS)
+            .flat_map(|k| std::iter::repeat_n(must_tile!(k), pool[k] as usize))
+            .collect();
+        ensure!(
+            rest.len() == open.slots.len() - open.in_hands,
+            "{} tiles left for {} undealt slots",
+            rest.len(),
+            open.slots.len() - open.in_hands,
+        );
+        rest.shuffle(rng);
+        tiles[open.in_hands..].copy_from_slice(&rest);
+        Ok(open.board(&tiles))
+    }
+}
+
+/// A bipartite matching of `items` to open entries `slots` (`(entry index,
+/// open slot)`, in time order): item `n` can go to an entry below its bound
+/// whose slot doesn't exclude its kind. Returns, per slot, the item in it.
+fn match_items(
+    items: &[Need],
+    slots: &[(usize, usize)],
+    not: &[Option<Tile>],
+) -> Result<Vec<usize>> {
+    fn augment(
+        n: usize,
+        items: &[Need],
+        slots: &[(usize, usize)],
+        not: &[Option<Tile>],
+        holder: &mut [usize],
+        seen: &mut [bool],
+    ) -> bool {
+        let need = items[n];
+        for (k, &(i, u)) in slots.iter().enumerate() {
+            if i >= need.bound {
+                break;
+            }
+            if seen[k] || not[u].is_some_and(|t| t.as_u8() == need.kind) {
+                continue;
+            }
+            seen[k] = true;
+            if holder[k] == usize::MAX || augment(holder[k], items, slots, not, holder, seen) {
+                holder[k] = n;
+                return true;
+            }
+        }
+        false
+    }
+    let mut holder = vec![usize::MAX; slots.len()];
+    // the tightest deadlines first
+    let mut order: Vec<usize> = (0..items.len()).collect();
+    order.sort_by_key(|&n| items[n].bound);
+    for n in order {
+        let mut seen = vec![false; slots.len()];
+        ensure!(
+            augment(n, items, slots, not, &mut holder, &mut seen),
+            "no entry for {}",
+            must_tile!(items[n].kind),
+        );
+    }
+    Ok(holder)
+}
+
 #[cfg(test)]
 impl Layout {
     /// Whether `board` fits the layout: the seen tiles where they were seen,

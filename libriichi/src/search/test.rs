@@ -396,4 +396,46 @@ mod particles {
             "mean z² {mean_z2}, max |z| {worst}"
         );
     }
+
+    /// A seat's concealed hand by tile id, red fives apart.
+    fn hand37(state: &crate::state::PlayerState) -> [u8; 37] {
+        let mut h = [0; 37];
+        h[..34].copy_from_slice(&state.tehai());
+        for (f, (&five, &aka)) in [4, 13, 22].iter().zip(&state.akas_in_hand()).enumerate() {
+            if aka {
+                h[five] -= 1;
+                h[34 + f] += 1;
+            }
+        }
+        h
+    }
+
+    /// The learned proposal's completion: the true hands at a root always
+    /// complete into a history that replays the seat's view and gives back
+    /// its root observation.
+    #[test]
+    fn the_true_hands_complete_into_a_history() {
+        use super::super::belief::complete_root;
+        let mut done = 0;
+        for (i, (board, events, until)) in true_roots(3).into_iter().enumerate() {
+            let truth = replay(board, &events, until).unwrap();
+            let seat = decision_seat(&truth).unwrap() as usize;
+            let states = truth.agent_context().player_states;
+            let hands: [[u8; 37]; 3] = std::array::from_fn(|j| hand37(&states[(seat + 1 + j) % 4]));
+            let belief =
+                complete_root(&events, until, &[hands; 2], 100, &mut root_rng(5, i)).unwrap();
+            assert_eq!(belief.particles.len(), 2, "root {i}: {:?}", belief.errors);
+            let want = states[seat].encode_obs(4, false);
+            for p in &belief.particles {
+                let ps = p.state.agent_context().player_states;
+                assert_eq!(ps[seat].encode_obs(4, false), want);
+                for j in 1..4 {
+                    let o = (seat + j) % 4;
+                    assert_eq!(hand37(&ps[o]), hand37(&states[o]));
+                }
+            }
+            done += 1;
+        }
+        assert!(done > 300, "{done}");
+    }
 }

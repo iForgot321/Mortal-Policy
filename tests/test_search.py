@@ -205,3 +205,38 @@ def test_grp_value_is_a_utility():
     v = value([(e1, mid, 0, 0), (e1, mid, 0, 1), (e1, end, 0, 0), (e1, end, 0, 1)])
     assert -1.3 < v[1] < v[0] < 0.9
     assert v[2] == pytest.approx(-1.3) and v[3] == pytest.approx(0.9)
+
+
+def test_hand_examples_and_root_views(greedy_games):
+    """The hand model's data: true concealed hands of the other seats at each decision, and a
+    root's view from the seat's own events equals the full replay's observation."""
+    from libriichi.search import hand_examples, root_views
+    paths, _ = greedy_games
+    obs, hands, akas, unseen = hand_examples(paths[0])
+    assert obs.shape[1:] == (1012, 34) and hands.shape == (len(obs), 3, 34) and akas.shape == (len(obs), 9)
+    assert set(hands.sum(-1).ravel()) <= {1, 4, 7, 10, 13}
+    assert (hands.sum(1) <= unseen).all()
+    seed, kys = kyokus(paths[0])
+    pairs = roots_of(seed, kys[0])[:6]
+    views = root_views([(lines, i) for (_, lines, i), _ in pairs])
+    for (root, _), (seat, o, _, sizes, _), (s2, o2, _) in zip(pairs, views, root_observations([r for r, _ in pairs], 4)):
+        assert seat == s2 and (o == o2).all() and set(sizes) <= {1, 4, 7, 10, 13}
+
+
+def test_hand_model_density_is_exact():
+    """A sample's log q equals the training path's log-probability of the same hands, and every
+    sample respects the hand sizes and the unseen copies."""
+    import numpy as np
+    import torch
+    from model import Brain
+    from search.handmodel import HandModel
+    torch.manual_seed(0)
+    model = HandModel(Brain(version=4, conv_channels=32, num_blocks=1, Norm='GN'), hidden=32).eval()
+    obs = torch.rand(1, 1012, 34)
+    unseen = torch.tensor([3, 2, 4, 1, 3] * 6 + [2, 0, 4, 1])
+    sizes = torch.tensor([13, 10, 7])
+    hands, logq = model.sample(obs, unseen, sizes, 32)
+    assert (hands.sum(-1) == sizes).all() and (hands.sum(1) <= unseen).all()
+    with torch.no_grad():
+        lp = model.log_prob(obs.expand(32, -1, -1), hands, unseen.expand(32, -1)).sum(-1)
+    assert np.allclose(lp.numpy(), logq.numpy(), atol=1e-4)

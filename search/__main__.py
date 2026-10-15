@@ -3,6 +3,7 @@
     python -m search selfplay  --run DIR --engine CKPT (--block NAME | --dev) --games N
     python -m search decisions --run DIR --engine CKPT --count 20000
     python -m search oracle    --run DIR --engine CKPT --redeals 64
+    python -m search belief    --run DIR --engine CKPT --hand-model PATH --particles 64
     python -m search report    --run DIR
 
 `--block` takes a named family-A block from the lab's nonce ledger. `--dev`
@@ -67,6 +68,7 @@ def main():
     g.add_argument('--block', help='named family-A block in the lab nonce ledger')
     g.add_argument('--dev', action='store_true', help='a key outside the lab families')
     s.add_argument('--games', type=int, required=True)
+    s.add_argument('--nonce-start', type=int, default=0, help='with --dev: the first nonce')
 
     s = stage('decisions')
     s.add_argument('--count', type=int, default=20_000)
@@ -75,6 +77,11 @@ def main():
     s = stage('oracle')
     s.add_argument('--redeals', type=int, default=64, help='rollouts per candidate')
     s.add_argument('--chunk', type=int, default=16, help='decisions per batch of rollouts')
+
+    s = stage('belief')
+    s.add_argument('--hand-model', required=True, help='the learned hand model (D58)')
+    s.add_argument('--particles', type=int, default=64)
+    s.add_argument('--chunk', type=int, default=16)
 
     stage('report', engine=False)
     args = p.parse_args()
@@ -87,7 +94,7 @@ def main():
     engine = load_blueprint(args)
     if args.cmd == 'selfplay':
         if args.dev:
-            nonce, key, run_id = 0, DEV_KEY, None
+            nonce, key, run_id = args.nonce_start, DEV_KEY, None
         else:
             from lab import registry
             run_id = registry.new_run_id('search-selfplay')
@@ -107,6 +114,15 @@ def main():
         record(args.run, 'oracle', engine=engine_record(args.engine), redeals=args.redeals,
                grp={'path': GRP_STATE_FILE, 'sha256': registry.sha256_file(GRP_STATE_FILE)})
         pilot.oracle(engine, GrpValue(), args.run, args.redeals, args.chunk)
+    elif args.cmd == 'belief':
+        from .handmodel import load
+        from .value import GRP_STATE_FILE, GrpValue
+        from lab import registry
+        record(args.run, 'belief', engine=engine_record(args.engine), particles=args.particles,
+               hand_model=engine_record(args.hand_model),
+               grp={'path': GRP_STATE_FILE, 'sha256': registry.sha256_file(GRP_STATE_FILE)})
+        pilot.belief(engine, GrpValue(), load(args.hand_model, args.device), args.run, args.particles,
+                     args.chunk)
 
 
 if __name__ == '__main__':

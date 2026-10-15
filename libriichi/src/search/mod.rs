@@ -6,6 +6,7 @@
 //! never runs in a deployed bot.
 
 mod belief;
+mod hands;
 mod likelihood;
 mod particle;
 mod replay;
@@ -192,6 +193,19 @@ fn true_log_likelihoods(
     })
 }
 
+/// Shanten of each hand of 34 tile counts (normal, chiitoi and kokushi; a
+/// hand with melds counts its concealed tiles only).
+#[pyfunction]
+fn shanten(hands: Vec<[u8; 34]>) -> Vec<i8> {
+    hands
+        .iter()
+        .map(|h| {
+            let len: u8 = h.iter().sum();
+            crate::algo::shanten::calc_all(h, len / 3)
+        })
+        .collect()
+}
+
 /// `(seat, obs, mask)` of the player deciding at each root, encoded as the
 /// arena encodes it for an agent.
 #[pyfunction]
@@ -277,5 +291,8 @@ pub(crate) fn register_module(
     m.add_function(wrap_pyfunction!(self_play, &m)?)?;
     m.add_function(wrap_pyfunction!(root_shanten, &m)?)?;
     m.add_function(wrap_pyfunction!(true_log_likelihoods, &m)?)?;
+    m.add_function(wrap_pyfunction!(hands::hand_examples, &m)?)?;
+    m.add_function(wrap_pyfunction!(shanten, &m)?)?;
+    m.add_function(wrap_pyfunction!(belief::root_views, &m)?)?;
     add_submodule(py, prefix, super_mod, &m)
 }

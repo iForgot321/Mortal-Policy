@@ -22,6 +22,9 @@ use rayon::prelude::*;
 type BeliefRoot = (Vec<String>, usize);
 
 pub struct Particle {
+    /// Which draw it came from: the chain's order, or the hand's index in
+    /// `Beliefs::from_hands`.
+    pub index: usize,
     pub board: Board,
     /// Replayed to the root.
     pub state: BoardState,
@@ -84,6 +87,7 @@ pub fn sample_root(
             |board| match replay_seen_by(board.clone(), &seen, until, seat) {
                 Ok(state) => {
                     particles.push(Particle {
+                        index: particles.len(),
                         board,
                         state,
                         log_lik: 0.,
@@ -109,6 +113,87 @@ pub fn sample_root(
         particles,
         drawn,
         errors,
+    })
+}
+
+/// Particles whose concealed hands at the root are `hands` (each draw: the
+/// three other seats' counts by tile id, in turn order after the deciding
+/// seat), completed into histories (`Layout::complete`).
+pub fn complete_root(
+    events: &[Event],
+    until: usize,
+    hands: &[[[u8; 37]; 3]],
+    shuffle: usize,
+    rng: &mut ChaCha12Rng,
+) -> Result<RootBelief> {
+    let seat = root_seat(events, until)?;
+    let seen: Vec<Event> = events.iter().map(|e| visible(e, seat)).collect();
+    let layout = Layout::new(&seen[..root_stop(&seen, until)], seat)?;
+    let mut particles = Vec::with_capacity(hands.len());
+    let mut errors = vec![];
+    for (index, h) in hands.iter().enumerate() {
+        let mut all = [[0; 37]; 4];
+        for (j, counts) in h.iter().enumerate() {
+            all[(seat as usize + 1 + j) % 4] = *counts;
+        }
+        let made = layout.complete(&all, shuffle, rng).and_then(|board| {
+            let state = replay_seen_by(board.clone(), &seen, until, seat)?;
+            Ok(Particle {
+                index,
+                board,
+                state,
+                log_lik: 0.,
+            })
+        });
+        match made {
+            Ok(p) => particles.push(p),
+            Err(e) if errors.len() < 4 => errors.push(format!("{e:#}")),
+            Err(_) => (),
+        }
+    }
+    Ok(RootBelief {
+        seat,
+        seen,
+        until,
+        particles,
+        drawn: hands.len(),
+        errors,
+    })
+}
+
+/// What the seat deciding at `events[until]` sees there, for the hand model:
+/// its observation, the copies of each kind it hasn't seen, each other
+/// seat's concealed hand size (in turn order after it) and which red fives
+/// it hasn't seen.
+pub struct RootView {
+    pub seat: u8,
+    pub obs: ndarray::Array2<f32>,
+    pub unseen: [u8; 34],
+    pub sizes: [u8; 3],
+    pub aka_unseen: [bool; 3],
+}
+
+pub fn root_view(events: &[Event], until: usize, version: u32) -> Result<RootView> {
+    let seat = root_seat(events, until)?;
+    let seen: Vec<Event> = events.iter().map(|e| visible(e, seat)).collect();
+    let mut state = crate::state::PlayerState::new(seat);
+    let mut melds = [0_u8; 4];
+    for ev in &seen[..root_stop(&seen, until)] {
+        state.update(ev)?;
+        match *ev {
+            Event::Chi { actor, .. }
+            | Event::Pon { actor, .. }
+            | Event::Daiminkan { actor, .. }
+            | Event::Ankan { actor, .. } => melds[actor as usize] += 1,
+            _ => (),
+        }
+    }
+    Ok(RootView {
+        seat,
+        obs: state.encode_obs(version, false).0,
+        unseen: state.tiles_seen().map(|n| 4 - n),
+        sizes: std::array::from_fn(|i| 13 - 3 * melds[(seat as usize + 1 + i) % 4]),
+        aka_unseen: state.akas_seen().map(|b| !b),
     })
 }
 
@@ -153,6 +238,43 @@ impl Beliefs {
                 .collect::<Result<Vec<_>>>()
         })?;
         Ok(Self { roots })
+    }
+
+    /// Particles from sampled concealed hands (D58's learned proposal):
+    /// `hands[r]` holds root `r`'s draws, each the three other seats' counts
+    /// by tile id (red fives apart) in turn order after the deciding seat.
+    /// A draw that fits no consistent history is dropped (`errors`).
+    #[staticmethod]
+    #[pyo3(signature = (roots, hands, *, seed, shuffle = 200))]
+    fn from_hands(
+        roots: Vec<BeliefRoot>,
+        hands: Vec<Vec<[[u8; 37]; 3]>>,
+        seed: u64,
+        shuffle: usize,
+        py: Python<'_>,
+    ) -> Result<Self> {
+        anyhow::ensure!(roots.len() == hands.len(), "one list of hands per root");
+        let roots = py.allow_threads(move || {
+            roots
+                .par_iter()
+                .zip(hands.par_iter())
+                .enumerate()
+                .map(|(i, ((lines, until), hs))| {
+                    let events = parse(lines)?;
+                    complete_root(&events, *until, hs, shuffle, &mut root_rng(seed, i))
+                        .with_context(|| format!("root {i} (decision at event {until})"))
+                })
+                .collect::<Result<Vec<_>>>()
+        })?;
+        Ok(Self { roots })
+    }
+
+    /// Each valid particle's draw index, per root (`Particle::index`).
+    fn indices(&self) -> Vec<Vec<usize>> {
+        self.roots
+            .iter()
+            .map(|r| r.particles.iter().map(|p| p.index).collect())
+            .collect()
     }
 
     /// The deciding seat of each root.
@@ -349,4 +471,34 @@ pub fn log_likelihoods(
         }
     }
     Ok(out)
+}
+
+/// `(seat, obs, unseen, sizes, aka_unseen)` at each root, from the deciding
+/// seat's view only (`RootView`).
+#[pyfunction]
+#[pyo3(signature = (roots, *, version = 4))]
+#[allow(clippy::type_complexity)]
+pub fn root_views<'py>(
+    roots: Vec<BeliefRoot>,
+    version: u32,
+    py: Python<'py>,
+) -> Result<Vec<(u8, Bound<'py, PyArray2<f32>>, [u8; 34], [u8; 3], [bool; 3])>> {
+    let views = py.allow_threads(move || {
+        roots
+            .par_iter()
+            .map(|(lines, until)| root_view(&parse(lines)?, *until, version))
+            .collect::<Result<Vec<_>>>()
+    })?;
+    Ok(views
+        .into_iter()
+        .map(|v| {
+            (
+                v.seat,
+                PyArray2::from_owned_array(py, v.obs),
+                v.unseen,
+                v.sizes,
+                v.aka_unseen,
+            )
+        })
+        .collect())
 }

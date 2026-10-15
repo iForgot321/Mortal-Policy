@@ -215,6 +215,60 @@ def same_kyoku(log, lines):
     return len(log) == len(lines) and all(plain(a) == plain(b) for a, b in zip(log, lines))
 
 
+# ---- 3b. belief search ------------------------------------------------------
+
+def belief(engine, value, model, run_dir, particles, chunk=16, seed=0):
+    """Rollouts for each decision from particles of the learned belief (D58): hands sampled from
+    what the deciding seat has seen, completed into histories, the undealt tiles in random order.
+    Both candidates are played on the same particles. Appended to `belief.jsonl` (resumable): per
+    candidate, the value of each particle's rollout, in u. Reads no seed."""
+    from .handmodel import beliefs
+    with open(os.path.join(run_dir, 'decisions.jsonl'), encoding='utf-8') as f:
+        rows = [json.loads(line) for line in f]
+    out_path = os.path.join(run_dir, 'belief.jsonl')
+    done = set()
+    if os.path.exists(out_path):
+        with open(out_path, encoding='utf-8') as f:
+            done = {json.loads(line)['id'] for line in f}
+    todo = [r for r in rows if r['id'] not in done]
+    cache = {}
+
+    for i in range(0, len(todo), chunk):
+        part = todo[i:i + chunk]
+        roots, histories = [], []
+        for d in part:
+            if d['game'] not in cache:
+                if len(cache) >= 64:
+                    cache.clear()
+                cache[d['game']] = read_game(os.path.join(run_dir, 'logs', d['game']))
+            _, kyokus = cache[d['game']]
+            roots.append((kyokus[d['kyoku']], d['until']))
+            histories.append(grp_history(kyokus, d['kyoku']))
+        # twice the draws: a hand that fits no history (a riichi hand short of tenpai) is dropped
+        b, _ = beliefs(model, roots, 2 * particles, seed=seed + part[0]['id'])
+        counts = [(min(valid, particles), drawn) for valid, drawn in b.counts()]
+        jobs, items = [], []
+        for j, d in enumerate(part):
+            for action in (RIICHI, d['dama']):
+                for p in range(counts[j][0]):
+                    jobs.append((j, p, action))
+                    items.append((histories[j], d['honba'], d['seat']))
+        outs = b.rollouts(engine, jobs)
+        values = value([(h, o, honba, seat) for (h, honba, seat), o in zip(items, outs)])
+        with open(out_path, 'a', encoding='utf-8') as f:
+            at = 0
+            for j, d in enumerate(part):
+                k = counts[j][0]
+                riichi, dama = values[at:at + k], values[at + k:at + 2 * k]
+                at += 2 * k
+                f.write(json.dumps({
+                    'id': d['id'], 'drawn': counts[j][1],
+                    'riichi': [round(float(x), 6) for x in riichi],
+                    'dama': [round(float(x), 6) for x in dama],
+                }) + '\n')
+        print(f'belief: {len(done) + i + len(part)}/{len(rows)} decisions', flush=True)
+
+
 # ---- 4. report -------------------------------------------------------------
 
 def clustered_se(x, groups):
@@ -237,6 +291,9 @@ def choices(d, o, rule):
     estimated gain exceeds z; ('regularized', lam) is π·exp(Q/λ) over the two
     candidates, played by its argmax."""
     riichi, dama = np.asarray(o['riichi']), np.asarray(o['dama'])
+    if len(riichi) < 2:
+        # no worlds to judge by: keep the policy's choice
+        return float(d['policy'] == RIICHI)
     kind, param = rule
     if kind == 'plain':
         policy_riichi = d['policy'] == RIICHI
@@ -255,28 +312,45 @@ def choices(d, o, rule):
 
 
 RULES = (('plain', 0.0), ('plain', 2.0), ('regularized', 0.05), ('regularized', 0.1))
+PRIMARY = ('plain', 2.0)  # D58
 
 
 def report(run_dir, rules=RULES):
+    """Gains over the policy on the true worlds, for the oracle and (if run) the belief
+    condition, each search rule; and D32's recovery ratio under the primary rule (D58)."""
     with open(os.path.join(run_dir, 'decisions.jsonl'), encoding='utf-8') as f:
         ds = {r['id']: r for r in map(json.loads, f)}
     with open(os.path.join(run_dir, 'oracle.jsonl'), encoding='utf-8') as f:
-        os_ = [json.loads(line) for line in f]
-    pairs = [(ds[o['id']], o) for o in os_]
-    groups = [d['game'] for d, _ in pairs]
-    true_policy = np.array([o['true_riichi'] if d['policy'] == RIICHI else o['true_dama'] for d, o in pairs])
+        oracle = {o['id']: o for o in map(json.loads, f)}
+    searched = {'oracle': oracle}
+    path = os.path.join(run_dir, 'belief.jsonl')
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            searched['belief'] = {b['id']: b for b in map(json.loads, f)}
+    # common decisions only: every condition is scored on the same true worlds
+    ids = sorted(set.intersection(*(set(c) for c in searched.values())))
+    groups = [ds[i]['game'] for i in ids]
+    true_policy = np.array([oracle[i]['true_riichi'] if ds[i]['policy'] == RIICHI else oracle[i]['true_dama']
+                            for i in ids])
 
-    out = {'decisions': len(pairs), 'games': len(set(groups)),
-           'policy_riichi_rate': float(np.mean([d['policy'] == RIICHI for d, _ in pairs])),
-           'reproduced': float(np.mean([o['reproduced'] for _, o in pairs]))}
-    clair = np.array([max(o['true_riichi'], o['true_dama']) for _, o in pairs]) - true_policy
+    out = {'decisions': len(ids), 'games': len(set(groups)), 'primary_rule': f'{PRIMARY[0]}({PRIMARY[1]})',
+           'policy_riichi_rate': float(np.mean([ds[i]['policy'] == RIICHI for i in ids])),
+           'reproduced': float(np.mean([oracle[i]['reproduced'] for i in ids]))}
+    clair = np.array([max(oracle[i]['true_riichi'], oracle[i]['true_dama']) for i in ids]) - true_policy
     out['clairvoyant_gain'] = summarize(clair, groups)
-    for rule in rules:
-        p_riichi = np.array([choices(d, o, rule) for d, o in pairs])
-        v = np.array([p * o['true_riichi'] + (1 - p) * o['true_dama'] for p, (_, o) in zip(p_riichi, pairs)])
-        dev = np.array([(p > 0.5) != (d['policy'] == RIICHI) for p, (d, _) in zip(p_riichi, pairs)])
-        out[f'{rule[0]}({rule[1]})'] = {**summarize(v - true_policy, groups),
-                                        'deviation_rate': float(dev.mean())}
+    for name, rows in searched.items():
+        out[name] = {}
+        for rule in rules:
+            p_riichi = np.array([choices(ds[i], rows[i], rule) for i in ids])
+            v = np.array([p * oracle[i]['true_riichi'] + (1 - p) * oracle[i]['true_dama']
+                          for p, i in zip(p_riichi, ids)])
+            dev = np.array([(p > 0.5) != (ds[i]['policy'] == RIICHI) for p, i in zip(p_riichi, ids)])
+            out[name][f'{rule[0]}({rule[1]})'] = {**summarize(v - true_policy, groups),
+                                                  'deviation_rate': float(dev.mean())}
+    if 'belief' in searched:
+        key = f'{PRIMARY[0]}({PRIMARY[1]})'
+        o, b = out['oracle'][key]['gain_u'], out['belief'][key]['gain_u']
+        out['recovery'] = b / o if o else None
     with open(os.path.join(run_dir, 'report.json'), 'w', encoding='utf-8') as f:
         json.dump(out, f, indent=2)
     return out

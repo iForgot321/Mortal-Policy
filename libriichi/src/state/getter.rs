@@ -168,6 +168,13 @@ impl PlayerState {
     pub const fn last_self_tsumo(&self) -> Option<Tile> {
         self.last_self_tsumo
     }
+
+    /// Whether the player has seen each red five (5mr, 5pr, 5sr).
+    #[inline]
+    #[must_use]
+    pub const fn akas_seen(&self) -> [bool; 3] {
+        self.akas_seen
+    }
     #[inline]
     #[must_use]
     pub const fn last_kawa_tile(&self) -> Option<Tile> {
