@@ -3,6 +3,7 @@ WebSocket runner against a local mock of the validation game. Needs riichienv an
 (the riichidev venv, `deploy/__init__.py`); skipped in the plain mortal env."""
 import asyncio
 import json
+import os
 from glob import glob
 
 import pytest
@@ -11,12 +12,26 @@ pytest.importorskip('riichienv')
 pytest.importorskip('websockets')
 
 from conftest import make_engine  # noqa: E402
-from deploy.riichidev_bot import fallback, masks_from_legal, play_game, same_move  # noqa: E402
+from deploy.riichidev_bot import (Seat, fallback, four_kan_discard, libriichi_order,  # noqa: E402
+                                  masks_from_legal, play_game, ron_or_pass, same_move)
 from deploy.riichidev_parity import check_move, masked_for, replay, selfplay  # noqa: E402
+
+
+FIXTURES = os.path.join(os.path.dirname(__file__), 'data', 'riichidev')
 
 
 def on(mask):
     return [i for i, m in enumerate(mask) if m]
+
+
+def replay_requests(engine, name):
+    """One seat's recorded server requests (tests/data/riichidev) through `Seat.decide`."""
+    with open(os.path.join(FIXTURES, name + '.json'), encoding='utf-8') as f:
+        fx = json.load(f)
+    seat = Seat(engine, fx['seat'])
+    records = [seat.decide(None, r['legal'], n, events=r['events'])[1]
+               for n, r in enumerate(fx['requests'], 1)]
+    return seat, records
 
 
 def test_masks_from_legal():
@@ -53,6 +68,60 @@ def test_same_move_and_fallback():
     legal = [{'type': 'dahai', 'pai': '1m'}, {'type': 'dahai', 'pai': '9s'}, {'type': 'reach'}]
     assert fallback(legal, drawn='9s') == {'type': 'dahai', 'pai': '9s'}
     assert fallback(legal + [{'type': 'none'}]) == {'type': 'none'}
+
+
+def test_libriichi_order():
+    ev = [json.dumps(e) for e in (
+        {'type': 'daiminkan', 'actor': 0, 'target': 1, 'pai': '8s', 'consumed': ['8s'] * 3},
+        {'type': 'tsumo', 'actor': 0, 'pai': '6p'},
+        {'type': 'kakan', 'actor': 0, 'pai': '6p', 'consumed': ['6p'] * 3},
+        {'type': 'dora', 'dora_marker': '8m'},
+        {'type': 'tsumo', 'actor': 0, 'pai': '?'},
+        {'type': 'dora', 'dora_marker': '1s'})]
+    # the open kan's dora, revealed at the kakan, goes before it; the kakan's own stays put
+    assert libriichi_order(ev) == [ev[0], ev[1], ev[3], ev[2], ev[4], ev[5]]
+    assert libriichi_order(ev[:3]) == ev[:3]
+    assert libriichi_order(ev[2:4] + ev[3:4]) == [ev[3], ev[3], ev[2]]
+    assert libriichi_order([ev[2], ev[4], ev[5]]) == [ev[2], ev[4], ev[5]]
+
+
+def test_four_kan_discard_and_ron_or_pass():
+    dahai = {'type': 'dahai', 'actor': 0, 'pai': '4m', 'tsumogiri': True}
+    assert four_kan_discard([0, 0, 2, 0], dahai, 1)
+    assert not four_kan_discard([0, 0, 0, 0], dahai, 1)   # one player's four kans: no abort
+    assert not four_kan_discard([0, 2, 0], dahai, 1)
+    assert not four_kan_discard([0, 0, 2, 0], dahai, 0)
+    assert not four_kan_discard([0, 0, 2, 0], {'type': 'tsumo', 'actor': 1, 'pai': '1m'}, 1)
+    bits = (1 << 38) | (1 << 43) | (1 << 45)
+    chi = {'type': 'chi', 'meta': {'mask_bits': bits, 'q_values': [0.6, 0.3, 0.1]}}
+    assert ron_or_pass(chi, 1, 0) == {'type': 'hora', 'actor': 1, 'target': 0}
+    chi['meta']['q_values'] = [0.6, 0.1, 0.3]
+    assert ron_or_pass(chi, 1, 0) == {'type': 'none'}
+    no_ron = {'type': 'chi', 'meta': {'mask_bits': (1 << 38) | (1 << 45), 'q_values': [0.9, 0.1]}}
+    assert ron_or_pass(no_ron, 1, 0) == {'type': 'none'}
+
+
+def test_chankan_after_an_open_kan(arena_run):
+    """The 100K test's c03 (seed 20281): an open kan, its rinshan, then a kakan. riichienv sends
+    the open kan's dora right after the kakan and asks seat 1 about chankan; libriichi must still
+    offer it."""
+    _, _, brain, policy = arena_run
+    seat, records = replay_requests(make_engine(brain, policy, 0.0, 'adapter'), 'selfplay-20281-seat1')
+    assert seat.failures == [], seat.failures
+    last = records[-1]
+    assert [json.loads(e)['type'] for e in last['events']][-2:] == ['kakan', 'dora']
+    assert [a['type'] for a in last['legal']] == ['hora', 'none'] and not last.get('fallback')
+
+
+def test_four_kan_abort_offers_no_calls(arena_run):
+    """The 100K test's c02 (seed 14176): the discard after a fourth kan by two players. Both
+    engines abort the kyoku unless it is ronned; riichienv asks nobody, libriichi offers a chi."""
+    _, _, brain, policy = arena_run
+    seat, records = replay_requests(make_engine(brain, policy, 0.0, 'adapter'), 'selfplay-14176-seat1')
+    assert seat.failures == [], seat.failures
+    last = records[-1]
+    assert any(json.loads(e).get('reason') == 'suukansansen' for e in last['events'])
+    assert 'four_kan_reaction' in last
 
 
 def test_check_move():

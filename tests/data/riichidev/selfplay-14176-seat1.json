@@ -1,0 +1,1134 @@
+{
+"note": "riichienv 0.4.10 step-mode self-play (deploy/riichidev_parity.py --selfplay 1 --seed-start 14176), the adapter in all seats; seat 1's requests, events in server order, from the kyoku start",
+"seed": 14176,
+"model": "pilot A (pilot-qs-a-final.pth, FP32)",
+"seat": 1,
+"requests": [
+{
+"events": [
+"{\"type\": \"start_game\"}",
+"{\"bakaze\":\"S\",\"dora_marker\":\"6p\",\"honba\":2,\"kyoku\":4,\"kyotaku\":1,\"oya\":3,\"scores\":[10600,31700,27100,29600],\"tehais\":[[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"],[\"5m\",\"6m\",\"7m\",\"8m\",\"1p\",\"3p\",\"4p\",\"8p\",\"9p\",\"2s\",\"7s\",\"N\",\"F\"],[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"],[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"]],\"type\":\"start_kyoku\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"N\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"3p\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"P\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "1p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "N",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "F",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"N\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"N\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"1m\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"N\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"8m\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "1p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "F",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"1p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"2m\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"9p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"1p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"7s\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "F",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"F\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"8m\",\"tsumogiri\":false,\"type\":\"dahai\"}"
+],
+"legal": [
+{
+"actor": 1,
+"consumed": [
+"8m",
+"8m"
+],
+"pai": "8m",
+"type": "pon"
+},
+{
+"actor": 1,
+"type": "none"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"consumed\":[\"8m\",\"8m\"],\"pai\":\"8m\",\"target\":2,\"type\":\"pon\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"9p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"F\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"6s\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"7m\",\"tsumogiri\":false,\"type\":\"dahai\"}"
+],
+"legal": [
+{
+"actor": 1,
+"consumed": [
+"5m",
+"6m"
+],
+"pai": "7m",
+"type": "chi"
+},
+{
+"actor": 1,
+"type": "none"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"E\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "E",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"E\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"S\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"consumed\":[\"S\",\"S\"],\"pai\":\"S\",\"target\":2,\"type\":\"pon\"}",
+"{\"actor\":0,\"pai\":\"W\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"C\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "C",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"C\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"consumed\":[\"C\",\"C\"],\"pai\":\"C\",\"target\":1,\"type\":\"pon\"}",
+"{\"actor\":0,\"pai\":\"7p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"2p\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "P",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"P\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"P\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"2p\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"4s\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"8s\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"8p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"1p\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"E\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"consumed\":[\"C\",\"C\",\"C\"],\"pai\":\"C\",\"type\":\"kakan\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"dora_marker\":\"3s\",\"type\":\"dora\"}",
+"{\"actor\":0,\"pai\":\"7m\",\"tsumogiri\":true,\"type\":\"dahai\"}"
+],
+"legal": [
+{
+"actor": 1,
+"consumed": [
+"5m",
+"6m"
+],
+"pai": "7m",
+"type": "chi"
+},
+{
+"actor": 1,
+"type": "none"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"5mr\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5mr",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"2s\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"F\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"4m\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"2s\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"9m\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5mr",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9m",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"9m\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"consumed\":[\"9m\",\"9m\",\"9m\"],\"pai\":\"9m\",\"target\":1,\"type\":\"daiminkan\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"dora_marker\":\"E\",\"type\":\"dora\"}",
+"{\"actor\":0,\"pai\":\"5p\",\"tsumogiri\":true,\"type\":\"dahai\"}"
+],
+"legal": [
+{
+"actor": 1,
+"consumed": [
+"3p",
+"4p"
+],
+"pai": "5p",
+"type": "chi"
+},
+{
+"actor": 1,
+"type": "none"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"W\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5mr",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "W",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"W\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"type\":\"reach\"}",
+"{\"actor\":2,\"pai\":\"2s\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"type\":\"reach_accepted\"}",
+"{\"actor\":3,\"consumed\":[\"3s\",\"4s\"],\"pai\":\"2s\",\"target\":2,\"type\":\"chi\"}",
+"{\"actor\":3,\"pai\":\"F\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"2s\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"8p\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5mr",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"2p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"4p\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"3p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"5pr\",\"tsumogiri\":true,\"type\":\"dahai\"}"
+],
+"legal": [
+{
+"actor": 1,
+"consumed": [
+"3p",
+"4p"
+],
+"pai": "5pr",
+"type": "chi"
+},
+{
+"actor": 1,
+"type": "none"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"2m\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "5mr",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "6m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2m",
+"type": "dahai"
+}
+]
+},
+{
+"events": [
+"{\"actor\":1,\"pai\":\"3p\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"consumed\":[\"1s\",\"1s\",\"1s\",\"1s\"],\"pai\":\"1s\",\"type\":\"ankan\"}",
+"{\"dora_marker\":\"8s\",\"type\":\"dora\"}",
+"{\"actor\":2,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":2,\"pai\":\"2m\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"P\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"consumed\":[\"S\",\"S\",\"S\"],\"pai\":\"S\",\"type\":\"kakan\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"dora_marker\":\"3s\",\"type\":\"dora\"}",
+"{\"actor\":0,\"pai\":\"4m\",\"tsumogiri\":true,\"type\":\"dahai\"}",
+"{\"deltas\":[0,0,0,0],\"reason\":\"suukansansen\",\"type\":\"ryukyoku\"}",
+"{\"type\":\"end_kyoku\"}",
+"{\"bakaze\":\"S\",\"dora_marker\":\"8p\",\"honba\":3,\"kyoku\":4,\"kyotaku\":2,\"oya\":3,\"scores\":[10600,31700,26100,29600],\"tehais\":[[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"],[\"1m\",\"2m\",\"8m\",\"3p\",\"5p\",\"5p\",\"2s\",\"4s\",\"5sr\",\"5s\",\"7s\",\"9s\",\"N\"],[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"],[\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\",\"?\"]],\"type\":\"start_kyoku\"}",
+"{\"actor\":3,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":3,\"pai\":\"1s\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":0,\"pai\":\"?\",\"type\":\"tsumo\"}",
+"{\"actor\":0,\"pai\":\"N\",\"tsumogiri\":false,\"type\":\"dahai\"}",
+"{\"actor\":1,\"pai\":\"2m\",\"type\":\"tsumo\"}"
+],
+"legal": [
+{
+"actor": 1,
+"pai": "1m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "8m",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "3p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5p",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "4s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5sr",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "5s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "7s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "9s",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "N",
+"type": "dahai"
+},
+{
+"actor": 1,
+"pai": "2m",
+"type": "dahai"
+}
+]
+}
+]
+}

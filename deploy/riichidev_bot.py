@@ -111,6 +111,50 @@ def same_move(reaction, legal):
     return True
 
 
+# chi (3 shapes), pon, and the kan bit: the calls a discard can offer
+CALL_BITS = range(38, 43)
+
+
+def libriichi_order(lines):
+    """The request's events (mjai JSON lines) in the order libriichi's `PlayerState` expects.
+
+    A kan declared after an open kan reveals the open kan's dora. riichienv sends that dora right
+    after the kakan, then asks the others about chankan. libriichi's arena reveals it later, at
+    the rinshan tsumo, and its `PlayerState` closes the chankan window at the next event, a dora
+    included. So the dora events that follow a kakan are fed before it: the chankan chance
+    survives, with the indicators the server shows. A kakan's own dora comes after its rinshan
+    tsumo in both engines, so only the earlier kan's dora is ever moved."""
+    out = list(lines)
+    i = 0
+    while i < len(out):
+        j = i + 1
+        if json.loads(out[i])['type'] == 'kakan':
+            while j < len(out) and json.loads(out[j])['type'] == 'dora':
+                j += 1
+            out[i:j] = out[i + 1:j] + [out[i]]
+        i = j
+    return out
+
+
+def four_kan_discard(kans, ev, seat):
+    """Whether `ev` is another seat's discard after a fourth kan by more than one player
+    (`kans`: this kyoku's kan declarers). Both engines then abort the kyoku (四槓散了) unless
+    the discard is ronned. riichienv offers only the ron; libriichi also offers calls, which
+    can't take effect."""
+    return ev['type'] == 'dahai' and ev['actor'] != seat and len(kans) == 4 and len(set(kans)) > 1
+
+
+def ron_or_pass(reaction, seat, target):
+    """A libriichi reaction narrowed to ron or pass, by its q-values (`meta.q_values`: one per
+    set bit of `meta.mask_bits`, in bit order)."""
+    meta = reaction['meta']
+    bits = [k for k in range(ACTION_SPACE) if meta['mask_bits'] >> k & 1]
+    q = dict(zip(bits, meta['q_values']))
+    if 43 in q and q[43] > q.get(45, float('-inf')):
+        return {'type': 'hora', 'actor': seat, 'target': target}
+    return {'type': 'none'}
+
+
 def fallback(legal, drawn=None):
     """The server's own timeout default (pass, else tsumogiri), else the first legal move."""
     for a in legal:
@@ -132,6 +176,8 @@ class Seat:
         self.bot = Bot(engine, seat)
         self.shadow = PlayerState(seat)
         self.drawn = None
+        # this kyoku's kan declarers (四槓散了)
+        self.kans = []
         # what went wrong in this game; empty means clean
         self.failures = []
 
@@ -172,14 +218,27 @@ class Seat:
             from riichienv import Observation
             events = Observation.deserialize_from_base64(observation).new_events()
         lines = list(events)
+        # as the server sent them; libriichi is fed them in its own order
         record['events'] = lines
+        lines = libriichi_order(lines)
         reaction = None
+        four_kan = False
         for i, line in enumerate(lines):
             out = self.bot.react(line)
             self.shadow.update(line)
             ev = json.loads(line)
             if ev['type'] == 'tsumo' and ev.get('actor') == self.seat:
                 self.drawn = ev['pai']
+            elif ev['type'] == 'start_kyoku':
+                self.kans = []
+            elif ev['type'] in KANS:
+                self.kans.append(ev['actor'])
+            four_kan = four_kan_discard(self.kans, ev, self.seat)
+            if four_kan and out is not None and json.loads(out)['type'] != 'hora':
+                # only a ron can answer this discard: a call or a pass means pass
+                record['four_kan_reaction'] = json.loads(out)
+                out = (json.dumps(ron_or_pass(json.loads(out), self.seat, ev['actor']))
+                       if i == len(lines) - 1 else None)
             if out is not None and i < len(lines) - 1:
                 # libriichi could act where the server didn't ask
                 self.fail('unrequested_action', request_id=record['request_id'], event=line, reaction=out)
@@ -187,6 +246,8 @@ class Seat:
                 reaction = out
         mask, kan = masks_from_legal(legal)
         ours = list(self.shadow.action_mask(False))
+        if four_kan:
+            ours = [m and k not in CALL_BITS for k, m in enumerate(ours)]
         if ours != mask:
             self.fail('mask_mismatch', request_id=record['request_id'],
                       libriichi=[i for i, m in enumerate(ours) if m],

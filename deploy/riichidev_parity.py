@@ -33,7 +33,7 @@ import time
 from glob import glob
 
 from . import RUNS_DIR
-from .riichidev_bot import KANS, Seat, event_key, load_engine, same_move
+from .riichidev_bot import KANS, Seat, event_key, libriichi_order, load_engine, same_move
 
 # events that are a seat's own move
 MOVES = ('dahai', 'chi', 'pon', 'daiminkan', 'ankan', 'kakan', 'reach', 'hora', 'ryukyoku')
@@ -161,7 +161,8 @@ def selfplay(seed, engine, version, check_obs=True):
     `apply_event` and observed only for the seat being asked, scopes them that way. The
     legal moves come from the step-mode env. At every request, the legal moves are checked
     against libriichi's mask (`Seat.decide`), and the observation against a libriichi
-    `PlayerState` fed the full log, masked for that seat (unless not `check_obs`).
+    `PlayerState` fed the full log, masked for that seat, in the order the adapter feeds libriichi
+    (`libriichi_order`), unless not `check_obs`.
     Returns (counts, problems, ranks)."""
     from libriichi.state import PlayerState
     from riichienv import RiichiEnv
@@ -178,12 +179,13 @@ def selfplay(seed, engine, version, check_obs=True):
     obs = env.get_observations()
     while not env.done():
         log = env.mjai_log
-        for ev in log[cursor:]:
-            ev = ev if isinstance(ev, dict) else json.loads(ev)
+        new = [ev if isinstance(ev, dict) else json.loads(ev) for ev in log[cursor:]]
+        for ev in new:
             mirror.apply_event(ev)
-            if check_obs:
-                for s in range(4):
-                    native[s].update(json.dumps(masked_for(ev, s)))
+        if check_obs:
+            for s in range(4):
+                for line in libriichi_order([json.dumps(masked_for(ev, s)) for ev in new]):
+                    native[s].update(line)
         cursor = len(log)
         actions = {}
         for s, o in obs.items():

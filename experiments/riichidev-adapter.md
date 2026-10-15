@@ -1,9 +1,9 @@
 # riichi.dev adapter and parity tests (07 §1)
 
 - **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). The
-  validation game passed on 2026-10-14. **The 100K-game test found two adapter bugs** (item 4);
-  they're to be fixed before it runs again. The user's decisions of 2026-10-12 are under "Before
-  ranked play".
+  validation game passed on 2026-10-14. **The 100K-game test found two adapter bugs** (item 4).
+  Both were fixed on 2026-10-15; the test runs again on the next eval-box rental. The user's
+  decisions of 2026-10-12 are under "Before ranked play".
 - **Code:** `deploy/riichidev_bot.py` (the adapter and its WebSocket runner),
   `deploy/riichidev_parity.py` (the parity harness), `tests/test_riichidev.py`.
 - **Environment:** a venv on top of the frozen `mortal` env, adding riichienv 0.4.10 and
@@ -173,9 +173,49 @@ that seat as the arena masks it.
      disagree on when a chi is allowed: kuikae, the last tile and a lack of a legal discard after
      the call are the candidates.
 
-   Next: replay the three seeds on the workstation (free; `--selfplay 1 --seed-start <seed>`),
-   find each cause and fix it, add regression tests, then run the 100K test again on the next
-   eval-box rental. That rental needs the user's go-ahead.
+   **Both fixed on 2026-10-15, in the adapter.** libriichi is unchanged: it is the frozen rules
+   engine, and the halfway measures were running on it.
+   - **The chankan cause is an event-order convention.**
+     - In seeds 20281 and 20282, actor 0 calls an open kan (8s), draws its rinshan, then declares
+       a kakan (6p). riichienv reveals the open kan's dora right after the kakan, then asks the
+       others about chankan: `kakan > dora > [chankan] > tsumo > dora`.
+     - libriichi's arena reveals that dora later, at the rinshan tsumo. Its `PlayerState` closes
+       the chankan window at the next event, and a dora counts.
+     - A kakan's own dora comes after its rinshan tsumo in both engines (checked on six games'
+       kans), so only the earlier kan's dora is ever moved.
+     - Fix: `libriichi_order` feeds the doras that follow a kakan before it. libriichi then
+       offers the chankan, with the indicators the server shows. The game logs keep the
+       server's order.
+   - **The chi cause is the four-kan abort (四槓散了), not a rule difference.**
+     - In seed 14176 the 4m is the discard after a fourth kan by two players: kakan, daiminkan
+       and kakan by actor 0, and an ankan by actor 2.
+     - Both engines abort the kyoku unless that discard is ronned. libriichi's arena collects
+       reactions, then aborts on anything but a ron (`check_four_kan`).
+     - riichienv offers only the ron, and here nobody could ron. libriichi's `PlayerState`
+       still offered seat 1 a chi that couldn't take effect.
+     - Fix: on that discard (`four_kan_discard`), a libriichi call or pass means pass. The call
+       bits leave the mask comparison. If the server asks (a ron is possible), the bot picks
+       ron or pass by its q-values (`ron_or_pass`). A libriichi ron that the server didn't ask
+       for still fails the game.
+   - **The parity harness** feeds its reference `PlayerState` in the same order
+     (`libriichi_order`). Fed the server's order, the reference has the chankan window closed,
+     and its input rows for the candidate actions (the called tile, can-agari, the EV rows)
+     differ from the adapter's.
+   - **Tests:**
+     - `tests/test_riichidev.py` gains unit tests for the three helpers.
+     - Two regression tests replay seat 1's recorded requests from these games
+       (`tests/data/riichidev/selfplay-{20281,14176}-seat1.json`, riichienv self-play). The
+       pre-fix adapter fails both, with exactly the 100K test's failures.
+   - **Verified:**
+     - The three seeds pass with full checks.
+     - 100 games, seeds 20,230–20,329 (both chankan seeds included), pass with full checks:
+       61,463 requests, 0 failures, 0 observation mismatches, 0 fallbacks
+       (`workdir/riichidev/parity-fix-20230-100.json`).
+     - In 20281 and 20282 the bot now robs the kan, and the game ends there.
+     - The adapter suite passes, 14 tests.
+
+   Next: the 100K test again, all 20 chunks, on the next eval-box rental. That rental needs the
+   user's go-ahead.
    - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
      time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
    - **Compared 2026-10-14 on the new box** (EPYC 9474F, 32 cores, 4090; 200 games, seeds
