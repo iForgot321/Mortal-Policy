@@ -2,9 +2,8 @@
 
 use crate::arena::{Board, BoardState, Poll};
 use crate::mjai::{Event, EventExt};
-use crate::must_tile;
 use crate::state::PlayerState;
-use crate::tu8;
+use crate::{must_tile, t, tu8};
 
 use anyhow::{Context, Result, bail, ensure};
 
@@ -34,27 +33,69 @@ pub fn board_from_seed(seed: (u64, u64), start_kyoku: &Event) -> Result<Board> {
     Ok(board)
 }
 
+/// What `seat` sees of `ev`: the other players' starting hands and draws are
+/// hidden.
+pub fn visible(ev: &Event, seat: u8) -> Event {
+    let mut ev = ev.clone();
+    match &mut ev {
+        Event::StartKyoku { tehais, .. } => {
+            for (s, tehai) in tehais.iter_mut().enumerate() {
+                if s != seat as usize {
+                    *tehai = [t!(?); 13];
+                }
+            }
+        }
+        Event::Tsumo { actor, pai } if *actor != seat => *pai = t!(?),
+        _ => (),
+    }
+    ev
+}
+
+/// Where the board waits for the action logged at `events[until]`: an open
+/// kan's dora is revealed in the step of the discard after it, so a root at
+/// that discard starts before the dora.
+pub fn root_stop(events: &[Event], until: usize) -> usize {
+    let mut stop = until;
+    if matches!(events.get(until), Some(Event::Dahai { .. })) {
+        while stop > 0 && matches!(events[stop - 1], Event::Dora { .. }) {
+            stop -= 1;
+        }
+    }
+    stop
+}
+
 /// Plays `board` through the kyoku's logged `events` (`start_kyoku` first),
 /// forcing every reaction from the log, and stops where the board waits for
 /// the reaction that makes it emit `events[until]`, the action decided at the
-/// root. With `until` equal to `events.len()`, the replay runs through
-/// `end_kyoku`.
+/// root (`root_stop`). With `until` equal to `events.len()`, the replay runs
+/// through `end_kyoku`.
 ///
 /// Every event the board emits must equal the logged one, so this also checks
 /// that the latent history is consistent with the log (`06` §2–3).
 pub fn replay(board: Board, events: &[Event], until: usize) -> Result<BoardState> {
+    replay_as(board, events, until, None)
+}
+
+/// `replay` as `seat` sees the kyoku: the board's events and the logged ones
+/// are compared after hiding the other players' hands and draws (`visible`).
+/// A particle is valid when this succeeds (`06` §2).
+pub fn replay_seen_by(
+    board: Board,
+    events: &[Event],
+    until: usize,
+    seat: u8,
+) -> Result<BoardState> {
+    replay_as(board, events, until, Some(seat))
+}
+
+fn replay_as(board: Board, events: &[Event], until: usize, seat: Option<u8>) -> Result<BoardState> {
     ensure!(
         until <= events.len(),
         "cannot replay to event {until} of {}",
         events.len(),
     );
-    // An open kan's dora is revealed in the step of the discard after it.
-    let mut until = until;
-    if matches!(events.get(until), Some(Event::Dahai { .. })) {
-        while until > 0 && matches!(events[until - 1], Event::Dora { .. }) {
-            until -= 1;
-        }
-    }
+    let until = root_stop(events, until);
+    let view = |ev: &Event| seat.map_or_else(|| ev.clone(), |s| visible(ev, s));
     let mut state = board.into_state();
     let mut reactions: [EventExt; 4] = Default::default();
     let mut checked = 0;
@@ -68,10 +109,10 @@ pub fn replay(board: Board, events: &[Event], until: usize) -> Result<BoardState
             events.len(),
         );
         for (i, (got, want)) in log.iter().zip(events).enumerate().skip(checked) {
+            let (got, want) = (view(&got.event), view(want));
             ensure!(
-                got.event == *want,
-                "event {i} differs from the log: the board emitted {:?}, the log has {want:?}",
-                got.event,
+                got == want,
+                "event {i} differs from the log: the board emitted {got:?}, the log has {want:?}",
             );
         }
         checked = log.len();
@@ -116,6 +157,19 @@ fn forced_reactions(states: &[PlayerState; 4], next: &[Event]) -> Result<[EventE
         | Event::Daiminkan { actor, .. }
         | Event::Ankan { actor, .. }
         | Event::Kakan { actor, .. } => {
+            // Arena agents mark a discard of the tile just drawn as tsumogiri,
+            // so a discard from hand isn't the drawn tile.
+            if let Event::Dahai {
+                pai,
+                tsumogiri: false,
+                ..
+            } = *first
+            {
+                ensure!(
+                    states[actor as usize].last_self_tsumo() != Some(pai),
+                    "seat {actor} discarded {pai} from hand, but it had just drawn it",
+                );
+            }
             reactions[actor as usize] = EventExt::no_meta(first.clone());
         }
         Event::Hora { .. } => {
@@ -142,6 +196,14 @@ fn forced_reactions(states: &[PlayerState; 4], next: &[Event]) -> Result<[EventE
         }
         // tsumo, dora, reach_accepted, end_kyoku: everyone passed
         _ => (),
+    }
+    // Checked here so the board never sees an illegal reaction: its own error
+    // path describes the state with `brief_info`, which can panic on a
+    // particle's hand.
+    for (seat, r) in reactions.iter().enumerate() {
+        states[seat]
+            .validate_reaction(&r.event)
+            .with_context(|| format!("seat {seat} cannot {:?}", r.event))?;
     }
     Ok(reactions)
 }

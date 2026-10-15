@@ -5,6 +5,8 @@
 //! seed. That reads the true hidden state, so it is a lab-only diagnostic and
 //! never runs in a deployed bot.
 
+mod belief;
+mod particle;
 mod replay;
 mod rollout;
 #[cfg(test)]
@@ -56,18 +58,60 @@ pub struct Outcome {
     pub log: Option<Vec<String>>,
 }
 
+fn parse(lines: &[String]) -> Result<Vec<Event>> {
+    Ok(lines
+        .iter()
+        .map(|l| json::from_str(l))
+        .collect::<Result<_, _>>()?)
+}
+
 fn replay_roots(roots: &[Root]) -> Result<Vec<BoardState>> {
     roots
         .par_iter()
         .enumerate()
         .map(|(i, (seed, lines, until))| {
-            let events = lines
-                .iter()
-                .map(|l| json::from_str(l))
-                .collect::<Result<Vec<Event>, _>>()?;
+            let events = parse(lines)?;
             let start = events.first().context("empty kyoku")?;
             replay(board_from_seed(*seed, start)?, &events, *until)
                 .with_context(|| format!("root {i} (seed {seed:?}, decision at event {until})"))
+        })
+        .collect()
+}
+
+/// A root's board taking `action`, the deciding seat's discard or riichi.
+fn branch(state: BoardState, action: u8) -> Result<Branch> {
+    let seat = decision_seat(&state)? as usize;
+    let player = &state.agent_context().player_states[seat];
+    let ev = root_reaction(player, action)?;
+    // the board's own check panics describing some states (see `replay`)
+    player
+        .validate_reaction(&ev)
+        .with_context(|| format!("seat {seat} cannot {ev:?} at this root"))?;
+    let mut reactions: [EventExt; 4] = Default::default();
+    reactions[seat] = EventExt::no_meta(ev);
+    Ok(Branch { state, reactions })
+}
+
+/// Rolls the branches out with `engine` at every seat.
+fn play_out(engine: PyObject, branches: Vec<Branch>, keep_logs: bool) -> Result<Vec<Outcome>> {
+    let player_ids: Vec<u8> = (0..4).cycle().take(4 * branches.len()).collect();
+    let mut agent = new_py_agent(engine, &player_ids)?;
+    rollout(agent.as_mut(), branches)?
+        .into_iter()
+        .map(|mut state| {
+            let r = state.end();
+            let log = keep_logs
+                .then(|| state.take_log().iter().map(json::to_string).collect())
+                .transpose()?;
+            Ok(Outcome {
+                kyoku: r.kyoku,
+                can_renchan: r.can_renchan,
+                has_hora: r.has_hora,
+                has_abortive_ryukyoku: r.has_abortive_ryukyoku,
+                kyotaku_left: r.kyotaku_left,
+                scores: r.scores,
+                log,
+            })
         })
         .collect()
 }
@@ -95,34 +139,10 @@ fn rollouts(
                 if let Some(seed) = redeal {
                     redeal_undealt(&mut state, &mut ChaCha12Rng::seed_from_u64(seed));
                 }
-                let seat = decision_seat(&state)? as usize;
-                let ev = root_reaction(&state.agent_context().player_states[seat], action)?;
-                let mut reactions: [EventExt; 4] = Default::default();
-                reactions[seat] = EventExt::no_meta(ev);
-                Ok(Branch { state, reactions })
+                branch(state, action)
             })
             .collect::<Result<Vec<_>>>()?;
-
-        let player_ids: Vec<u8> = (0..4).cycle().take(4 * branches.len()).collect();
-        let mut agent = new_py_agent(engine, &player_ids)?;
-        rollout(agent.as_mut(), branches)?
-            .into_iter()
-            .map(|mut state| {
-                let r = state.end();
-                let log = keep_logs
-                    .then(|| state.take_log().iter().map(json::to_string).collect())
-                    .transpose()?;
-                Ok(Outcome {
-                    kyoku: r.kyoku,
-                    can_renchan: r.can_renchan,
-                    has_hora: r.has_hora,
-                    has_abortive_ryukyoku: r.has_abortive_ryukyoku,
-                    kyotaku_left: r.kyotaku_left,
-                    scores: r.scores,
-                    log,
-                })
-            })
-            .collect()
+        play_out(engine, branches, keep_logs)
     })
 }
 
@@ -205,6 +225,7 @@ pub(crate) fn register_module(
 ) -> PyResult<()> {
     let m = PyModule::new(py, "search")?;
     m.add_class::<Outcome>()?;
+    m.add_class::<belief::Beliefs>()?;
     m.add_function(wrap_pyfunction!(rollouts, &m)?)?;
     m.add_function(wrap_pyfunction!(root_observations, &m)?)?;
     m.add_function(wrap_pyfunction!(self_play, &m)?)?;

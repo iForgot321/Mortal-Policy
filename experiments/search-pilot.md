@@ -5,7 +5,9 @@
     cloud box;
   - the run waits for G0, which picks the blueprint ("family-A self-play of the leading arm").
     The user asked to wait until the P0 and P1 runs finish (2026-10-15);
-  - the belief stage (S-1 particles, likelihood weights, the latency harness) is not started.
+  - the belief stage: S-1's v1 sampler is built and tested (below), but uniform rejection can't
+    handle opponents in riichi, so the constraint-preserving swap moves (MCMC) of D38 come next;
+    then likelihood weights and the latency harness.
 - **Labels:** the oracle stage is a lab-only diagnostic: never a strength result, never deployed
   (06 §0). The pilot's verdict is the recovery ratio, belief gain ÷ oracle gain.
 
@@ -81,3 +83,48 @@ until they are fixed.
 - **Reproduced 256/256:** the policy's own action, played in the true world, gives back the
   self-play kyoku exactly (06 §3's test, on real decisions).
 - The gains in its report come from 256 dev decisions and mean nothing yet.
+
+## Belief stage: S-1 particles, v1 (2026-10-15)
+
+- **Code:** `libriichi/src/search/particle.rs` (`Layout`) and `belief.rs` (`Beliefs`, the Python
+  class).
+  - `Layout` reads the deciding seat's view of the kyoku. Every event is masked first
+    (`visible`), so no hidden tile can be read.
+  - It records the slots whose tiles the seat has seen: its own hand and draws, opponents'
+    tsumogiri draws and revealed dora indicators.
+  - For each opponent, it records the tiles the public events say it held, and by when:
+    - each discard from hand, before that turn's draw;
+    - each called or kanned tile, before the call.
+  - In the arena a discard of the tile just drawn is always marked tsumogiri, so a draw followed
+    by a discard from hand can't be the discarded tile.
+- **Sampler (the uniform proposal of D38):**
+  - It deals each opponent's unknown slots in time order from the unseen tiles. Each draw is
+    proportional to the tile's count, among the choices that keep every requirement possible
+    (Hall's condition on the deadlines, and enough copies left).
+  - The importance weight is the product of the possible share at each slot. The undealt slots
+    are shuffled.
+  - A particle is accepted when the kyoku's public events replay through it as the seat saw
+    them (`replay_seen_by`). That covers what the sampler doesn't enforce, such as a riichi hand
+    being tenpai.
+- **Tests** (Rust, on rule-based games and a random network's calls fixture,
+  `tests/data/search`):
+  - the true history always fits the layout;
+  - every accepted particle gives back the seat's exact root observation and all 136 tiles;
+  - masked and full logs give identical particles (no leak).
+- **Acceptance on the smoke run's 256 riichi decisions** (64 particles per root, at most 20K
+  tries, 8 s in all):
+
+  | Opponents in riichi | Roots | Accepted / tried | Roots short of 64 |
+  |---|---|---|---|
+  | 0 | 189 | 21% | 0 |
+  | 1 | 59 | 0.13% | 48 |
+  | 2 | 8 | 0 | 8 |
+
+  - Uniform tiles almost never make a riichi player's hand tenpai.
+  - The proposal's log weights also spread by a median of 27 within a root, so the effective
+    sample size is about 1. Opponents with many discards from hand force tiles late in some
+    samples and not in others.
+  - **Next:** D38's constraint-preserving swap moves. Start from one valid particle (repairing
+    riichi hands to tenpai), then run a Metropolis chain of tile swaps between unknown slots
+    whose target is uniform over consistent histories. Particles then need only the likelihood
+    weights.
