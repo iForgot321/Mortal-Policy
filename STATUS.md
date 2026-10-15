@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 18:30 UTC)
+## Current position (2026-10-15 22:40 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -83,19 +83,17 @@ research is under way.**
       ≈ 2.2 h on the workstation, with no cloud box.
     - Before the run: G0's blueprint, and the design choices in the note for the user to
       confirm (above all what the oracle knows, and the primary decision rule).
-  - **Belief stage: particles work; D38's v1 weighting doesn't.**
-    - A swap-move chain samples histories consistent with the seat's view. It gives 64 valid
-      particles at 255/256 smoke-run roots in 0.2 s, riichi opponents included, and agrees with
-      importance sampling where that is reliable (612 comparisons, mean z² 1.04).
-    - The opponents' action likelihoods work too: the true history scores −84 against −157 for
-      a typical particle.
-    - But uniform-prior hands are nothing like real ones. 0.5% of non-riichi opponents are
-      tenpai in the particles against 17.6% in truth, so the ESS collapses to 1 of 64 and the
-      belief predicts tenpai worse than a constant base rate at every likelihood temperature.
-    - **The next step is the user's choice** (the note's "What next"): D38's sequential
-      filtering (very costly offline), a learned hand model as the proposal (D38 allows it;
-      the most promising), or a cheap rule-based opponent model in the chain (needs an `08`
-      entry).
+  - **Belief stage: built, and the learned hand model passes D58's test** (the user chose it,
+    D58, 2026-10-15).
+    - D38's v1 belief (uniform particles reweighted by action likelihoods) predicted opponents'
+      tenpai worse than a constant rate.
+    - A model of opponents' concealed hands, trained on 4,000 pilot-A self-play games (37 min),
+      does well on held-out decisions: tenpai log loss 0.258 against 0.415 for the base rate,
+      a predicted rate of 14.1% against 14.6% true, and waits log loss 0.047 against 0.060.
+    - Reweighting it by likelihoods makes it worse, so by D58 the model alone is the belief.
+    - One belief search takes p50 0.68 s and p99 2.21 s on the 3060, under the 2.5 s criterion.
+    - Before the run: G0's blueprint, and a hand model trained on its self-play (≈ 1.5 h).
+      The pilot then takes ≈ 5–6 h on the workstation.
 - **Eval box stall (2026-10-15):** the 100K test's first chunk named the riichidev venv, which
   this rental never had. The queue runner died on it at 11:34 UTC and the box sat idle until
   18:25 UTC (≈ $4.4); I hadn't checked that the first chunk started. Fixed in `8df7b39`: a job
@@ -531,10 +529,10 @@ failure modes already met.
      validation game passed (2026-10-14). The 100K-game test found two adapter bugs (chankan
      missed; a chi riichienv doesn't offer). Next: fix them on the workstation (free), then run
      the test again on the next eval-box rental, which needs the user's go-ahead.
-5. **Search pilot (`06` §0):** the oracle stage reports by G0. Its code is built and tested
-   (`experiments/search-pilot.md`); the run waits for G0's blueprint and the user's answers on
-   the design choices. The belief stage's particles and likelihoods are built; its weighting
-   needs a better proposal, which is the user's choice.
+5. **Search pilot (`06` §0):** the oracle stage reports by G0. Both stages are built and tested
+   (`experiments/search-pilot.md`; design choices fixed by D58). It waits for G0's blueprint;
+   then the blueprint's self-play, its hand model, and the pilot run (≈ 7 h on the
+   workstation, no cloud).
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
    - ~~the eval-box queue~~ done 2026-10-12 (`tools/fleet/evalbox.py`, README "The eval box");

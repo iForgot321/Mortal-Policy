@@ -153,7 +153,7 @@ class HandExamples(IterableDataset):
     """Examples from self-play logs, every `stride`-th decision of each game, shuffled within a
     buffer. Observations are kept as float16 in the buffer."""
 
-    def __init__(self, paths, stride=2, buffer=4096, epochs=1, seed=0):
+    def __init__(self, paths, stride=2, buffer=2048, epochs=1, seed=0):
         self.paths, self.stride, self.buffer, self.epochs, self.seed = paths, stride, buffer, epochs, seed
 
     def __iter__(self):
@@ -168,7 +168,10 @@ class HandExamples(IterableDataset):
             for path in paths:
                 obs, hands, _, unseen = hand_examples(path, stride=self.stride,
                                                       offset=rng.randrange(self.stride))
-                buf += zip(obs.astype(np.float16), hands, unseen)
+                obs = obs.astype(np.float16)
+                # copies, not views: a buffered view keeps its whole game's array alive
+                buf += ((o.copy(), h.copy(), u.copy()) for o, h, u in zip(obs, hands, unseen))
+                del obs
                 while len(buf) >= self.buffer:
                     i = rng.randrange(len(buf))
                     buf[i], buf[-1] = buf[-1], buf[i]
@@ -285,7 +288,7 @@ def beliefs(model, roots, n, seed=0, shuffle=200):
     rng = np.random.default_rng(seed)
     hands, logq = [], []
     for _, obs, unseen, sizes, aka_unseen in root_views(roots):
-        unseen = np.frombuffer(bytes(unseen), dtype=np.uint8)  # pyo3 gives u8 arrays as bytes
+        unseen = np.frombuffer(bytes(unseen), dtype=np.uint8).copy()  # pyo3 gives u8 arrays as bytes
         h, lq = model.sample(torch.as_tensor(obs, device=device).unsqueeze(0), torch.as_tensor(unseen),
                              torch.tensor(list(sizes)), n, generator=gen)
         h = h.cpu().numpy()
@@ -296,12 +299,16 @@ def beliefs(model, roots, n, seed=0, shuffle=200):
 
 
 def calibrate(model, run_dir, n=64, limit=None, seed=0, device='cuda:0'):
-    """D58's test on a pilot run's decisions (held-out games): for each root, `n` sampled hands
-    per opponent; the share that are tenpai against the truth (lab-only: reads the seed). Scores
-    non-riichi opponents (log loss, Brier) next to the base rate, and riichi opponents' tenpai
-    share, which should be 1."""
+    """D58's test on a pilot run's decisions (held-out games), with `n` hands sampled per root
+    from the deciding seat's view, scored against the truth (lab-only: reads the seed):
+
+    - tenpai: for each non-riichi opponent, the share of samples that are tenpai, against
+      whether it is (log loss and Brier, next to a constant base rate); and riichi opponents'
+      tenpai share, which should be 1;
+    - waits (06 §2): for each opponent and tile kind, the share of samples that win on it,
+      against whether the true hand does (log loss, next to a constant rate)."""
     import json
-    from libriichi.search import root_shanten, root_views, shanten
+    from libriichi.search import root_hands, root_views, shanten, waits
     from .pilot import read_game
     with open(os.path.join(run_dir, 'decisions.jsonl'), encoding='utf-8') as f:
         ds = [json.loads(line) for line in f][:limit]
@@ -312,34 +319,90 @@ def calibrate(model, run_dir, n=64, limit=None, seed=0, device='cuda:0'):
         roots.append((lines, d['until']))
         oroots.append((seed_, lines, d['until']))
         riichi.append({json.loads(x)['actor'] for x in lines[:d['until']] if '"reach"' in x})
-    truth = root_shanten(oroots)
+    true_hands = root_hands(oroots)
     gen = torch.Generator(device=device).manual_seed(seed)
-    probs, ys, riichi_tenpai = [], [], []
-    for (seat, obs, unseen, sizes, _), r, t in zip(root_views(roots), riichi, truth):
-        # pyo3 hands back the u8 arrays as bytes
+    probs, ys, riichi_tenpai, wait_p, wait_y = [], [], [], [], []
+    for (seat, obs, unseen, sizes, _), r, truth in zip(root_views(roots), riichi, true_hands):
         hands, _ = model.sample(torch.as_tensor(obs, device=device).unsqueeze(0),
                                 torch.tensor(list(unseen)), torch.tensor(list(sizes)), n, generator=gen)
-        hands = hands.cpu().numpy()
+        hands = hands.cpu().numpy().astype(np.uint8)
         for j in range(3):
             o = (seat + 1 + j) % 4
-            tenpai = np.array(shanten([h.astype(np.uint8).tolist() for h in hands[:, j]])) <= 0
+            sampled = [h.tolist() for h in hands[:, j]]
+            tenpai = np.array(shanten(sampled)) <= 0
+            true = list(truth[o])
             if o in r:
                 riichi_tenpai.append(tenpai.mean())
             else:
                 probs.append(float(np.clip(tenpai.mean(), 0.01, 0.99)))
-                ys.append(t[o] == 0)
+                ys.append(shanten([true])[0] <= 0)
+            wait_p.append(np.clip(np.array(waits(sampled), dtype=np.float64).mean(0), 0.005, 0.995))
+            wait_y.append(np.array(waits([true])[0], dtype=bool))
     p, y = np.array(probs), np.array(ys)
-    base = y.mean()
+    wp, wy = np.concatenate(wait_p), np.concatenate(wait_y)
+    base, wbase = y.mean(), wy.mean()
+
+    def log_loss(p, y):
+        return float(-np.mean(np.where(y, np.log(p), np.log(1 - p))))
+
     return {
-        'roots': len(roots), 'opponents': len(y), 'tenpai_rate': float(base),
-        'predicted_rate': float(p.mean()),
-        'log_loss': float(-np.mean(np.where(y, np.log(p), np.log(1 - p)))),
-        'brier': float(np.mean((p - y) ** 2)),
-        'base_log_loss': float(-(base * np.log(base) + (1 - base) * np.log(1 - base))),
-        'base_brier': float(base * (1 - base)),
-        'riichi_opponents': len(riichi_tenpai),
-        'riichi_tenpai_share': float(np.mean(riichi_tenpai)) if riichi_tenpai else None,
+        'roots': len(roots), 'samples': n,
+        'tenpai': {'opponents': len(y), 'rate': float(base), 'predicted_rate': float(p.mean()),
+                   'log_loss': log_loss(p, y), 'brier': float(np.mean((p - y) ** 2)),
+                   'base_log_loss': log_loss(np.full_like(p, base), y), 'base_brier': float(base * (1 - base))},
+        'riichi_opponents': {'n': len(riichi_tenpai),
+                             'tenpai_share': float(np.mean(riichi_tenpai)) if riichi_tenpai else None},
+        'waits': {'pairs': len(wy), 'rate': float(wbase), 'predicted_rate': float(wp.mean()),
+                  'log_loss': log_loss(wp, wy), 'base_log_loss': log_loss(np.full_like(wp, wbase), wy)},
     }
+
+
+def calibrate_weighted(model, engine, run_dir, n=64, limit=None, betas=(0, 0.1, 0.3, 1.0), seed=0):
+    """D58's check of the likelihood correction: the model's particles (completed histories), each
+    weighted by exp(β · its opponents' action log-likelihood), scored as `calibrate` scores
+    samples. β = 0 is the model alone. Returns one row per β."""
+    import json
+    from libriichi.search import root_hands, shanten, waits
+    from .pilot import read_game
+    with open(os.path.join(run_dir, 'decisions.jsonl'), encoding='utf-8') as f:
+        ds = [json.loads(line) for line in f][:limit]
+    roots, oroots, riichi = [], [], []
+    for d in ds:
+        seed_, kyokus = read_game(os.path.join(run_dir, 'logs', d['game']))
+        lines = kyokus[d['kyoku']]
+        roots.append((lines, d['until']))
+        oroots.append((seed_, lines, d['until']))
+        riichi.append({json.loads(x)['actor'] for x in lines[:d['until']] if '"reach"' in x})
+    b, _ = beliefs(model, roots, n, seed=seed)
+    b.weigh(engine)
+    true_hands = root_hands(oroots)
+    seats, hands, lls = b.seats(), b.hands(), b.log_likelihoods()
+    rows = []
+    for beta in betas:
+        probs, ys, wait_p, wait_y, ess = [], [], [], [], []
+        for r in range(len(roots)):
+            if not hands[r]:
+                continue
+            lw = beta * np.array(lls[r])
+            w = np.exp(lw - lw.max())
+            w /= w.sum()
+            ess.append(1 / (w ** 2).sum())
+            for j in range(1, 4):
+                o = (seats[r] + j) % 4
+                sampled = [h[o] for h in hands[r]]
+                true = list(true_hands[r][o])
+                wait_p.append(np.clip(w @ np.array(waits(sampled), dtype=np.float64), 0.005, 0.995))
+                wait_y.append(np.array(waits([true])[0], dtype=bool))
+                if o not in riichi[r]:
+                    probs.append(float(np.clip(w @ (np.array(shanten(sampled)) <= 0), 0.01, 0.99)))
+                    ys.append(shanten([true])[0] <= 0)
+        p, y = np.array(probs), np.array(ys)
+        wp, wy = np.concatenate(wait_p), np.concatenate(wait_y)
+        ll = lambda p, y: float(-np.mean(np.where(y, np.log(p), np.log(1 - p))))  # noqa: E731
+        rows.append({'beta': beta, 'ess_median': float(np.median(ess)),
+                     'tenpai_log_loss': ll(p, y), 'tenpai_base': ll(np.full_like(p, y.mean()), y),
+                     'waits_log_loss': ll(wp, wy), 'waits_base': ll(np.full_like(wp, wy.mean()), wy)})
+    return rows
 
 
 def main():
@@ -356,7 +419,7 @@ def main():
     t.add_argument('--stride', type=int, default=2)
     t.add_argument('--lr-brain', type=float, default=1e-4)
     t.add_argument('--lr-head', type=float, default=1e-3)
-    t.add_argument('--workers', type=int, default=4)
+    t.add_argument('--workers', type=int, default=4, help='each holds ≈ 200 MB of examples')
     t.add_argument('--log-every', type=int, default=200)
     t.add_argument('--eval-every', type=int, default=2000)
     t.add_argument('--val-games', type=int, default=20)
@@ -368,7 +431,20 @@ def main():
     c.add_argument('--n', type=int, default=64)
     c.add_argument('--limit', type=int)
     c.add_argument('--device', default='cuda:0')
+    w = sub.add_parser('calibrate-weighted', help="D58: does the likelihood correction help?")
+    w.add_argument('--model', required=True)
+    w.add_argument('--engine', required=True, help='the blueprint, for the likelihoods')
+    w.add_argument('--run', required=True)
+    w.add_argument('--n', type=int, default=64)
+    w.add_argument('--limit', type=int)
+    w.add_argument('--device', default='cuda:0')
     args = p.parse_args()
+    if args.cmd == 'calibrate-weighted':
+        import json
+        from .__main__ import load_blueprint
+        for row in calibrate_weighted(load(args.model, args.device), load_blueprint(args), args.run,
+                                      args.n, args.limit):
+            print(json.dumps(row))
     if args.cmd == 'train':
         train(args)
     elif args.cmd == 'calibrate':

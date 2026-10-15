@@ -269,6 +269,38 @@ def belief(engine, value, model, run_dir, particles, chunk=16, seed=0):
         print(f'belief: {len(done) + i + len(part)}/{len(rows)} decisions', flush=True)
 
 
+def latency(engine, value, model, run_dir, particles, decisions=100, seed=0):
+    """06 §0's latency: one belief search at a time, request to answer: sample `2 * particles`
+    hands from the seat's view, complete them, roll both candidates out on up to `particles`
+    of them and value the rollouts. Returns per-stage seconds and the p50/p99 of the total."""
+    import time
+    import torch
+    from .handmodel import beliefs
+    with open(os.path.join(run_dir, 'decisions.jsonl'), encoding='utf-8') as f:
+        rows = [json.loads(line) for line in f][:decisions]
+    stages = {'beliefs': [], 'rollouts': [], 'value': [], 'total': []}
+    for d in rows:
+        seed_, kyokus = read_game(os.path.join(run_dir, 'logs', d['game']))
+        root = (kyokus[d['kyoku']], d['until'])
+        history = grp_history(kyokus, d['kyoku'])
+        torch.cuda.synchronize()
+        t0 = time.perf_counter()
+        b, _ = beliefs(model, [root], 2 * particles, seed=seed + d['id'])
+        k = min(b.counts()[0][0], particles)
+        t1 = time.perf_counter()
+        outs = b.rollouts(engine, [(0, p, a) for a in (RIICHI, d['dama']) for p in range(k)])
+        t2 = time.perf_counter()
+        value([(history, o, d['honba'], d['seat']) for o in outs])
+        t3 = time.perf_counter()
+        for name, dt in zip(stages, (t1 - t0, t2 - t1, t3 - t2, t3 - t0)):
+            stages[name].append(dt)
+    out = {name: {'p50': float(np.percentile(v, 50)), 'p99': float(np.percentile(v, 99)),
+                  'max': float(np.max(v))} for name, v in stages.items()}
+    out['decisions'] = len(rows)
+    out['particles'] = particles
+    return out
+
+
 # ---- 4. report -------------------------------------------------------------
 
 def clustered_se(x, groups):

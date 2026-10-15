@@ -240,3 +240,16 @@ def test_hand_model_density_is_exact():
     with torch.no_grad():
         lp = model.log_prob(obs.expand(32, -1, -1), hands, unseen.expand(32, -1)).sum(-1)
     assert np.allclose(lp.numpy(), logq.numpy(), atol=1e-4)
+
+
+def test_waits_and_shanten():
+    """123m 456m 789m 11p 23s waits on 1s and 4s; one tile off, it isn't tenpai."""
+    from libriichi.search import shanten, waits
+    hand = [0] * 34
+    for k in list(range(9)) + [9, 9, 19, 20]:
+        hand[k] += 1
+    assert shanten([hand]) == [0]
+    assert [k for k, w in enumerate(waits([hand])[0]) if w] == [18, 21]
+    hand[20] -= 1
+    hand[30] += 1
+    assert shanten([hand]) == [1] and not any(waits([hand])[0])

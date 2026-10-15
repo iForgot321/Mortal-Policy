@@ -163,6 +163,21 @@ fn root_shanten(roots: Vec<Root>, py: Python<'_>) -> Result<Vec<[i8; 4]>> {
     })
 }
 
+/// Each seat's true concealed tile counts at each root (lab-only: reads the
+/// seed), to score beliefs against.
+#[pyfunction]
+fn root_hands(roots: Vec<Root>, py: Python<'_>) -> Result<Vec<[[u8; 34]; 4]>> {
+    py.allow_threads(move || {
+        Ok(replay_roots(&roots)?
+            .iter()
+            .map(|state| {
+                let states = state.agent_context().player_states;
+                std::array::from_fn(|s| states[s].tehai())
+            })
+            .collect())
+    })
+}
+
 /// The opponents' log action likelihood of each root's true history (lab-only:
 /// reads the seed), to compare with its particles' (`Beliefs::weigh`).
 #[pyfunction]
@@ -202,6 +217,32 @@ fn shanten(hands: Vec<[u8; 34]>) -> Vec<i8> {
         .map(|h| {
             let len: u8 = h.iter().sum();
             crate::algo::shanten::calc_all(h, len / 3)
+        })
+        .collect()
+}
+
+/// The kinds that would complete each tenpai hand of 34 tile counts (any
+/// fifth copy aside), as a 34-long mask; all false for a hand not tenpai.
+#[pyfunction]
+fn waits(hands: Vec<[u8; 34]>) -> Vec<[bool; 34]> {
+    use crate::algo::shanten::calc_all;
+    hands
+        .iter()
+        .map(|h| {
+            let len: u8 = h.iter().sum();
+            let mut out = [false; 34];
+            if calc_all(h, len / 3) != 0 {
+                return out;
+            }
+            let mut h = *h;
+            for (k, w) in out.iter_mut().enumerate() {
+                if h[k] < 4 {
+                    h[k] += 1;
+                    *w = calc_all(&h, (len + 1) / 3) == -1;
+                    h[k] -= 1;
+                }
+            }
+            out
         })
         .collect()
 }
@@ -290,9 +331,11 @@ pub(crate) fn register_module(
     m.add_function(wrap_pyfunction!(root_observations, &m)?)?;
     m.add_function(wrap_pyfunction!(self_play, &m)?)?;
     m.add_function(wrap_pyfunction!(root_shanten, &m)?)?;
+    m.add_function(wrap_pyfunction!(root_hands, &m)?)?;
     m.add_function(wrap_pyfunction!(true_log_likelihoods, &m)?)?;
     m.add_function(wrap_pyfunction!(hands::hand_examples, &m)?)?;
     m.add_function(wrap_pyfunction!(shanten, &m)?)?;
+    m.add_function(wrap_pyfunction!(waits, &m)?)?;
     m.add_function(wrap_pyfunction!(belief::root_views, &m)?)?;
     add_submodule(py, prefix, super_mod, &m)
 }

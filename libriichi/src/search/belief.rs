@@ -335,6 +335,22 @@ impl Beliefs {
             .collect()
     }
 
+    /// Each seat's concealed tile counts at the root, per root and particle.
+    fn hands(&self) -> Vec<Vec<[[u8; 34]; 4]>> {
+        self.roots
+            .iter()
+            .map(|r| {
+                r.particles
+                    .iter()
+                    .map(|p| {
+                        let states = p.state.agent_context().player_states;
+                        std::array::from_fn(|s| states[s].tehai())
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
     /// The log likelihoods `weigh` gave, per root and particle.
     fn log_likelihoods(&self) -> Vec<Vec<f64>> {
         self.roots

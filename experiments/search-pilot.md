@@ -5,10 +5,14 @@
     cloud box;
   - the run waits for G0, which picks the blueprint ("family-A self-play of the leading arm").
     The user asked to wait until the P0 and P1 runs finish (2026-10-15);
-  - the belief stage: S-1 particles and the likelihood weights are built and tested (below),
-    and **D38's v1 belief doesn't work**. Uniform-prior particles are almost never near real
-    hands, and reweighting them can't fix that: on whether an opponent is tenpai they do worse
-    than a constant base rate. The fix is a design choice for the user (below, "What next").
+  - **the belief stage is built and passes D58's calibration test.** D38's v1 (uniform particles
+    reweighted by action likelihoods) was worse than a base rate. The user chose a learned hand
+    model (D58), and on held-out decisions it predicts opponents' tenpai and waits well
+    (below). The likelihood correction makes it worse, so by D58 the model alone is the belief.
+    One belief search takes 0.68 s p50 and 2.21 s p99 on the 3060.
+  - the pilot's run waits for G0's blueprint, then a hand model trained on that blueprint's
+    self-play (≈ 45 min of games, ≈ 40 min of training). The whole pilot is then ≈ 5–6 h on
+    the workstation.
 - **Labels:** the oracle stage is a lab-only diagnostic: never a strength result, never deployed
   (06 §0). The pilot's verdict is the recovery ratio, belief gain ÷ oracle gain.
 
@@ -228,3 +232,70 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
 3. **A cheap opponent model inside the chain:** for example, tile efficiency (a discard that
    keeps shanten is likely), so swaps climb towards structured hands at microseconds a step.
    - It isn't the blueprint, so it departs from D38's likelihood and would need an `08` entry.
+
+## Belief stage: the learned hand model (D58, 2026-10-15)
+
+- **Model** (`search/handmodel.py`):
+  - Pilot A's encoder (b8c192, v4 observation) reads the deciding seat's observation.
+  - A GRU then gives each other seat's concealed counts, kind by kind from 1m to C, in turn
+    order after the decider. It carries the hand built so far, so shapes are modelled jointly.
+  - Each kind's count is drawn among the counts still possible: no more than the copies the
+    decider hasn't seen and earlier seats haven't taken, and no more than the tiles left, while
+    leaving room for the rest.
+  - The density is the product of those renormalized probabilities, so it is exact (tested: a
+    sample's log q equals the training path's log-probability).
+  - Red fives are dealt uniformly among the fives a seat holds.
+- **Data:** `hand_examples` replays a full self-play log and gives, at every decision, the
+  decider's observation and the others' true hands. 4,000 games of pilot A self-play (dev key,
+  nonces 100,000+) train it; the smoke run's 40 games (nonces 0–39) are held out.
+- **Particles** (`Layout::complete`, `Beliefs.from_hands`):
+  - Each sampled hand goes, with the tiles the seat must have held, into its unseen entries by a
+    bipartite matching (needs in time, excluded draws kept clear), and swaps within the seat
+    spread the arrangement.
+  - A riichi hand must be tenpai, or the draw is dropped; the stage draws twice the particles
+    it needs. The undealt tiles are shuffled.
+  - Tested: the true hands at 300+ roots always complete into a history that replays the seat's
+    view and its root observation.
+- **Pilot stage:** `python -m search belief` plays both candidates on the same particles.
+  `report` scores the oracle and belief conditions on the same true worlds and gives D32's
+  recovery ratio under the primary rule. `python -m search latency` times one search at a time,
+  request to answer.
+
+### Results (2026-10-15, pilot A, dev keys; D58's test)
+
+- **Training:** 20,000 steps of 256 examples (every 2nd decision of 4,000 games), ≈ 37 min on
+  the 3060 at 2,270 examples/s. Held-out loss went from 31.5 nats per hand (step 0) to 17.64,
+  still falling slowly (17.70 → 17.66 → 17.64 over the last 5,000 steps).
+  `workdir/search/hands-a/handmodel.pth` (read-only, sha256 `cf371ba71b6588fe…`).
+- **Calibration** on the smoke run's 256 riichi decisions (held-out games), 64 samples per root:
+
+  | | Learned model | Constant base rate | Uniform particles (v1) |
+  |---|---|---|---|
+  | Tenpai, non-riichi opponents (693): log loss | **0.258** | 0.415 | 0.76 |
+  | Tenpai: Brier | **0.077** | 0.125 | 0.168 |
+  | Tenpai: predicted rate (truth 14.6%) | 14.1% | | 0.5% |
+  | Waits, opponent × kind (26,112 pairs): log loss | **0.047** | 0.060 | |
+
+  - Riichi opponents (75): only 68% of samples are tenpai. The rest fit no history and are
+    dropped, and the stage draws twice the particles it needs. 10 of 256 roots got fewer than
+    64 (minimum 19).
+- **The likelihood correction makes it worse** (128 roots, particles weighted by exp(β · log
+  likelihood)). D58 keeps it only if it helps, so the model alone is the belief.
+
+  | β | Median ESS of 64 | Tenpai log loss | Waits log loss |
+  |---|---|---|---|
+  | 0 (model alone) | 64 | **0.287** | **0.053** |
+  | 0.1 | 4.5 | 0.369 | 0.072 |
+  | 0.3 | 1.4 | 0.597 | 0.101 |
+  | 1 | 1.0 | 0.775 | 0.123 |
+  | constant base rate | | 0.465 | 0.068 |
+
+- **Latency** (06 §0's criterion is p99 < 2.5 s on deploy-class hardware; this is the 3060, 60
+  decisions one at a time, 64 particles): total **p50 0.68 s, p99 2.21 s** (max 2.35 s).
+  Sampling and completing the hands takes p50 0.10 s, rollouts p50 0.58 s and p99 2.06 s,
+  valuation < 0.02 s.
+- **End to end** on the 256 smoke-run decisions (130 s; dev data, far too few for a verdict):
+  - oracle, primary rule: +0.009 u (z 1.5), switching at 12% of decisions;
+  - belief: −0.002 u (z −0.8), switching at 2%;
+  - clairvoyant bound +0.075 u (z 4.5).
+  - The recovery ratio means nothing at this size; the pilot's 20K decisions decide it.

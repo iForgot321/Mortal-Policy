@@ -4,6 +4,7 @@
     python -m search decisions --run DIR --engine CKPT --count 20000
     python -m search oracle    --run DIR --engine CKPT --redeals 64
     python -m search belief    --run DIR --engine CKPT --hand-model PATH --particles 64
+    python -m search latency   --run DIR --engine CKPT --hand-model PATH --particles 64
     python -m search report    --run DIR
 
 `--block` takes a named family-A block from the lab's nonce ledger. `--dev`
@@ -83,6 +84,11 @@ def main():
     s.add_argument('--particles', type=int, default=64)
     s.add_argument('--chunk', type=int, default=16)
 
+    s = stage('latency')
+    s.add_argument('--hand-model', required=True)
+    s.add_argument('--particles', type=int, default=64)
+    s.add_argument('--decisions', type=int, default=100)
+
     stage('report', engine=False)
     args = p.parse_args()
     os.makedirs(args.run, exist_ok=True)
@@ -114,6 +120,12 @@ def main():
         record(args.run, 'oracle', engine=engine_record(args.engine), redeals=args.redeals,
                grp={'path': GRP_STATE_FILE, 'sha256': registry.sha256_file(GRP_STATE_FILE)})
         pilot.oracle(engine, GrpValue(), args.run, args.redeals, args.chunk)
+    elif args.cmd == 'latency':
+        from .handmodel import load
+        from .value import GrpValue
+        out = pilot.latency(engine, GrpValue(), load(args.hand_model, args.device), args.run,
+                            args.particles, args.decisions)
+        print(json.dumps(out, indent=2))
     elif args.cmd == 'belief':
         from .handmodel import load
         from .value import GRP_STATE_FILE, GrpValue
