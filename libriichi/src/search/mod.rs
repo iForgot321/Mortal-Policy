@@ -6,13 +6,14 @@
 //! never runs in a deployed bot.
 
 mod belief;
+mod likelihood;
 mod particle;
 mod replay;
 mod rollout;
 #[cfg(test)]
 mod test;
 
-pub use replay::{board_from_seed, decision_seat, replay, root_reaction};
+pub use replay::{board_from_seed, decision_seat, replay, root_reaction, visible};
 pub use rollout::{Branch, redeal_undealt, rollout};
 
 use crate::agent::new_py_agent;
@@ -146,6 +147,51 @@ fn rollouts(
     })
 }
 
+/// Each seat's true shanten at each root (lab-only: reads the seed), to score
+/// beliefs against.
+#[pyfunction]
+fn root_shanten(roots: Vec<Root>, py: Python<'_>) -> Result<Vec<[i8; 4]>> {
+    py.allow_threads(move || {
+        Ok(replay_roots(&roots)?
+            .iter()
+            .map(|state| {
+                let states = state.agent_context().player_states;
+                std::array::from_fn(|s| states[s].shanten())
+            })
+            .collect())
+    })
+}
+
+/// The opponents' log action likelihood of each root's true history (lab-only:
+/// reads the seed), to compare with its particles' (`Beliefs::weigh`).
+#[pyfunction]
+#[pyo3(signature = (engine, roots, *, version = 4, batch = 1024, floor = 1e-8))]
+fn true_log_likelihoods(
+    engine: PyObject,
+    roots: Vec<Root>,
+    version: u32,
+    batch: usize,
+    floor: f64,
+    py: Python<'_>,
+) -> Result<Vec<f64>> {
+    py.allow_threads(move || {
+        let parsed = roots
+            .iter()
+            .map(|(seed, lines, until)| {
+                let events = parse(lines)?;
+                let seat = belief::root_seat(&events, *until)?;
+                let seen: Vec<Event> = events.iter().map(|e| visible(e, seat)).collect();
+                Ok((board_from_seed(*seed, &events[0])?, seen, *until, seat))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let histories: Vec<belief::History<'_>> = parsed
+            .iter()
+            .map(|(b, seen, until, seat)| (b.clone(), seen.as_slice(), *until, *seat))
+            .collect();
+        belief::log_likelihoods(&engine, &histories, version, batch, floor)
+    })
+}
+
 /// `(seat, obs, mask)` of the player deciding at each root, encoded as the
 /// arena encodes it for an agent.
 #[pyfunction]
@@ -229,5 +275,7 @@ pub(crate) fn register_module(
     m.add_function(wrap_pyfunction!(rollouts, &m)?)?;
     m.add_function(wrap_pyfunction!(root_observations, &m)?)?;
     m.add_function(wrap_pyfunction!(self_play, &m)?)?;
+    m.add_function(wrap_pyfunction!(root_shanten, &m)?)?;
+    m.add_function(wrap_pyfunction!(true_log_likelihoods, &m)?)?;
     add_submodule(py, prefix, super_mod, &m)
 }

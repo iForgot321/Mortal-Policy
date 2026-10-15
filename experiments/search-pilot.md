@@ -5,10 +5,10 @@
     cloud box;
   - the run waits for G0, which picks the blueprint ("family-A self-play of the leading arm").
     The user asked to wait until the P0 and P1 runs finish (2026-10-15);
-  - the belief stage: S-1 particles are built and tested (below). A swap-move chain gives 64
-    valid particles at 255 of the smoke run's 256 riichi decisions, riichi opponents included.
-    Next: the opponents' action likelihoods (D38's weights), then the belief condition and the
-    latency harness.
+  - the belief stage: S-1 particles and the likelihood weights are built and tested (below),
+    and **D38's v1 belief doesn't work**. Uniform-prior particles are almost never near real
+    hands, and reweighting them can't fix that: on whether an opponent is tenpai they do worse
+    than a constant base rate. The fix is a design choice for the user (below, "What next").
 - **Labels:** the oracle stage is a lab-only diagnostic: never a strength result, never deployed
   (06 §0). The pilot's verdict is the recovery ratio, belief gain ÷ oracle gain.
 
@@ -167,3 +167,64 @@ until they are fixed.
     is 200.
   - Later in a kyoku the importance weights collapse (ESS often below 10 of 4,000), which is
     why the chain is needed.
+
+## Belief stage: likelihood weights, and why v1 fails (2026-10-15)
+
+- **Code:** `likelihood.rs`, and `Beliefs.weigh` (`belief.rs`).
+  - It replays each particle as the seat saw the kyoku and records every opponent decision.
+  - For each decision it records the actions consistent with the log. A claim that lost to a
+    higher-priority claim never reaches the log, so for the overridden player every action
+    weaker than the logged claim counts.
+  - It encodes the opponent's observation in the particle and runs the blueprint. The particle's
+    weight is the sum of log Σ π(consistent actions), floored at 1e-8.
+  - Decisions where every action the opponent could take is consistent are skipped (factor 1).
+  - `true_log_likelihoods` and `root_shanten` score the true history the same way. They're
+    lab-only and read the seed.
+- **The weights point the right way** (48 smoke-run roots, pilot A): the true history's median
+  log-likelihood is −84 against −157 for a typical particle (best of 16: −117). The truth beats
+  every particle at 71% of roots.
+- **But they collapse:** the median ESS is 1.0 of 64 at every root. Weighing costs 0.79 s per
+  root on the 3060 (≈ 60 opponent decisions per particle to encode).
+- **Calibration** (128 roots, 341 non-riichi opponents, "is this opponent tenpai at the root"),
+  with the likelihood tempered by β:
+
+  | β | Median ESS of 64 | Log loss | Brier |
+  |---|---|---|---|
+  | 0 (prior only) | 64 | 0.764 | 0.168 |
+  | 0.03 | 34 | 0.756 | 0.167 |
+  | 0.1 | 5.4 | 0.759 | 0.164 |
+  | 1 | 1.0 | 0.778 | 0.164 |
+  | constant base rate (17.6%) | | 0.465 | 0.145 |
+
+- **Why:** real players build structured hands, and uniform tiles consistent with the public
+  events don't look like them.
+
+  | Shanten at the root (non-riichi opponents) | Truth | Prior particles |
+  |---|---|---|
+  | 0 (tenpai) | 17.6% | 0.5% |
+  | 1 | 45.5% | 3.9% |
+  | 2 | 26.4% | 23.6% |
+  | 3+ | 10.3% | 67.3% |
+
+  The posterior sits far out in the prior's tail (likelihood gaps of e^70 or more), and 64–256
+  reweighted prior samples can't reach it.
+
+### What next (a design choice for the user)
+
+1. **D38 as written: sequential filtering.** Update weights at every opponent decision,
+   resample at ESS < 0.3N, and rejuvenate with swaps accepted by the likelihood ratio.
+   - Each rejuvenating swap re-scores the opponent's later decisions, ≈ 20 network calls.
+   - Offline, every pilot root pays the whole kyoku: on the order of 10⁵ calls per root, so
+     days for 20K roots on one GPU.
+   - At play time the cost spreads over the kyoku.
+   - It is also unclear that local swaps can climb from prior hands to the posterior.
+2. **A learned proposal** (D38 allows it once a joint sampler with a computable density exists):
+   an autoregressive model of each opponent's concealed hand, given the public information.
+   - Training data is free: self-play logs, where the truth is known.
+   - Particles would be drawn from it, completed into consistent histories by the chain (which
+     keeps the hand fixed), and weighted by likelihood × prior ÷ proposal.
+   - This is what LBS does, and the most promising route, but it is a model to build, train and
+     validate.
+3. **A cheap opponent model inside the chain:** for example, tile efficiency (a discard that
+   keeps shanten is likely), so swaps climb towards structured hands at microseconds a step.
+   - It isn't the blueprint, so it departs from D38's likelihood and would need an `08` entry.

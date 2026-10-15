@@ -89,6 +89,19 @@ pub fn replay_seen_by(
 }
 
 fn replay_as(board: Board, events: &[Event], until: usize, seat: Option<u8>) -> Result<BoardState> {
+    replay_watched(board, events, until, seat, |_, _| ())
+}
+
+/// `replay`, or `replay_seen_by` with `seat`, calling `watch` wherever the
+/// board waits for reactions before the root: with the players' states and
+/// the logged events from there on.
+pub fn replay_watched(
+    board: Board,
+    events: &[Event],
+    until: usize,
+    seat: Option<u8>,
+    mut watch: impl FnMut(&[PlayerState; 4], &[Event]),
+) -> Result<BoardState> {
     ensure!(
         until <= events.len(),
         "cannot replay to event {until} of {}",
@@ -131,7 +144,9 @@ fn replay_as(board: Board, events: &[Event], until: usize, seat: Option<u8>) -> 
             checked < until,
             "the replay passed event {until}: the board is at {checked}",
         );
-        reactions = forced_reactions(state.agent_context().player_states, &events[checked..])?;
+        let states = state.agent_context().player_states;
+        watch(states, &events[checked..]);
+        reactions = forced_reactions(states, &events[checked..])?;
     }
 }
 
