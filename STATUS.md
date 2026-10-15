@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 17:40 UTC)
+## Current position (2026-10-15 18:30 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -71,25 +71,43 @@ research is under way.**
     started from and trains against.
 - **The user (2026-10-15): wait for the full P0 and P1 runs before more measurements, and work
   on the search code meanwhile.**
-- **Search pilot, oracle stage: built and tested** (`experiments/search-pilot.md`, 06 §0).
-  - `libriichi/src/search/`: forced replay of a kyoku from a latent history to a decision,
-    checked event by event against the log; a redeal of the undealt tiles; batched rollouts to
-    the end of the kyoku. `search/` drives it: self-play, the riichi-vs-dama decisions, the
-    oracle rollouts, the GRP valuation and the report (`python -m search`).
-  - Tests: 5 Rust, 8 Python. Branching with the logged action reproduces the logged kyoku,
-    exactly, through riichi, wins, chi, pon and all three kans.
-  - Smoke run (dev key, pilot A, not a result): 256 decisions × 130 rollouts in 95 s on the
-    3060; 256/256 true-world replays reproduce the self-play game. The full 20K decisions take
-    ≈ 2.2 h on the workstation, with no cloud box.
-  - **Before the run:** G0's blueprint, and 7 design choices for the user to confirm, the
-    oracle's knowledge and the primary decision rule above all (the note's "Design as built").
-    The belief stage (particles, likelihood weights, latency) is next in code.
+- **Search pilot** (`experiments/search-pilot.md`, 06 §0).
+  - **Oracle stage: built and tested.** `libriichi/src/search/` replays a kyoku from a latent
+    history to a decision, checking every event against the log, redeals the undealt tiles and
+    rolls branches out to the end of the kyoku. `search/` runs self-play, the riichi-vs-dama
+    decisions, the oracle rollouts, the GRP valuation and the report (`python -m search`).
+    - Branching with the logged action reproduces the logged kyoku exactly, through riichi,
+      wins, chi, pon and all three kans.
+    - Smoke run (dev key, pilot A, not a result): 256 decisions × 130 rollouts in 95 s on the
+      3060, and 256/256 true-world replays reproduce the self-play game. 20K decisions take
+      ≈ 2.2 h on the workstation, with no cloud box.
+    - Before the run: G0's blueprint, and the design choices in the note for the user to
+      confirm (above all what the oracle knows, and the primary decision rule).
+  - **Belief stage: particles work; D38's v1 weighting doesn't.**
+    - A swap-move chain samples histories consistent with the seat's view. It gives 64 valid
+      particles at 255/256 smoke-run roots in 0.2 s, riichi opponents included, and agrees with
+      importance sampling where that is reliable (612 comparisons, mean z² 1.04).
+    - The opponents' action likelihoods work too: the true history scores −84 against −157 for
+      a typical particle.
+    - But uniform-prior hands are nothing like real ones. 0.5% of non-riichi opponents are
+      tenpai in the particles against 17.6% in truth, so the ESS collapses to 1 of 64 and the
+      belief predicts tenpai worse than a constant base rate at every likelihood temperature.
+    - **The next step is the user's choice** (the note's "What next"): D38's sequential
+      filtering (very costly offline), a learned hand model as the proposal (D38 allows it;
+      the most promising), or a cheap rule-based opponent model in the chain (needs an `08`
+      entry).
+- **Eval box stall (2026-10-15):** the 100K test's first chunk named the riichidev venv, which
+  this rental never had. The queue runner died on it at 11:34 UTC and the box sat idle until
+  18:25 UTC (≈ $4.4); I hadn't checked that the first chunk started. Fixed in `8df7b39`: a job
+  that can't start now fails with a note, and `submit` builds the venv on first use. The venv
+  is built, the runner restarted at 18:25 UTC, and c00 was requeued after c19. The 20 chunks now
+  end ≈ 2026-10-16 14:30 UTC, later once P0's G0 measures go ahead of them.
 - **Eval box up again** (the user, 2026-10-15: "rerun the full 100000 game test"). Instance
   56069526, EPYC 9684X, $0.65/h, rented 08:42 UTC, holding the lab lease.
   - The halfway checks of P1 and V's measure ran there first.
   - The 20 chunks of the 100K test (`workdir/riichidev/submit-100k-r2.sh`, reports
-    `parity-100k-r2-cNN.json`) started 11:34 UTC at background priority. ≈ 1 h each, so done ≈
-    2026-10-16 07:30 UTC.
+    `parity-100k-r2-cNN.json`) run at background priority since 18:25 UTC (the stall above).
+    ≈ 1 h each, so done ≈ 2026-10-16 14:30 UTC.
   - Then `evalbox.py pull` and `down`. P0's G0 evaluations go through its queue meanwhile.
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
@@ -515,7 +533,8 @@ failure modes already met.
      the test again on the next eval-box rental, which needs the user's go-ahead.
 5. **Search pilot (`06` §0):** the oracle stage reports by G0. Its code is built and tested
    (`experiments/search-pilot.md`); the run waits for G0's blueprint and the user's answers on
-   the design choices. Next in code: the belief stage (S-1 particles).
+   the design choices. The belief stage's particles and likelihoods are built; its weighting
+   needs a better proposal, which is the user's choice.
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
    - ~~the eval-box queue~~ done 2026-10-12 (`tools/fleet/evalbox.py`, README "The eval box");
