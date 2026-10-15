@@ -100,6 +100,7 @@ mod dataset;
 mod macros;
 mod py_helper;
 mod rankings;
+mod search;
 mod vec_ops;
 
 // pub for bins
@@ -155,6 +156,7 @@ fn libriichi(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     arena::register_module(py, name, m)?;
     stat::register_module(py, name, m)?;
     mjai::register_module(py, name, m)?;
+    search::register_module(py, name, m)?;
 
     Ok(())
 }

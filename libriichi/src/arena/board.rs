@@ -25,7 +25,7 @@ use tinyvec::ArrayVec;
 ///
 /// 1. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
 ///    always 1x yakuman.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Board {
     /// Counts from 0
     pub kyoku: u8,
@@ -46,7 +46,8 @@ pub struct Board {
     pub ura_indicators: Vec<Tile>,
 }
 
-#[derive(Derivative)]
+/// `Clone` lets search branch a kyoku at a decision (`06` §3).
+#[derive(Clone, Derivative)]
 #[derivative(Default)]
 pub struct BoardState {
     board: Board,
@@ -187,6 +188,14 @@ impl BoardState {
     #[inline]
     pub fn take_log(&mut self) -> Vec<EventExt> {
         mem::take(&mut self.log)
+    }
+
+    /// The tiles not dealt yet, for search to deal again (`06` §0): what is
+    /// left of the yama, rinshan and dora indicators, and the ura indicators.
+    /// The rest of the `Board` has been dealt and must stay as it is.
+    #[inline]
+    pub(crate) const fn undealt_mut(&mut self) -> &mut Board {
+        &mut self.board
     }
 
     /// Keep a `BehaviourRecord` for every reaction that carries a `Behaviour`

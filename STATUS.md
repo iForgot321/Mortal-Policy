@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 11:50 UTC)
+## Current position (2026-10-15 17:40 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -69,6 +69,21 @@ research is under way.**
   - `p1-b` −0.0216 [−0.0291, −0.0142].
   - So every online checkpoint measured so far, V's included, loses to the frozen model it
     started from and trains against.
+- **The user (2026-10-15): wait for the full P0 and P1 runs before more measurements, and work
+  on the search code meanwhile.**
+- **Search pilot, oracle stage: built and tested** (`experiments/search-pilot.md`, 06 §0).
+  - `libriichi/src/search/`: forced replay of a kyoku from a latent history to a decision,
+    checked event by event against the log; a redeal of the undealt tiles; batched rollouts to
+    the end of the kyoku. `search/` drives it: self-play, the riichi-vs-dama decisions, the
+    oracle rollouts, the GRP valuation and the report (`python -m search`).
+  - Tests: 5 Rust, 8 Python. Branching with the logged action reproduces the logged kyoku,
+    exactly, through riichi, wins, chi, pon and all three kans.
+  - Smoke run (dev key, pilot A, not a result): 256 decisions × 130 rollouts in 95 s on the
+    3060; 256/256 true-world replays reproduce the self-play game. The full 20K decisions take
+    ≈ 2.2 h on the workstation, with no cloud box.
+  - **Before the run:** G0's blueprint, and 7 design choices for the user to confirm, the
+    oracle's knowledge and the primary decision rule above all (the note's "Design as built").
+    The belief stage (particles, likelihood weights, latency) is next in code.
 - **Eval box up again** (the user, 2026-10-15: "rerun the full 100000 game test"). Instance
   56069526, EPYC 9684X, $0.65/h, rented 08:42 UTC, holding the lab lease.
   - The halfway checks of P1 and V's measure ran there first.
@@ -498,7 +513,9 @@ failure modes already met.
      validation game passed (2026-10-14). The 100K-game test found two adapter bugs (chankan
      missed; a chi riichienv doesn't offer). Next: fix them on the workstation (free), then run
      the test again on the next eval-box rental, which needs the user's go-ahead.
-5. **Search pilot (`06` §0):** the oracle stage reports by G0.
+5. **Search pilot (`06` §0):** the oracle stage reports by G0. Its code is built and tested
+   (`experiments/search-pilot.md`); the run waits for G0's blueprint and the user's answers on
+   the design choices. Next in code: the belief stage (S-1 particles).
 6. **Fleet:**
    - a fleet soak report from P0's `health.jsonl`;
    - ~~the eval-box queue~~ done 2026-10-12 (`tools/fleet/evalbox.py`, README "The eval box");
