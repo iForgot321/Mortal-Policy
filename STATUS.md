@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 06:05 UTC)
+## Current position (2026-10-15 07:25 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -52,8 +52,19 @@ research is under way.**
   The median gap stays nearer A (2.15 u), but the near-ties close faster: 10th percentile 0.07 u,
   exploration 1.5% → 4.7% and still rising, argmax = A 94%. By the pre-set rule, **0.03 is
   the setting.** The replay is greedy-only, the worst case; online exploration gives the untried
-  actions targets. Proposed next: an `08` entry (online CQL at 0.03), then one ≈ $3 online run
-  from A, measured against A. **Needs the user's yes (a rental).**
+  actions targets. **D57 (the user, 2026-10-15): V's online step keeps CQL at 0.03.**
+  - **Online test `v-cql03` live** (`experiments/v-tuning.md` → "Online test at CQL 0.03"):
+    commit `374af8a`: e1's settings plus the term. Three boxes, training since
+    06:52 UTC; the watchdog downs them at 08:44 UTC; watcher `--max-dollars 6`.
+  - The learner logs `min_q_weight: 0.03`, and its CQL loss (≈ 0.25) matches the replay's.
+  - **Cost ≈ $5.5, not the quoted ≈ $3:** Vast prices are ≈ 2× the sweep's ($2.71/h for the
+    fleet against $1.36/h). The user was told.
+  - Then it is measured against A on the workstation (the sweep's `v-tune` block, 10K sets),
+    after the halfway queue, and gets `v_qgaps.py`. The reading is fixed in D57.
+- **Halfway checks queued on the workstation** (the user, 2026-10-15; `workdir/halfway/run.sh`,
+  started 06:46 UTC). Each run's `p50` against its own starting policy, 10K sets on a shared
+  family-A block `halfway` (nonces 33,000+), exploratory: `p0-a`, then `p1-a`, then `p1-b`.
+  ≈ 1.5–2.5 h each.
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
   released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
@@ -64,8 +75,10 @@ research is under way.**
   - **The 100K-game test found two adapter bugs in 25K games** (5 of 20 chunks finished,
     `experiments/riichidev-adapter.md` item 4). No illegal move reached the server, but:
     chankan (robbing a kan) is missed, because the adapter's fallback passes instead (seeds
-    20281 and 20282); and libriichi offers a chi that riichienv doesn't (seed 14176). Both are
-    to be fixed and replayed on the workstation (free) before the test runs again.
+    20281 and 20282); and libriichi offers a chi that riichienv doesn't (seed 14176). **Both
+    fixed 2026-10-15** (`e127b7f`): riichienv's `kakan > dora` order after an open kan, and the
+    four-kan abort's discard. Regression tests replay the recorded requests, and 100 full-check
+    games pass. The 100K test runs again on the next eval-box rental, with the user's go-ahead.
   - The token is in `~/.config/riichidev/token` (mode 600); the box's copy went with the box.
 - **CQL model B frozen** (2026-10-13 18:01 UTC by hand, step 156,000, sha256 `c0ea3b96…`, in
   `tools/fleet/frozen.sha256`). Sanity checks pass (data out at step 157,869 at 11:26 UTC; losses
