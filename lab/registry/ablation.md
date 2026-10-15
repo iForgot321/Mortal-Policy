@@ -24,3 +24,6 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261013-143617-measure | exploratory | V tuning sweep: v-tune-e2 vs CQL model A | measure | A [23000, +10000) | 10000 | -0.9216 | [-0.9277, -0.9155] |  | measured | +1.1491 | -93.75 | yes | 2d348870+dirty |
 | 20261013-162554-measure | exploratory | V tuning sweep: v-tune-e1-lr vs CQL model A | measure | A [23000, +10000) | 10000 | -1.1683 | [-1.1721, -1.1645] |  | measured | +1.3868 | -120.34 | yes | 2d348870+dirty |
 | 20261014-234559-measure | exploratory | p0-a p50 vs pilot A (halfway check) | measure | A [33000, +10000) | 10000 | -0.0334 | [-0.0410, -0.0257] |  | measured | +0.0454 | -3.44 | yes | 1645b88f+dirty |
+| 20261015-085354-measure | exploratory | p1-a p50 vs pilot A (halfway check) | measure | A [33000, +10000) | 10000 | -0.0262 | [-0.0337, -0.0187] |  | measured | +0.0415 | -2.68 | yes | 4262550f+dirty |
+| 20261015-094729-measure | exploratory | p1-b p50 vs pilot B (halfway check) | measure | A [33000, +10000) | 10000 | -0.0216 | [-0.0291, -0.0142] |  | measured | +0.0482 | -2.04 | yes | 4262550f+dirty |
+| 20261015-104045-measure | exploratory | v-cql03 final (73,200 online steps) vs CQL model A | measure | A [23000, +10000) | 10000 | -0.0431 | [-0.0505, -0.0357] |  | measured | +0.0635 | -4.32 | yes | 4262550f+dirty |

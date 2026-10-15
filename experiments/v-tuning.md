@@ -598,6 +598,15 @@ gap −0.007 / −0.013, off-argmax +0.0031 / +0.0015, argmax = A −0.0019 / �
 - **Measured** on the eval box, 10K sets on the `v-tune` block against A (job
   `20261015-085403-395`). It was moved there because the eval box holds the lab lease for the
   100K test.
+- **Result: −0.0431 u, 95% CI [−0.0505, −0.0357]** against A, Δ avg rank +0.064 (run
+  `20261015-104045-measure`, 10:40–11:34 UTC).
+  - **By D57's reading, the CI is entirely below 0:** at this length, the term doesn't rescue
+    online V. V stays stopped, and the next design is the user's choice.
+  - Against e1 (the same settings without the term, −0.729 u), the term removes ≈ 94% of the
+    loss. Online V no longer collapses, but it is still below A.
+  - **Not V's alone:** the same day's halfway checks put P0 and both P1 seeds below their own
+    starting policies too: −0.033, −0.026 and −0.022 u (`p0.md` and `p1.md` → "Halfway check").
+    Every online checkpoint measured so far, in every arm, is below its initialization.
 
 ## Timeline
 
