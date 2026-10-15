@@ -454,6 +454,59 @@ the workstation.
 
 V stays stopped until then.
 
+### 60K steps at weight 0.03 (2026-10-14 22:59 – 2026-10-15 01:59 UTC, the user asked for it)
+
+The proposed run: weight 0.03, 60K steps, one pass over 90,000 of the 160,000 measure logs (84,000
+would be ≈ 60K steps exactly; the margin keeps the loader from running dry). Same seed and file
+order as the 10K arms, so its first 14,000 logs are theirs. Output in `workdir/v-replay/mq0.03-60k`
+(read-only). Rows are means of the probes within ±2K steps (5 probes); A is step 0.
+
+| Steps | median gap (u) | gap, 10th percentile | off-argmax at τ 0.05 | argmax = A | argmax = human | median legal Q | median best Q |
+|---|---|---|---|---|---|---|---|
+| A (0) | 1.81 | 0.26 | 0.015 | 1 | 0.806 | −6.27 | 0.21 |
+| 8–12K | 2.88 | 0.25 | 0.015 | 0.959 | 0.800 | −6.18 | 0.029 |
+| 18–22K | 3.20 | 0.22 | 0.017 | 0.961 | 0.800 | −6.32 | 0.026 |
+| 28–32K | 3.46 | 0.20 | 0.019 | 0.955 | 0.800 | −6.42 | 0.030 |
+| 38–42K | 3.69 | 0.19 | 0.021 | 0.955 | 0.801 | −6.53 | 0.030 |
+| 48–52K | 3.66 | 0.16 | 0.024 | 0.952 | 0.798 | −6.53 | 0.025 |
+| 56–60K | 3.91 | 0.16 | 0.024 | 0.954 | 0.797 | −6.64 | 0.030 |
+
+Linear slopes per 10K steps:
+
+| Stretch | median gap | gap, 10th percentile | off-argmax at τ 0.05 |
+|---|---|---|---|
+| 1–10K | +0.90 | −0.039 | +0.0020 |
+| 10–30K | +0.31 | −0.020 | +0.0019 |
+| 30–60K | +0.15 | −0.013 | +0.0015 |
+
+- **The median gap slows but doesn't level off.** It grows +0.15 u per 10K over the last 30K
+  steps, a sixth of its first-10K rate (1.81 → 4.01 u at step 60,000).
+- **The near-ties close instead of widening.** The 10th-percentile gap falls 0.26 → 0.16 u, and
+  the exploration rate rises 1.5% → 2.4%. Both still drift at the end, at about two-thirds of
+  their early rate. The 10K run's "near-ties held" was the start of this slow drift.
+- So the gap distribution **spreads at both ends**:
+  - the clear decisions get clearer: the untried actions are pushed down, with the median legal
+    Q at −6.27 → −6.64 u;
+  - the close ones get closer: the weight-0 collapse, slowed by the CQL term.
+  - Neither is near a failure. Weight 0 collapsed to 44% off-argmax in 10K steps; weight 5 froze
+    at 0.2%.
+- **The policy stays close to A:** argmax = A at 95.4%, human agreement 0.797 (−0.9 points). The
+  greedy move's overestimate stays fixed (0.21 → 0.03 u), and ½·MSE is 0.025.
+- **Against the bar set before the run:** "the median gap levels off and the exploration rate
+  holds near A's" — **not met.** The median still drifts, slowly, and exploration rose by about
+  half (in the safe direction, not the feared one). The rule written then says weight 0.01 next,
+  or a push-down-only term.
+- What a replay can't say: whether these drifts help or hurt play. Only a lab measure of an
+  online checkpoint answers that.
+
+**Proposed next (free; the user's decision): the same 60K-step replay at weight 0.01** (≈ 3 h on
+the workstation, before P0's evaluations need it on 2026-10-16 02:15 UTC). It brackets the
+choice: a smaller weight should slow the median's drift and speed the near-ties' closing.
+- If 0.01 holds both nearer A than 0.03 does: 0.01.
+- If its near-ties close faster (the expected trade): 0.03 is the setting.
+- Either way, then an `08` entry (V's online step keeps the CQL term at the chosen weight) and
+  the user's approval for one short online cloud run (≈ $3), measured against A.
+
 ## Timeline
 
 | When (UTC) | What |

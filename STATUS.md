@@ -3,12 +3,12 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-14 20:30 UTC)
+## Current position (2026-10-15 02:05 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
-- **`p1-a` (P1 seed 1) resumed 2026-10-14 20:22 UTC** after ≈ 20 h idle (`experiments/p1.md` →
+- **`p1-a` (P1 seed 1) resumed 2026-10-14 20:22 UTC** (p50 snapshot taken 23:07 UTC, step 2,907,600) after ≈ 20 h idle (`experiments/p1.md` →
   "Incident"). Its learner died at 23:47 UTC on Oct 13; the replacement's checkpoint copy failed,
   and the health check reported the never-started learner as `ok` for 19 h.
   - **Fixed** (`9e0e989`): failed bring-ups are reported and retried, checkpoint first.
@@ -43,8 +43,13 @@ research is under way.**
   (2026-10-14 19:34–20:35 UTC): Cal-QL levels the gap at ≈ 5.5 u but inflates the taken move
   2.3 u above its return (½·MSE 2.15), so it fails as written. **0.03 comes closest:** A's argmax
   96.5%, near-ties and exploration rate as A's (1.4% vs 1.5%), but the median gap still drifts
-  1.81 → 2.94 u in 10K steps. Proposed next (free, ≈ 3 h): a 60K-step replay at 0.03 on fresh
-  logs, to see whether the drift levels off. **The user's decision.**
+  1.81 → 2.94 u in 10K steps. **60K steps at 0.03** (2026-10-14 22:59 – 10-15 01:59 UTC, at the
+  user's go-ahead): the median gap slows but doesn't level off (1.81 → 4.01 u; +0.15 u per 10K
+  steps over the last 30K, against +0.90 in the first 10K). The near-ties close slowly: the
+  10th-percentile gap goes 0.26 → 0.16 u, and exploration 1.5% → 2.4%. Argmax = A stays at
+  95%, and human agreement at 0.797. The pre-set bar (gap levels off, exploration holds) is not
+  met. Proposed next (free, ≈ 3 h): the same 60K replay at 0.01 to bracket the weight. Then an
+  `08` entry and ≈ $3 online. **The user's decision.**
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
   released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
