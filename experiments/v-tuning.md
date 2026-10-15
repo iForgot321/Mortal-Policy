@@ -507,6 +507,45 @@ choice: a smaller weight should slow the median's drift and speed the near-ties'
 - Either way, then an `08` entry (V's online step keeps the CQL term at the chosen weight) and
   the user's approval for one short online cloud run (≈ $3), measured against A.
 
+### 60K steps at weight 0.01 (2026-10-15 02:59–05:59 UTC, the user asked for it)
+
+The same run at weight 0.01: the same 90,000 logs, order and seed. Output in
+`workdir/v-replay/mq0.01-60k` (read-only). Rows at 10K and beyond are means over ±2K steps, as
+above.
+
+| Steps | median gap (u), 0.01 / 0.03 | gap, 10th percentile | off-argmax at τ 0.05 | argmax = A | argmax = human | median legal Q |
+|---|---|---|---|---|---|---|
+| A (0) | 1.81 | 0.26 | 0.015 | 1 | 0.806 | −6.27 |
+| 1K | 1.38 / 2.10 | 0.19 / 0.27 | 0.019 / 0.013 | 0.960 / 0.962 | 0.800 / 0.802 | −4.76 / −6.15 |
+| 8–12K | 1.64 / 2.88 | 0.14 / 0.25 | 0.026 / 0.015 | 0.954 / 0.959 | 0.799 / 0.800 | −4.77 / −6.18 |
+| 28–32K | 1.88 / 3.46 | 0.088 / 0.20 | 0.039 / 0.019 | 0.946 / 0.955 | 0.797 / 0.800 | −4.96 / −6.42 |
+| 56–60K | 2.15 / 3.91 | 0.071 / 0.16 | 0.047 / 0.024 | 0.942 / 0.954 | 0.793 / 0.797 | −5.23 / −6.64 |
+
+Slopes per 10K steps over the last 30K, 0.01 / 0.03: median gap +0.064 / +0.15, 10th-percentile
+gap −0.007 / −0.013, off-argmax +0.0031 / +0.0015, argmax = A −0.0019 / −0.0003.
+
+- **The expected trade.** 0.01 holds the median gap nearer A: 2.2 against 1.81, where 0.03 ends
+  at 3.9.
+  - Its median first falls (1.38 at 1K): in the first 1,000 steps the untried actions are pulled
+    up 1.5 u, the weight-0 collapse.
+  - The push-down then brings it back slowly.
+- **But its near-ties close much faster.**
+  - The 10th-percentile gap falls 0.26 → 0.07 u (0.03: 0.16).
+  - Exploration triples, 1.5% → 4.7% (0.03: 2.4%), and is still rising at twice 0.03's rate.
+  - It leaves A's argmax more (94.2% against 95.4%), and that share is still falling.
+- **Under the rule set before this run, 0.03 is the setting.**
+- **Caveat on the whole replay: it is the worst case for the untried actions.** It trains on
+  greedy play only. V's online runs explore (`boltzmann_epsilon` 0.05 at temperature 0.5), so
+  their non-argmax actions get some targets that the replay never gives. Only an online run
+  shows how much that slows either drift.
+
+**Proposed next (the user's decision; a rental):**
+1. An `08` entry: V's online step keeps the CQL term at weight 0.03 instead of 0.
+2. One online cloud run from A, e1's settings plus that term: ≈ 60K steps under a 2 h deadline,
+   ≈ $3.
+3. Measured against A on the workstation as in the sweep, together with `v_qgaps.py` for the
+   gap structure.
+
 ## Timeline
 
 | When (UTC) | What |

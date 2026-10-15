@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 02:05 UTC)
+## Current position (2026-10-15 06:05 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -48,8 +48,12 @@ research is under way.**
   steps over the last 30K, against +0.90 in the first 10K). The near-ties close slowly: the
   10th-percentile gap goes 0.26 → 0.16 u, and exploration 1.5% → 2.4%. Argmax = A stays at
   95%, and human agreement at 0.797. The pre-set bar (gap levels off, exploration holds) is not
-  met. Proposed next (free, ≈ 3 h): the same 60K replay at 0.01 to bracket the weight. Then an
-  `08` entry and ≈ $3 online. **The user's decision.**
+  met. **60K at 0.01** (2026-10-15 02:59–05:59 UTC, the user asked for it): the expected trade.
+  The median gap stays nearer A (2.15 u), but the near-ties close faster: 10th percentile 0.07 u,
+  exploration 1.5% → 4.7% and still rising, argmax = A 94%. By the pre-set rule, **0.03 is
+  the setting.** The replay is greedy-only, the worst case; online exploration gives the untried
+  actions targets. Proposed next: an `08` entry (online CQL at 0.03), then one ≈ $3 online run
+  from A, measured against A. **Needs the user's yes (a rental).**
 - **Eval box closed** (the user, 2026-10-14 11:30 UTC: "close the eval box and only rent it
   when ready"). It ran 06:17–11:30 UTC (instance 55876675, $0.65/h, ≈ $4.2). The lab lease is
   released, so lab jobs run on the workstation again. Rent it again only when a job is ready for
