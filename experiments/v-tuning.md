@@ -561,13 +561,43 @@ gap −0.007 / −0.013, off-argmax +0.0031 / +0.0015, argmax = A −0.0019 / �
       > workdir/fleet/runs/v-cql03/watch.out 2>&1 < /dev/null
   ```
 
-- **Measured** on the workstation after the queued halfway measures of P0 and P1: the sweep's
+- **Measured** (planned on the workstation, done on the eval box; see below): the sweep's
   command and block, against A, with 10,000 sets on family A and the `v-tune` block. Then
   `v_qgaps.py` on the final checkpoint.
 - **Reading** (D57, fixed before the run):
   - a 95% CI entirely below 0: the term doesn't rescue online V at this length;
   - otherwise, viable for ≈ 60K steps, with V's runs needing their own approval;
   - compared directly with e1's −0.729 u, the same settings without the term.
+- **The run (2026-10-15):**
+  - Rented 06:44 UTC at commit `374af8a`. Learner: Ryzen 9 7950X, $0.71/h. Actors: two EPYC
+    9654, ≈ $1.0/h each. Training 06:52–08:44 UTC, ending at the watchdog.
+  - Nothing replaced; ≈ 58K games/h.
+  - Final checkpoint `workdir/fleet/runs/v-cql03/learner-run/mortal.pth`, read-only, sha256
+    `72692d39bc16…`: step 229,200, i.e. **73,200 online steps** (e1: 59,600).
+  - The trainer logged `min_q_weight: 0.03`. Its CQL term stayed ≈ 0.24–0.25, against ≈ 2.0
+    in the sweep's collapsed runs.
+  - **Cost $5.42, 6.0 box-hours.** Vast prices were ≈ 2× the sweep's ($2.71/h for the fleet),
+    against the ≈ $3 quoted; the user was told at launch.
+- **`v_qgaps.py`** (`workdir/lab/v-tune/qgaps-v-cql03.txt`; the same 5 heldout games, 3,096
+  decisions, `--reference` A). **No collapse, and no freeze.** The structure is the replay's
+  (60K at 0.03), slightly further along:
+
+  | | A | sweep runs (no CQL) | `v-cql03` | replay 60K at 0.03 |
+  |---|---|---|---|---|
+  | argmax = human | 0.806 | 0.21–0.38 | 0.767 | 0.797 |
+  | argmax differs from A | — | 0.61–0.79 | 0.129 | 0.050 |
+  | Q of legal actions, pct 1/50/99 | −11.3 / −6.3 / 0.49 | ≈ −0.3 / −0.1 / 0.1 | −9.16 / −7.00 / 0.09 | — |
+  | best − second best, median | 1.81 | 0.013 | 4.76 | 3.91 |
+  | best − second best, 10th pct | 0.26 | — | 0.159 | 0.16 |
+  | off-argmax share at τ 0.05 | 0.015 | 0.67–0.71 | 0.024 | 0.024 |
+
+  - D57's reopen conditions don't fire: the median gap is 4.76 u (> 0.5), and the off-argmax
+    share is 2.4% (> 0.5%).
+  - It leaves A's argmax 2.6× as often as the replay did. That fits online exploration giving
+    the untried actions targets, which the replay never had.
+- **Measured** on the eval box, 10K sets on the `v-tune` block against A (job
+  `20261015-085403-395`). It was moved there because the eval box holds the lab lease for the
+  100K test.
 
 ## Timeline
 
