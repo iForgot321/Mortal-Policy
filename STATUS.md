@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-15 22:40 UTC)
+## Current position (2026-10-16 06:25 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -100,6 +100,14 @@ research is under way.**
   that can't start now fails with a note, and `submit` builds the venv on first use. The venv
   is built, the runner restarted at 18:25 UTC, and c00 was requeued after c19. The 20 chunks now
   end ≈ 2026-10-16 14:30 UTC, later once P0's G0 measures go ahead of them.
+- **P0 ended on schedule** (2026-10-16 02:18 UTC; its watchdog destroyed the 3 boxes; $218.50 in
+  all). `full.pth` is copied back, read-only. **Its G0 evaluations are queued on the eval box**
+  (the user, 06:20 UTC: "queue them now"), at priority 0 ahead of the 100K test's last chunks:
+  - G0's T-std, `full` against pilot A (family B);
+  - the pre-registered doubling measure, `full` against `p50`, 100,000 sets on family B
+    (`experiments/p0.md`, ≈ 10 h).
+  Both were queued with `--no-sync` on the box's commit `8df7b39` (the lab code is unchanged
+  since). They push the 100K test's end to ≈ the evening of 2026-10-16.
 - **Eval box up again** (the user, 2026-10-15: "rerun the full 100000 game test"). Instance
   56069526, EPYC 9684X, $0.65/h, rented 08:42 UTC, holding the lab lease.
   - The halfway checks of P1 and V's measure ran there first.
