@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-17 04:15 UTC)
+## Current position (2026-10-17 04:45 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -11,7 +11,10 @@ research is under way.**
 - **P0 fails G0** (2026-10-17 04:08 UTC, `20261017-033700-T-std`): `p0-a` full vs pilot A, Δu
   −0.0268 (≈ [−0.038, −0.016]), stopped at 5,000 sets with LLR −10.57. Per 05 §2.3.6 a failing
   arm goes to diagnosis (§8) first; it isn't evidence against the algorithm family (D28).
-  `experiments/p0.md` → "G0 result". `p1-b`'s T-std runs next (from 04:08 UTC).
+  `experiments/p0.md` → "G0 result".
+- **`p1-b` fails G0** (04:39 UTC, `20261017-040806-T-std`): full vs pilot B, Δu −0.0131 (≈ [−0.024,
+  −0.003]), stopped at 5,000 sets with LLR −6.17. So P1 can't pass §2.3 step 1, whatever `p1-a`
+  does (`experiments/p1.md` → "G0 results"). P0's doubling measure runs next (04:39 UTC, ≈ 10 h).
 - **The eval box was lost with unpulled results** (2026-10-17 00:47 UTC).
   - Instance 56069526's host contract ended (`end_date`), and Vast stopped it.
   - `vastai start` is queued ("resources unavailable"), and `vastai copy` off it fails.

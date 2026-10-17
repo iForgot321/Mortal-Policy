@@ -28,3 +28,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261015-094729-measure | exploratory | p1-b p50 vs pilot B (halfway check) | measure | A [33000, +10000) | 10000 | -0.0216 | [-0.0291, -0.0142] |  | measured | +0.0482 | -2.04 | yes | 4262550f+dirty |
 | 20261015-104045-measure | exploratory | v-cql03 final (73,200 online steps) vs CQL model A | measure | A [23000, +10000) | 10000 | -0.0431 | [-0.0505, -0.0357] |  | measured | +0.0635 | -4.32 | yes | 4262550f+dirty |
 | 20261017-033700-T-std | exploratory | G0: p0-a full vs pilot A (05 §2.3); rerun, the first was lost with eval box 56069526 | T-std | B [1000520000, +100000) | 5000 | -0.0268 |  | -10.57 | fail | +0.0432 | -2.73 | yes | b8f27d21+dirty |
+| 20261017-040806-T-std | exploratory | G0: p1-b full vs pilot B (05 §2.3) | T-std | B [1000620000, +100000) | 5000 | -0.0131 |  | -6.17 | fail | +0.0256 | -1.32 | yes | b8f27d21+dirty |
