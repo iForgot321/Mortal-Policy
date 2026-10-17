@@ -71,6 +71,10 @@ def test_offers_rank_by_dollars_per_hanchan():
               {'id': 8, 'machine_id': 17, 'cpu_name': 'AMD Ryzen 9 7945HX with Radeon Graphics', 'dph_total': 0.6}]
     assert [o['id'] for o in fleet.rank_offers(custom)] == [6, 8]  # Zen 3 custom, Zen 4 mobile
     assert [o['est_rate'] for o in fleet.rank_offers(custom, allow_zen2=True)] == [40_000, 50_000, 31_000]  # $10, $12, $12.9 per M
+    # the host's contract ends within a week: Vast would stop the box then
+    now = 1_800_000_000
+    ending = [{**offers[0], 'end_date': now + 2 * 86400}, {**offers[1], 'end_date': now + 30 * 86400}]
+    assert [o['id'] for o in fleet.rank_offers(ending, now=now)] == [2]
 
 
 def test_authorized_line_restricts_the_key():

@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -267,6 +268,12 @@ def cmd_status(a):
     box = ready_box(run)
     print(f'{NAME}: instance {box["instance"]}, machine {box["machine_id"]}, ${box["dph"]:.3f}/h, '
           f'commit {box.get("commit")}, ${F.cost(run):.2f} so far')
+    # Vast stops the box at its host's contract end, results and all: pull before then
+    end = ((F.instances() or {}).get(box['instance']) or {}).get('end_date')
+    if end:
+        left = (end - time.time()) / 3600
+        print(f'contract ends {datetime.fromtimestamp(end, timezone.utc):%Y-%m-%d %H:%M} UTC '
+              f'({left:.0f} h){"  <- pull and move off before then" if left < 48 else ""}')
     print(box_status(run, box), end='')
     print(F.remote(run, box, 'nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader\n'
                              'df -h /workspace | tail -1\n', timeout=60).stdout, end='')

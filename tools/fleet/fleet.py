@@ -69,6 +69,9 @@ CPU_RATES = (
 )
 ZEN2 = (re.compile(r'EPYC 7[\dA-Z]\d2'), 31_000)  # e.g. 7742, 7B12, 7K62
 WAIT_RUNNING_S = 25 * 60
+# Vast stops an instance at its host's contract end (end_date), with its disk out of reach: skip
+# offers that end sooner than this (the eval box was lost this way on 2026-10-17)
+MIN_CONTRACT_S = 7 * 86400
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
 # a box's name within its run: no dashes, so a label mp-<run>-<box> names exactly one run even
 # when one run's name extends another's (v-tune-e1, v-tune-e1-lr)
@@ -310,12 +313,15 @@ def cpu_rate(cpu_name, allow_zen2=False):
     return None
 
 
-def rank_offers(offers, exclude=(), allow_zen2=False):
-    """Allowlisted offers, cheapest per hanchan first, each with est_rate and usd_per_m."""
+def rank_offers(offers, exclude=(), allow_zen2=False, now=None):
+    """Allowlisted offers whose contract lasts MIN_CONTRACT_S, cheapest per hanchan first, each
+    with est_rate and usd_per_m."""
+    now = time.time() if now is None else now
     out = []
     for o in offers:
         rate = cpu_rate(o.get('cpu_name') or '', allow_zen2)
-        if rate and o.get('machine_id') not in exclude:
+        ends_soon = o.get('end_date') and o['end_date'] < now + MIN_CONTRACT_S
+        if rate and o.get('machine_id') not in exclude and not ends_soon:
             out.append({**o, 'est_rate': rate, 'usd_per_m': o['dph_total'] / rate * 1e6})
     return sorted(out, key=lambda o: o['usd_per_m'])
 
