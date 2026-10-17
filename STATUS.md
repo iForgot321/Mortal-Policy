@@ -31,7 +31,11 @@ research is under way.**
   - Queue: P0's G0 T-std (`full` vs pilot A), `p1-b`'s G0 T-std (`full` vs pilot B), then P0's
     doubling measure.
   - ≤ 10 h each at ≈ 40K hanchan/h.
-  - The parity rerun is not requeued (it would take ≈ 18 h more): it waits for the user.
+  - **The 100K parity test runs again (r3)**, the user's yes (2026-10-17): 20 chunks, queued at
+    04:53 UTC at priority 9 behind the doubling measure (`workdir/riichidev/submit-100k-r3.sh`,
+    reports `parity-100k-r3-cNN.json`). That's ≈ 1 h per chunk, from ≈ 14:40 UTC. The adapter
+    suite passes in the box's riichidev venv (14 tests). `p1-a`'s T-std (priority 0) goes ahead of
+    the chunks still waiting when it's submitted.
 - **`p1-b` ended** at 03:21 UTC on 2026-10-17: 432.26 box-hours, step 4,474,000, $239.89. `full.pth` is
   pulled and read-only, and the boxes are destroyed.
 - **`p1-a` lost actor1 at 11:04 UTC on 2026-10-16.** Three replacements failed (2 setups over

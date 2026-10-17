@@ -216,6 +216,11 @@ that seat as the arena masks it.
 
    Next: the 100K test again, all 20 chunks, on the next eval-box rental. That rental needs the
    user's go-ahead.
+   - **Second run (r2), 2026-10-15/16: lost.** Its reports never left eval box 56069526, which
+     Vast stopped at its host's contract end (2026-10-17 00:47 UTC). Its status lines had shown
+     ≈ 15 chunks done with no failures, seeds 14,176 and 20,281 among them, but there's no
+     report. **Third run (r3)** queued 2026-10-17 04:53 UTC on eval box 56337703 (the user's yes),
+     with the same seeds and settings (`workdir/riichidev/submit-100k-r3.sh`).
    - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
      time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
    - **Compared 2026-10-14 on the new box** (EPYC 9474F, 32 cores, 4090; 200 games, seeds
