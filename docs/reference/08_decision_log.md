@@ -609,6 +609,22 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - A full-history likelihood also scores *when* each tile arrived, which a hand model leaves uniform, so the correction may collapse again. Rollouts need only the current hands and the wall.
 - **Reopen if:** the learned belief fails calibration (worse than the base rate on tenpai), or recovery fails with a calibrated belief. That would be `06` §0's "oracle passes, belief fails" branch.
 
+**D59 (2026-10-17): the G0 retry with K2 runs one seed; a second only if the first is inconclusive, and only with the user's go-ahead; a pre-registered early check at p25 can stop it.** Amends the roadmap's G0 row ("One bounded retry of the best arm with package K2, 2 seeds"), L2's "on both seeds" for this retry, and `05` §2.3 item 1 for this retry. Decided by the user.
+- **Why:** P0 and P1 failed G0, and the diagnosis (`experiments/rl-diagnosis.md`) found unanchored drift: by p25, every run had changed 20–25% of its argmax decisions, at a reverse KL of ≈ 0.4 nats/decision against K2's 0.02 target. A second seed doubles the cost (≈ $250 per seed) for a decision that one clear result already makes.
+- **The seed rule:**
+  - Seed 1's `full` gets G0's T-std against its initialization on family B.
+  - **Pass:** the retry passes on that seed. L2's confirmation on fresh family-C nonces (`02` §4) still follows before the arm is selected.
+  - **Fail:** the retry fails, and the roadmap's next row applies (re-scope to the SL incumbent plus inference search).
+  - **Inconclusive** (the T-std reaches its cap): a second seed runs only with the user's go-ahead. The arm then passes if seed 2 passes and seed 1's point estimate is positive (`05` §2.3's rule). With a negative seed-1 estimate a second seed can't produce a pass, so it isn't run.
+- **The early check, at seed 1's p25 snapshot** (the watcher takes it at 0.25 of the budget). Exploratory measures on the workstation, with the diagnosis's tools, its diagnostic key and its states:
+  1. reverse KL(π_p25 ‖ π_SL), mean over decisions (`experiments/rl_drift.py`): **stop if > 0.10 nats/decision** (P0/P1 at p25: 0.35–0.38);
+  2. argmax agreement with π_SL (same tool): **stop if < 90%** (P0/P1 at p25: 78–81%);
+  3. Δu at argmax against the initialization, 4,000 sets on the diagnostic key (`experiments/rl_diag_sampling.py --mode argmax`): **stop if the 95% CI is entirely below 0.**
+  - Any one firing stops the run: its fleet goes down and the result is reported. No verdict is recorded. The user decides whether to fix and restart inside the cap, or to treat the retry as failed.
+  - The check can only stop a run; passing it means the run continues. The run keeps training while the check runs (≈ 2 h).
+- **Unchanged:** the retry's cap (≤ $0.6K from the reserve), the T-std definition, family B for the verdict, and K2's contents (`05` §5.1). K2's settings are written into `experiments/k2-retry.md` before the run starts.
+- **Reopen if:** the early check fires on a configuration error rather than on K2 itself, or the T-std is inconclusive. Then the user decides on a restart or a second seed.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

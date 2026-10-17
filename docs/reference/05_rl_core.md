@@ -44,7 +44,7 @@ Changing any of these invalidates every comparison made before the change.
 
 ### 2.3 Pre-registered selection (at Gate G0)
 
-1. **Improvement over initialization:** for each arm-seed, T-std against its own initialization on family B. An arm *passes* if both seeds pass, or one passes and the other is inconclusive with a positive point estimate.
+1. **Improvement over initialization:** for each arm-seed, T-std against its own initialization on family B. An arm *passes* if both seeds pass, or one passes and the other is inconclusive with a positive point estimate. The G0 retry with K2 runs one seed and passes on it; a second seed runs only if the first is inconclusive, with the user's go-ahead (D59).
 2. **Head-to-head:** passing arms are compared final checkpoint against final checkpoint at matched box-days, by T-std.
 3. **Tie-break** (inconclusive head-to-head), in order:
    1. stability (kill-rule firings, entropy and KL health);

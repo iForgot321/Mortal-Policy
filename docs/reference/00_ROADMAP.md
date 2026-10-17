@@ -72,7 +72,7 @@ Utility deltas (Δu) are per game against the named opponent in 1v3 duplicate (`
 |---|---|---|---|
 | **L0** | The lab is trustworthy | Deterministic A/A gives Δu = 0 exactly; A/A′ gives σ_set; the sequential procedure is **calibrated by simulation** (error rates ≤ 5%); the synthetic hobbled patch fails | End of Phase 0 (week 3) |
 | **L1** | The baseline is deployed | SL student non-inferior to the **best single teacher** (GSPRT, δ = 0.01); beats shanten-greedy; riichi.dev smoke-deploy rating stable after ≥ 200 games | Week 7 |
-| **L2** | RL improves on its initialization | The selected engine (D29) passes T-std against its own initialization on **both** seeds, then confirms. Scope: quick-model initialization. The final-student check follows in T1 (D41). | Gate G0 (week 9) |
+| **L2** | RL improves on its initialization | The selected engine (D29) passes T-std against its own initialization on **both** seeds (the G0 retry: on its one seed, D59), then confirms. Scope: quick-model initialization. The final-student check follows in T1 (D41). | Gate G0 (week 9) |
 | **L3** | The scaled RL core | Tranches T1–T3 released by evidence (D30); confirmed packages; population-panel non-regression (D34); cumulative Δu vs π_SL confirmed; riichi.dev rating rising | End of Phase 2 (week 18) |
 | **L4** | Inference search adds strength | Search-enabled agent beats the same network without search (T-std, then confirm) within the time budget, with fewer than 0.5% of actions timing out (D33a) | End of Phase 3 (week 24) |
 | **L5** | Top of the public arena | Sustained riichi.dev top-10 over ≥ 500 ranked games, then top-3 | Phase 4 |
@@ -175,7 +175,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 |---|---|
 | An arm passes T-std against its initialization on both seeds, the fleet soak passes, and L2 confirms | **Select** that arm (head-to-head T-std at matched compute decides between passing arms; ties go to the cheaper and more search-compatible arm). Select the actor size per D31. Start T1. |
 | Arms pass, but the soak fails | Optimize (`03` §6) before T1; dates move (D39) |
-| No arm passes, with healthy curves | Diagnose (`05` §8). One bounded retry of the best arm with package K2, 2 seeds, ≤ $0.6K from the reserve. |
+| No arm passes, with healthy curves | Diagnose (`05` §8). One bounded retry of the best arm with package K2, ≤ $0.6K from the reserve: one seed, a second only if the first is inconclusive and the user agrees, with an early check at p25 (D59). |
 | The retry fails | Re-scope: the SL incumbent plus inference search becomes the main path. Phase 2 money moves to Phase 3 (D33a), conditional on the pilot. |
 
 **Observation review (D49):** keep v4 for Phase 2, or switch to v5 or a cheaper variant. The evidence is the doubling estimates (`05` §2.2) and the actor-size curves (D31), weighed against v5's break-even of about 0.002–0.004 u per doubling.
