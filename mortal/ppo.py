@@ -66,3 +66,15 @@ def ppo_loss(
             'adv_std': raw_std,
         }
     return loss, stats
+
+
+def reverse_kl(logits, anchor_logits, mask):
+    """KL(π_θ ‖ π_anchor) per decision, exact over the legal mask (K2's anchor, 05 §5.1).
+
+    Both arguments are masked raw logits (illegal actions at -inf), the anchor's
+    detached. Runs in fp32. Illegal actions contribute exactly 0, and their -inf
+    never reaches the arithmetic, so the gradient stays finite.
+    """
+    lp = torch.log_softmax(logits.float(), dim=-1).masked_fill(~mask, 0.0)
+    lq = torch.log_softmax(anchor_logits.float(), dim=-1).masked_fill(~mask, 0.0)
+    return (lp.exp() * (lp - lq)).masked_fill(~mask, 0.0).sum(-1)

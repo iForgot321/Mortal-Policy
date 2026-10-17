@@ -24,7 +24,8 @@ def train():
     from player import TestPlayer
     from dataloader import FileDatasetsIter, worker_init_fn
     from rl_dataset import OrderedDatasetsIter, split_by_sidecar, shuffled_minibatches
-    from ppo import ppo_loss
+    from ppo import ppo_loss, reverse_kl
+    from kl_anchor import KLAnchor
     from critic import Critic, gae_targets, explained_variance, calibration, advantage_variance_ratio
     import numpy as np
     import torch.nn.functional as F
@@ -109,6 +110,12 @@ def train():
     else:
         assert not critic_warmup, 'critic.warmup needs critic.enabled'
 
+    # K2's KL anchor (05 §5.1, D59): c_KL · KL(π_θ ‖ π_SL) added to the policy loss (kl_anchor.py)
+    anchor_cfg = config['policy'].get('kl_anchor', {})
+    use_anchor = anchor_cfg.get('enabled', False)
+    if use_anchor:
+        assert stored, "the KL anchor needs ratio_reference = 'stored'"
+
     # seeds the init (the critic's too), the file order and (through torch's
     # RNG) the DataLoader worker seeds; unseeded runs keep upstream behaviour
     if (seed := config['control'].get('seed')) is not None:
@@ -126,6 +133,13 @@ def train():
 
     Old_mortal = deepcopy(mortal)
     Old_policy_net = deepcopy(policy_net)
+
+    kl_anchor = None
+    if use_anchor:
+        kl_anchor = KLAnchor(anchor_cfg, default_state_file=config['baseline']['train']['state_file'],
+                             device=device, version=version)
+        logging.info(f'kl anchor: {kl_anchor.mode}, pi_SL {kl_anchor.state_file}, '
+                     f'coef {kl_anchor.coef(0):g}, target {kl_anchor.target(0):g}')
 
     if use_critic:
         critic = Critic(
@@ -208,6 +222,9 @@ def train():
             critic_optimizer.load_state_dict(state['critic_optimizer'])
             critic_scheduler.load_state_dict(state['critic_scheduler'])
             logging.info('loaded the critic')
+        if kl_anchor is not None and 'kl_anchor' in state:
+            kl_anchor.load_state_dict(state['kl_anchor'])
+            logging.info(f'loaded the kl anchor (coef {kl_anchor.coef(steps):g})')
        
     optimizer.zero_grad(set_to_none=True)
 
@@ -239,6 +256,8 @@ def train():
     # 'stored' path diagnostics, summed over ppo_batches batches
     ppo_stats = {}
     ppo_batches = 0
+    # KL anchor diagnostics, summed over the same batches
+    anchor_stats = {}
     lag_max = 0
     # critic diagnostics: (value, Monte-Carlo return) of every decision before
     # the critic trained on it, and each chunk's advantage variance ratio
@@ -379,6 +398,21 @@ def train():
                         entropy_weight = entropy_weight,
                         advantage_norm = advantage_norm,
                     )
+                    if kl_anchor is not None:
+                        with torch.autocast(device.type, enabled=enable_amp):
+                            anchor_logits = kl_anchor.logits(obs, masks)
+                        # over decisions with a choice, as experiments/rl_drift.py measures it
+                        multi = masks.sum(-1) > 1
+                        kl = reverse_kl(logits, anchor_logits, masks)[multi]
+                        kl_mean = kl.mean() if len(kl) else kl.sum()
+                        coef = kl_anchor.coef(steps)
+                        loss = loss + coef * kl_mean
+                        kl_anchor.observe(kl_mean, steps + 1)
+                        with torch.no_grad():
+                            agree = (logits.argmax(-1) == anchor_logits.argmax(-1))[multi].float()
+                            for k, v in (('kl', kl_mean.detach()), ('agreement', agree.mean() if len(agree) else agree.sum()),
+                                         ('coef', coef)):
+                                anchor_stats[k] = anchor_stats.get(k, 0) + v
                 if use_critic:
                     priv = priv.to(dtype=torch.float32, device=device)
                     returns = returns.to(dtype=torch.float32, device=device)
@@ -481,7 +515,12 @@ def train():
                     for k, v in ppo_stats.items():
                         writer.add_scalar('critic/loss' if k == 'critic_loss' else f'ppo/{k}', v / ppo_batches, steps)
                     writer.add_scalar('ppo/lag_max', lag_max, steps)
+                    for k, v in anchor_stats.items():
+                        writer.add_scalar(f'anchor/{k}', v / ppo_batches, steps)
+                    if kl_anchor is not None:
+                        writer.add_scalar('anchor/target', kl_anchor.target(steps), steps)
                     ppo_stats.clear()
+                    anchor_stats.clear()
                     ppo_batches = 0
                     lag_max = 0
                 if critic_diag['value']:
@@ -528,6 +567,8 @@ def train():
                     state['critic'] = critic.state_dict()
                     state['critic_optimizer'] = critic_optimizer.state_dict()
                     state['critic_scheduler'] = critic_scheduler.state_dict()
+                if kl_anchor is not None:
+                    state['kl_anchor'] = kl_anchor.state_dict()
                 # atomic, so a crash or a fleet pull never sees a torn checkpoint
                 torch.save(state, state_file + '.tmp')
                 os.replace(state_file + '.tmp', state_file)

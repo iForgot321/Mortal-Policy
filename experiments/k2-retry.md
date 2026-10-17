@@ -42,6 +42,41 @@ K2 (`05` §5.1) adds the KL anchor and anneals the update size, LR and entropy t
 - **Budget checkpoints:** p25, p50 and full, as before (D49). The same 432 billed box-hours as
   P0/P1, so `full` compares with their results.
 
+## Implementation (2026-10-17)
+
+- **The anchor** (`mortal/kl_anchor.py`, `ppo.reverse_kl`, `[policy.kl_anchor]` in the config):
+  - The penalty is c_KL · KL(π_θ ‖ π_SL), exact over the legal mask, averaged over decisions
+    with more than one legal action, as `rl_drift.py` measures it.
+  - π_SL is a frozen copy on the learner, by default `baseline.train.state_file`.
+  - Two coefficient rules:
+    - `fixed`: c(t) = c₀ · (1 + t / t₀)^−p, 05 §5.1's power law;
+    - `adaptive`: PPO's adaptive-KL rule toward a target, which may grow over the run (the
+      anchor's decay). It never lowers the coefficient before the KL first reaches the target
+      band.
+  - The coefficient's state saves with the checkpoint. TensorBoard gets `anchor/kl`,
+    `anchor/agreement`, `anchor/coef` and `anchor/target`.
+  - `tests/test_kl_anchor.py` (8 tests): exactness over the mask, illegal logits never
+    entering, finite gradients, zero gradient at the anchor, the frozen copy, both rules, and
+    the state round trip.
+- **Local smoke** (`experiments/configs/k2-smoke.toml`: P1's smoke plus the anchor, the
+  controller every 5 steps; 10 min on the workstation from `p1a-b0`):
+  - 150 learner steps. The batch KL rose from 0.00005 to 0.020 and agreement fell from 100%
+    to 94%. First-minibatch ratios were 1.00004, with no NaNs.
+  - **Run 1:** the first version of the controller halved the coefficient from 0.1 to its floor
+    (1e-4) while the KL was still near 0, before the policy had moved. Hence the hold: no
+    decrease before the KL first reaches the band.
+  - **Run 2,** with the hold: 0.1 held the KL near 0.007 (agreement ≈ 97%), below the band for
+    good. So the hold ends after `hold_windows` updates (default 5).
+  - **Run 3,** with the ending hold: after 5 windows the controller halved each window. The KL
+    lags the coefficient, so it went down to the floor before the KL entered the band
+    (0.013–0.023, agreement ≈ 95%).
+  - **So the default floor is now 0.01** (the 0.02 target needs ≈ 0.03 at this LR). The factor,
+    floor and starting coefficient are for the tuning sweep. At full scale the KL reached 0.02
+    in ≈ 150 steps, inside the first 400-step window, so the hold rarely matters there.
+- **Not built yet:** K2's LR, clip ε and entropy schedules (power laws, annealed with the
+  anchor). Today's trainer has LinearWarmUpCosineAnnealingLR for the LR and constant clip and
+  entropy weights.
+
 ## To fill in before launch
 
 - **Arm and seed:** the better arm by G0's point estimates once `p1-a`'s T-std is in. P1 leads

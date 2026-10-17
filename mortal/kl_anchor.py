@@ -1,0 +1,129 @@
+"""K2's KL anchor (05 §5.1, D59): a penalty c_KL · KL(π_θ ‖ π_SL) that keeps the online policy
+near the supervised one. The diagnosis (`experiments/rl-diagnosis.md`) found P0 and P1 at a
+reverse KL of ≈ 0.4 nats/decision by p25, with nothing but PPO's per-update clip to hold them.
+
+π_SL is a frozen copy of a policy checkpoint on the learner, by default the run's frozen
+opponent (`baseline.train.state_file`: the initialization). The KL is exact over the legal mask
+(`ppo.reverse_kl`) and averaged over decisions with more than one legal action, as
+`experiments/rl_drift.py` measures it.
+
+Config (`[policy.kl_anchor]`), two coefficient rules:
+
+    enabled = true
+    state_file = '...'      # π_SL; default baseline.train.state_file
+    mode = 'adaptive'       # or 'fixed'
+    coef = 0.1              # c_KL at step 0
+    # 'fixed': c(t) = coef · (1 + t / decay_steps) ** -coef_decay   (Ataraxos-style power law)
+    coef_decay = 0.3
+    decay_steps = 100_000
+    # 'adaptive': every adapt_every steps, the mean KL since the last update is compared with
+    # target(t) = target · (1 + t / decay_steps) ** target_growth; above target · tolerance the
+    # coefficient is multiplied by factor, below target / tolerance divided by it (PPO's
+    # adaptive-KL rule), within [coef_min, coef_max]. It is not divided before the KL first
+    # reaches target / tolerance or `hold_windows` updates have passed: the run starts at KL 0,
+    # and halving the coefficient while the policy hasn't moved yet would leave it at coef_min
+    # just as the KL overshoots (the local smoke, `experiments/k2-retry.md`). The hold ends, so
+    # a starting coefficient strong enough to keep the KL below the band still relaxes.
+    target = 0.02           # nats/decision at the start
+    target_growth = 0.0     # > 0 lets the target rise over the run: the anchor's decay
+    adapt_every = 400
+    hold_windows = 5
+    tolerance = 1.5
+    factor = 2.0
+    coef_min = 0.01         # in the local smoke, 0.1 held the KL near 0.007: the 0.02 target
+    coef_max = 10.0         # needs ≈ 0.03, and a floor far below that switches the anchor off
+"""
+import torch
+
+from model import Brain, CategoricalPolicy
+
+MODES = ('fixed', 'adaptive')
+
+
+def load_policy(state_file, device):
+    """A policy checkpoint's (brain, policy), frozen and in eval mode."""
+    state = torch.load(state_file, weights_only=False, map_location='cpu')
+    cfg = state['config']
+    brain = Brain(version=cfg['control'].get('version', 1), num_blocks=cfg['resnet']['num_blocks'],
+                  conv_channels=cfg['resnet']['conv_channels'], Norm=cfg['resnet'].get('norm', 'GN'))
+    brain.load_state_dict(state['mortal'])
+    policy = CategoricalPolicy()
+    policy.load_state_dict(state['policy_net'])
+    for m in (brain, policy):
+        m.to(device).eval().requires_grad_(False)
+    return brain, policy
+
+
+class KLAnchor:
+    def __init__(self, cfg, *, default_state_file, device, version):
+        self.mode = cfg.get('mode', 'adaptive')
+        if self.mode not in MODES:
+            raise ValueError(f'kl_anchor.mode must be one of {MODES}, got {self.mode!r}')
+        self.state_file = cfg.get('state_file') or default_state_file
+        self.coef0 = float(cfg.get('coef', 0.1))
+        self.coef_decay = float(cfg.get('coef_decay', 0.3))
+        self.decay_steps = float(cfg.get('decay_steps', 100_000))
+        self.target0 = float(cfg.get('target', 0.02))
+        self.target_growth = float(cfg.get('target_growth', 0.0))
+        self.adapt_every = int(cfg.get('adapt_every', 400))
+        self.hold_windows = int(cfg.get('hold_windows', 5))
+        self.tolerance = float(cfg.get('tolerance', 1.5))
+        self.factor = float(cfg.get('factor', 2.0))
+        self.coef_min = float(cfg.get('coef_min', 0.01))
+        self.coef_max = float(cfg.get('coef_max', 10.0))
+        if self.decay_steps <= 0 or self.tolerance <= 1 or self.factor <= 1 or not 0 < self.coef_min <= self.coef_max:
+            raise ValueError('kl_anchor: decay_steps > 0, tolerance > 1, factor > 1, 0 < coef_min <= coef_max')
+        self.brain, self.policy = load_policy(self.state_file, device)
+        if self.brain.version != version:
+            raise ValueError(f'kl_anchor: {self.state_file} is obs version {self.brain.version}, the run {version}')
+        # the adaptive coefficient, and the KL seen since its last update
+        self.adaptive_coef = min(max(self.coef0, self.coef_min), self.coef_max)
+        self.kl_sum = 0.0
+        self.kl_n = 0
+        self.reached = False
+        self.windows = 0
+
+    @torch.no_grad()
+    def logits(self, obs, masks):
+        """π_SL's masked raw logits on a batch (no grad)."""
+        return self.policy.logits(self.brain(obs), masks)
+
+    def target(self, step):
+        return self.target0 * (1 + step / self.decay_steps) ** self.target_growth
+
+    def coef(self, step):
+        if self.mode == 'fixed':
+            return self.coef0 * (1 + step / self.decay_steps) ** -self.coef_decay
+        return self.adaptive_coef
+
+    def observe(self, kl, step):
+        """Record a batch's mean KL at learner step `step` (counted from 1); in 'adaptive' mode,
+        every adapt_every steps, steer the coefficient toward target(step)."""
+        # a tensor stays on its device until an update needs it (no sync per step)
+        self.kl_sum = self.kl_sum + (kl.detach() if torch.is_tensor(kl) else float(kl))
+        self.kl_n += 1
+        if self.mode != 'adaptive' or step % self.adapt_every != 0:
+            return
+        mean = float(self.kl_sum) / self.kl_n
+        self.kl_sum, self.kl_n = 0.0, 0
+        target = self.target(step)
+        self.windows += 1
+        self.reached = self.reached or mean >= target / self.tolerance
+        if mean > target * self.tolerance:
+            self.adaptive_coef = min(self.adaptive_coef * self.factor, self.coef_max)
+        elif mean < target / self.tolerance and (self.reached or self.windows > self.hold_windows):
+            self.adaptive_coef = max(self.adaptive_coef / self.factor, self.coef_min)
+
+    def state_dict(self):
+        return {'mode': self.mode, 'state_file': self.state_file, 'adaptive_coef': self.adaptive_coef,
+                'kl_sum': float(self.kl_sum), 'kl_n': self.kl_n, 'reached': self.reached,
+                'windows': self.windows}
+
+    def load_state_dict(self, state):
+        if state['state_file'] != self.state_file:
+            raise ValueError(f"kl_anchor: the checkpoint anchors to {state['state_file']}, the config to {self.state_file}")
+        self.adaptive_coef = state['adaptive_coef']
+        self.kl_sum = state['kl_sum']
+        self.kl_n = state['kl_n']
+        self.reached = state['reached']
+        self.windows = state['windows']
