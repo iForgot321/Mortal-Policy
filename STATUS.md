@@ -3,10 +3,38 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-16 06:25 UTC)
+## Current position (2026-10-17 03:35 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
+
+- **The eval box was lost with unpulled results** (2026-10-17 00:47 UTC).
+  - Instance 56069526's host contract ended (`end_date`), and Vast stopped it.
+  - `vastai start` is queued ("resources unavailable"), and `vastai copy` off it fails.
+  - On it: P0's G0 T-std and doubling measure, and the 100K parity rerun (r2, chunks c01–c12 at
+    least). I hadn't pulled it in its 40 h up.
+  - It sits in `workdir/fleet/runs/eval/fleet.json` → `kept`: no sweep destroys it, and storage
+    only bills while it's stopped. If it starts, pull it by hand, then destroy it.
+  - Rule for which result counts (`experiments/p0.md`): the rerun decides once it starts. The lost
+    family-B ranges are burned in the ledger (`b8f27d2`).
+  - Fix (`e0281e5`): offers whose contract ends within 7 days are skipped, and `evalbox.py status`
+    shows the contract end. The running watchers still have the old code.
+- **New eval box** (the user, 2026-10-17: rent one if the old one isn't back when `p1-b` ends):
+  instance 56337703, EPYC 7C13 (32 cores), $0.639/h, rented 03:23 UTC, holding the lab lease.
+  - Queue: P0's G0 T-std (`full` vs pilot A), `p1-b`'s G0 T-std (`full` vs pilot B), then P0's
+    doubling measure.
+  - ≤ 10 h each at ≈ 40K hanchan/h.
+  - The parity rerun is not requeued (it would take ≈ 18 h more): it waits for the user.
+- **`p1-b` ended** at 03:21 UTC on 2026-10-17: 432.26 box-hours, step 4,474,000, $239.89. `full.pth` is
+  pulled and read-only, and the boxes are destroyed.
+- **`p1-a` lost actor1 at 11:04 UTC on 2026-10-16.** Three replacements failed (2 setups over
+  40 min, 1 GPU error), and the watcher gave up.
+  - Replaced by hand at the user's go-ahead: EPYC 7713, $0.494/h, joined 02:03 UTC on 10-17.
+  - Now learner-bound at ≈ 80K games/h: the replacement learner is a Zen 3 7B13, and the replay
+    queue is full.
+  - `full` ≈ **2026-10-18 04:00 UTC** at three boxes, ≈ $264 in all (cap $275).
+  - P0 + P1 ≈ $722, against ≈ $705 approved. The user approved the overrun with these
+    replacements.
 
 - **`p1-a` (P1 seed 1) resumed 2026-10-14 20:22 UTC** (p50 snapshot taken 23:07 UTC, step 2,907,600) after ≈ 20 h idle (`experiments/p1.md` →
   "Incident"). Its learner died at 23:47 UTC on Oct 13; the replacement's checkpoint copy failed,
