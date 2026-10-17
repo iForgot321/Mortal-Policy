@@ -26,6 +26,7 @@ def train():
     from rl_dataset import OrderedDatasetsIter, split_by_sidecar, shuffled_minibatches
     from ppo import ppo_loss, reverse_kl
     from kl_anchor import KLAnchor
+    import schedules
     from critic import Critic, gae_targets, explained_variance, calibration, advantage_variance_ratio
     import numpy as np
     import torch.nn.functional as F
@@ -74,6 +75,11 @@ def train():
 
     entropy_weight = config['policy']['entropy_weight']
     clip_ratio = config['policy']['clip_ratio']
+    # K2's schedules (05 §5.1, D59): power laws on the run clock (schedules.py); a name left out
+    # keeps its constant, and an unscheduled LR stays with LinearWarmUpCosineAnnealingLR
+    sched = schedules.build(config['policy'].get('schedules', {}),
+                            {'clip_ratio': clip_ratio, 'entropy_weight': entropy_weight})
+    logging.info(f'schedules: {sched}')
     dual_clip = config['policy']['dual_clip']
 
     # D37/D46 (05 §2.4, §3). The defaults keep upstream behaviour.
@@ -199,6 +205,7 @@ def train():
         'M2': manager.Value('d', 0.0),
         'lock': manager.Lock()
             }
+    state = None
     if path.exists(state_file):
         state = torch.load(state_file, weights_only=False, map_location=device)
         timestamp = datetime.fromtimestamp(state['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
@@ -222,9 +229,12 @@ def train():
             critic_optimizer.load_state_dict(state['critic_optimizer'])
             critic_scheduler.load_state_dict(state['critic_scheduler'])
             logging.info('loaded the critic')
-        if kl_anchor is not None and 'kl_anchor' in state:
-            kl_anchor.load_state_dict(state['kl_anchor'])
-            logging.info(f'loaded the kl anchor (coef {kl_anchor.coef(steps):g})')
+    # the run clock: learner steps since this run's first launch (schedules.py)
+    schedule_origin = schedules.origin(state, steps)
+    logging.info(f'run clock: origin at step {schedule_origin:,}, t = {steps - schedule_origin:,}')
+    if kl_anchor is not None and state is not None and 'kl_anchor' in state:
+        kl_anchor.load_state_dict(state['kl_anchor'])
+        logging.info(f'loaded the kl anchor (coef {kl_anchor.coef(steps - schedule_origin):g})')
        
     optimizer.zero_grad(set_to_none=True)
 
@@ -384,6 +394,14 @@ def train():
             advantage = advantage.to(dtype=torch.float32, device=device)
             assert masks[range(batch_size), actions].all()
 
+            # this step's scheduled values, on the run clock
+            t = steps - schedule_origin
+            step_clip_ratio = sched['clip_ratio'](t)
+            step_entropy_weight = sched['entropy_weight'](t)
+            if sched['lr'] is not None:
+                for g in optimizer.param_groups:
+                    g['lr'] = sched['lr'](t)
+
             if stored:
                 behaviour_prob = behaviour_prob.to(dtype=torch.float32, device=device)
                 if critic_warmup:
@@ -393,9 +411,9 @@ def train():
                         logits = policy_net.logits(mortal(obs), masks)
                     loss, ppo_batch = ppo_loss(
                         logits, actions, advantage, behaviour_prob,
-                        clip_ratio = clip_ratio,
+                        clip_ratio = step_clip_ratio,
                         dual_clip = dual_clip,
-                        entropy_weight = entropy_weight,
+                        entropy_weight = step_entropy_weight,
                         advantage_norm = advantage_norm,
                     )
                     if kl_anchor is not None:
@@ -405,9 +423,9 @@ def train():
                         multi = masks.sum(-1) > 1
                         kl = reverse_kl(logits, anchor_logits, masks)[multi]
                         kl_mean = kl.mean() if len(kl) else kl.sum()
-                        coef = kl_anchor.coef(steps)
+                        coef = kl_anchor.coef(t)
                         loss = loss + coef * kl_mean
-                        kl_anchor.observe(kl_mean, steps + 1)
+                        kl_anchor.observe(kl_mean, t + 1)
                         with torch.no_grad():
                             agree = (logits.argmax(-1) == anchor_logits.argmax(-1))[multi].float()
                             for k, v in (('kl', kl_mean.detach()), ('agreement', agree.mean() if len(agree) else agree.sum()),
@@ -434,7 +452,7 @@ def train():
                     new_log_prob = dist.log_prob(actions)
                     ratio = (new_log_prob - old_log_prob).exp()
                     loss1 = ratio * advantage
-                    loss2 = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * advantage
+                    loss2 = torch.clamp(ratio, 1 - step_clip_ratio, 1 + step_clip_ratio) * advantage
                     min_loss = torch.min(loss1, loss2)
                     
                     clip_loss = torch.where(
@@ -443,7 +461,7 @@ def train():
                     min_loss
                     )
                     entropy = dist.entropy().view(-1, 1)
-                    entropy_loss = entropy * entropy_weight
+                    entropy_loss = entropy * step_entropy_weight
 
                     loss =  -(clip_loss + entropy_loss).mean()
             scaler.scale(loss / opt_step_every).backward()
@@ -509,6 +527,14 @@ def train():
                 writer.add_scalar('important_ratio/ratio', stats['important_ratio'] / save_every, steps)
                 writer.add_scalar('entropy/entropy', stats['entropy'] / save_every, steps)
                 writer.add_scalar('loss', stats['loss'] / save_every, steps)
+                t_now = steps - schedule_origin
+                writer.add_scalar('schedule/t', t_now, steps)
+                # the scheduler's step after each batch resets the groups' lr, and the next batch
+                # sets the scheduled one again before its optimizer step: log the scheduled value
+                lr_now = sched['lr'](t_now) if sched['lr'] is not None else optimizer.param_groups[0]['lr']
+                writer.add_scalar('schedule/lr', lr_now, steps)
+                writer.add_scalar('schedule/clip_ratio', sched['clip_ratio'](t_now), steps)
+                writer.add_scalar('schedule/entropy_weight', sched['entropy_weight'](t_now), steps)
                 if not online:
                     pass
                 if ppo_batches > 0:
@@ -518,7 +544,7 @@ def train():
                     for k, v in anchor_stats.items():
                         writer.add_scalar(f'anchor/{k}', v / ppo_batches, steps)
                     if kl_anchor is not None:
-                        writer.add_scalar('anchor/target', kl_anchor.target(steps), steps)
+                        writer.add_scalar('anchor/target', kl_anchor.target(steps - schedule_origin), steps)
                     ppo_stats.clear()
                     anchor_stats.clear()
                     ppo_batches = 0
@@ -562,6 +588,7 @@ def train():
                     'best_perf': best_perf,
                     'config': config,
                     'shared_stats': stats_dict,
+                    'schedule_origin': schedule_origin,
                 }
                 if use_critic:
                     state['critic'] = critic.state_dict()

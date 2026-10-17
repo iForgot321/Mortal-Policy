@@ -152,3 +152,10 @@ mode = 'adaptive'
 coef = 0.1
 target = 0.02
 adapt_every = 5
+
+# K2's schedules, smoke settings: a short time scale so they move within minutes
+[policy.schedules]
+t0 = 50
+lr = { v0 = 2e-5, p = 0.5, lo = 5e-6 }
+clip_ratio = { v0 = 0.2, p = 0.3, lo = 0.1 }
+entropy_weight = { v0 = 1e-3, p = 0.5 }

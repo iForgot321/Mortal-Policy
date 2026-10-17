@@ -7,6 +7,9 @@ opponent (`baseline.train.state_file`: the initialization). The KL is exact over
 (`ppo.reverse_kl`) and averaged over decisions with more than one legal action, as
 `experiments/rl_drift.py` measures it.
 
+Steps here are the run clock (`schedules.py`): learner steps since the run's first launch, the
+clock K2's LR, clip and entropy schedules use too.
+
 Config (`[policy.kl_anchor]`), two coefficient rules:
 
     enabled = true

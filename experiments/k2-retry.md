@@ -73,9 +73,27 @@ K2 (`05` §5.1) adds the KL anchor and anneals the update size, LR and entropy t
   - **So the default floor is now 0.01** (the 0.02 target needs ≈ 0.03 at this LR). The factor,
     floor and starting coefficient are for the tuning sweep. At full scale the KL reached 0.02
     in ≈ 150 steps, inside the first 400-step window, so the hold rarely matters there.
-- **Not built yet:** K2's LR, clip ε and entropy schedules (power laws, annealed with the
-  anchor). Today's trainer has LinearWarmUpCosineAnnealingLR for the LR and constant clip and
-  entropy weights.
+- **The schedules** (`mortal/schedules.py`, `[policy.schedules]`):
+  - The policy LR, clip ε and entropy weight follow value(t) = clip(v₀ · (1 + t/t₀)^−p, lo,
+    hi). They share a time scale t₀ unless one sets its own.
+  - A name left out keeps its constant. An unscheduled LR stays with
+    LinearWarmUpCosineAnnealingLR.
+  - TensorBoard gets `schedule/t`, `schedule/lr`, `schedule/clip_ratio` and
+    `schedule/entropy_weight`. `tests/test_schedules.py` has 4 tests.
+- **Schedule smoke** (`k2-smoke.toml` with t₀ = 50; 5 min, then 3 more from the saved
+  checkpoint):
+  - The logged LR, clip and entropy values match the formula at each t (e.g. t = 30: LR
+    1.58e-5, clip 0.174, entropy 0.00079).
+  - The restart resumed at t = 75 from the same origin (step 216,800), with the anchor's
+    coefficient restored.
+  - **It found a crash:** `toml` parses inline tables (`lr = { v0 = … }`) into a class pickle
+    can't save, and the trainer pickles its config into every checkpoint. `mortal/config.py`
+    now converts the parsed config to plain dicts (`tests/test_config.py`).
+- **The run clock** (both): t counts learner steps since the run's first launch. Its origin is
+  saved in the checkpoint (`schedule_origin`), so a restarted trainer keeps it.
+  - The anchor's first version used the checkpoint's global `steps`. A run from a B0 snapshot
+    starts at ≈ 217K–245K of those, so a decay would have begun well along. It's fixed: the
+    anchor runs on the same clock.
 
 ## To fill in before launch
 
