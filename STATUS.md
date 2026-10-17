@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-17 04:45 UTC)
+## Current position (2026-10-17 17:00 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -15,6 +15,16 @@ research is under way.**
 - **`p1-b` fails G0** (04:39 UTC, `20261017-040806-T-std`): full vs pilot B, Δu −0.0131 (≈ [−0.024,
   −0.003]), stopped at 5,000 sets with LLR −6.17. So P1 can't pass §2.3 step 1, whatever `p1-a`
   does (`experiments/p1.md` → "G0 results"). P0's doubling measure runs next (04:39 UTC, ≈ 10 h).
+- **P0's doubling estimate** (16:03 UTC, `20261017-043916-measure`): full vs p50 Δu +0.0071 [+0.0047,
+  +0.0093], 100K sets. By the pre-registered reading the CI's lower bound > 0.004, so the G0 review
+  weighs a v5 switch. Caveat from the diagnosis: both checkpoints are below the init, so part of it
+  is likely recovery from drift (`experiments/p0.md`).
+- **Diagnosis of the online arms** (the user, 2026-10-17; `experiments/rl-diagnosis.md`): the credit
+  attaches correctly. Training-game gains are less than sharpening alone: at matched entropy, RL's
+  other changes cost 0.040 ± 0.008 (P0) and 0.018 ± 0.008 (P1). Every run moved 20–25% of its argmax
+  decisions from the SL policy by p25, with reverse KL ≈ 0.4 nats, ≈ 20× K2's anchor target. P1's
+  entropy collapsed (05 §8.1). The roadmap's branch for this: one bounded G0 retry of the best arm
+  with K2, 2 seeds, ≤ $0.6K from the reserve.
 - **The eval box was lost with unpulled results** (2026-10-17 00:47 UTC).
   - Instance 56069526's host contract ended (`end_date`), and Vast stopped it.
   - `vastai start` is queued ("resources unavailable"), and `vastai copy` off it fails.
