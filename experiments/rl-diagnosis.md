@@ -88,6 +88,29 @@ This also explains P0's and P1's different starts in the logs: −0.122 for P0 a
 P1 in the first hour, from the same −0.086. P1 sharpened within the hour, while P0 first got more
 random.
 
+### The same for P1 (`p1-b` against pilot B)
+
+T = 0.22 matches `p1-b` full's entropy on its own states: 0.114 against pilot B's 0.129 at 0.25
+and 0.103 at 0.20 (a 20-set calibration). Same key and nonces; `workdir/diag/p1b-*`.
+
+| Challenger | Play | Entropy | Δu vs pilot B (argmax) |
+|---|---|---|---|
+| pilot B | sampled, T = 1 | 0.521 | −0.090 ± 0.006 |
+| pilot B | sampled, T = 0.22 | 0.112 | −0.004 ± 0.005 |
+| `p1-b` full | sampled, T = 1 | 0.114 | −0.022 ± 0.006 |
+| `p1-b` full | argmax | — | −0.022 ± 0.006 |
+
+| Comparison | Δu |
+|---|---|
+| RL's gain in its own setting | +0.068 ± 0.008 |
+| Sharpening alone | +0.086 ± 0.008 |
+| **RL against sharpening at matched entropy** | **−0.018 ± 0.008** (z ≈ −2.3) |
+
+**The same reading, smaller:** P1's training-game gain is less than lowering pilot B's
+temperature to the same entropy. At an entropy of 0.11, `full` plays nearly greedily: −0.022
+sampled, −0.022 at argmax. The argmax result agrees with the lab's T-std (−0.0131 ± 0.0054 on
+family B) within the noise.
+
 ## 3. Interface check (`experiments/rl_credit_check.py`, 2026-10-17)
 
 200 fresh games per pilot, played as the actors play them, then run through the trainer's own
@@ -135,8 +158,9 @@ On the trainee's decisions with more than one legal action in those games (every
 ## Diagnosis so far
 
 1. **Interface:** clean (§3).
-2. **Signal:** right-signed but weak. Training games improve, and in P0 sharpening explains all
-   of that gain. At matched entropy, RL's other changes cost ≈ 0.04 u (§2).
+2. **Signal:** right-signed but weak. Training games improve, and in both arms sharpening
+   explains more than all of that gain. At matched entropy, RL's other changes cost
+   ≈ 0.040 u in P0 and ≈ 0.018 u in P1 (§2).
 3. **Drift:** without an anchor, each run walks a quarter of its decisions away from the SL
    policy within the first quarter of its budget (§4). That drift is what loses at argmax.
 4. **P1's entropy collapse** (05 §8.1) is a separate symptom of its per-decision credit. It
