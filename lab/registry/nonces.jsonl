@@ -23,3 +23,5 @@
 {"family": "A", "start": 23000, "count": 10000, "run_id": "20261015-104045-measure", "purpose": "V online test at CQL 0.03 (D57)", "block": "v-tune", "time": "2026-10-15T10:40:45+00:00", "reused": true}
 {"family": "B", "start": 1000320000, "count": 100000, "run_id": "20261016-070631-T-std", "purpose": "P0 G0 T-std, p0-a full vs pilot A: lost with eval box 56069526 (host contract ended 2026-10-17 00:47 UTC, nothing pulled); never reuse", "block": null, "time": "2026-10-16T20:22:44-07:00"}
 {"family": "B", "start": 1000420000, "count": 100000, "run_id": "labq-20261016-062046-008", "purpose": "P0 doubling measure, p0-a full vs p50 (queued behind the T-std; range assumed): lost with eval box 56069526 (host contract ended 2026-10-17 00:47 UTC, nothing pulled); never reuse", "block": null, "time": "2026-10-16T20:22:44-07:00"}
+{"family": "B", "start": 1000520000, "count": 100000, "run_id": "20261017-033700-T-std", "purpose": "T-std verdict", "block": null, "time": "2026-10-17T03:37:00+00:00"}
+{"family": "B", "start": 1000620000, "count": 100000, "run_id": "20261017-040806-T-std", "purpose": "T-std verdict", "block": null, "time": "2026-10-17T04:08:06+00:00"}
