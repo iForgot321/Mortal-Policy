@@ -57,6 +57,18 @@ def load_policy(state_file, device):
     return brain, policy
 
 
+def same_file(a, b):
+    """Whether two checkpoint paths name the same repo file, compared from `workdir/` on; paths
+    outside a workdir are compared whole."""
+    def rel(p):
+        i = p.find('workdir/')
+        return p[i:] if i >= 0 else None
+    ra, rb = rel(a), rel(b)
+    if ra is None or rb is None:
+        return a == b
+    return ra == rb
+
+
 class KLAnchor:
     def __init__(self, cfg, *, default_state_file, device, version):
         self.mode = cfg.get('mode', 'adaptive')
@@ -123,7 +135,9 @@ class KLAnchor:
                 'windows': self.windows}
 
     def load_state_dict(self, state):
-        if state['state_file'] != self.state_file:
+        # compared from workdir/ on: a box writes /workspace/Mortal-Policy/..., the workstation
+        # /home/.../Mortal-Policy/..., for the same file
+        if not same_file(state["state_file"], self.state_file):
             raise ValueError(f"kl_anchor: the checkpoint anchors to {state['state_file']}, the config to {self.state_file}")
         self.adaptive_coef = state['adaptive_coef']
         self.kl_sum = state['kl_sum']

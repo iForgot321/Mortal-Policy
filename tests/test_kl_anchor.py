@@ -155,6 +155,14 @@ def test_target_growth_and_state_round_trip(anchor_file):
         b.load_state_dict(other)
 
 
+def test_a_box_checkpoint_resumes_on_the_workstation():
+    from kl_anchor import same_file
+    box = '/workspace/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth'
+    assert same_file(box, '/home/me/Mortal-Policy/workdir/pilot/qs-a/pilot-qs-a-final.pth')
+    assert not same_file(box, '/home/me/Mortal-Policy/workdir/pilot/qs-b/pilot-qs-b-final.pth')
+    assert same_file('/tmp/a.pth', '/tmp/a.pth') and not same_file('/tmp/a.pth', '/tmp/b.pth')
+
+
 def test_bad_settings_are_refused(anchor_file):
     for cfg in ({'mode': 'both'}, {'tolerance': 1.0}, {'factor': 0.5}, {'coef_min': 0}, {'decay_steps': 0}):
         with pytest.raises(ValueError):

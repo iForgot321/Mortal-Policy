@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-17 17:00 UTC)
+## Current position (2026-10-18 05:30 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -15,6 +15,16 @@ research is under way.**
 - **`p1-b` fails G0** (04:39 UTC, `20261017-040806-T-std`): full vs pilot B, Δu −0.0131 (≈ [−0.024,
   −0.003]), stopped at 5,000 sets with LLR −6.17. So P1 can't pass §2.3 step 1, whatever `p1-a`
   does (`experiments/p1.md` → "G0 results"). P0's doubling measure runs next (04:39 UTC, ≈ 10 h).
+- **`p1-a` fails G0** (2026-10-18 05:26 UTC, `20261018-044407-T-std`): Δu −0.0209 (≈ [−0.032, −0.010]),
+  5,000 sets. Every online arm-seed has now failed. P1 (mean −0.017) beats P0 (−0.0268), so the G0
+  retry with K2 runs P1 seed 1 (D59).
+- **K2** (`experiments/k2-retry.md`, the user's go-ahead):
+  - Built: the KL anchor, the LR/clip/entropy schedules on a saved run clock, and the automated p25
+    early check (`fleet.py watch --early-check`, `--anchor-alert`). Tuning (2 × 4 h, $14.12) chose the
+    adaptive anchor: 100% of KL readings in band, against 95% for the fixed rule.
+  - Box setup took 40 min on 256-thread hosts (pytest threads), fixed in 675c3db. That also explains
+    p1-a's lost actor.
+  - The retry itself (≈ $250) waits for the user's yes.
 - **P0's doubling estimate** (16:03 UTC, `20261017-043916-measure`): full vs p50 Δu +0.0071 [+0.0047,
   +0.0093], 100K sets. By the pre-registered reading the CI's lower bound > 0.004, so the G0 review
   weighs a v5 switch. Caveat from the diagnosis: both checkpoints are below the init, so part of it

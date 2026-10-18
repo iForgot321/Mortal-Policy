@@ -154,11 +154,38 @@ effect. The tuning settles only the anchor's coefficient rule.
 - **Also, reported only:** the early check (`experiments/k2_early_check.py`) on each run's last
   checkpoint, as a dry run of the p25 check.
 
+## Tuning result (2026-10-18)
+
+Both runs were rented 00:23 UTC. Training started 01:08 (a) and 01:28 (b): actor setup took 40 min
+on 256-thread hosts (pytest thread oversubscription, fixed in `setup_box.sh` 675c3db). They
+stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12**.
+`experiments/k2_tuning_report.py`:
+
+| After each run's first hour | `k2-tune-a` (adaptive) | `k2-tune-b` (fixed power law) |
+|---|---|---|
+| Readings / training time | 111 / 3.1 h | 100 / 2.9 h |
+| **KL inside [0.013, 0.03]** | **100%** | 95% |
+| KL mean / max | 0.0193 / 0.0267 | 0.0262 / 0.0314 |
+| Coefficient | 0.1 → 0.01 (floor, 11 min) → 0.114 after one overshoot to 0.0325 at 49 min (inside the first hour); flat at 0.114 since | 0.050 → 0.043 on its power law |
+| KL at the end | steady | still rising |
+| Agreement with pilot A at the end | 95.0% | 93.6% |
+| Learner steps (run clock at the end) | 68,800 | 61,600 |
+| Fleet games/h (watcher, last / max) | 61,600 / 76,000 | 68,800 / 71,200 |
+
+- **Choice, by the pre-registered rule:** both reach 70%, and they're within 10 points, so
+  **adaptive is kept** (`k2.toml` as written). Beyond the rule, `b`'s KL was still rising as its
+  coefficient decayed, which would carry it toward the early check's limits over 6 days.
+- **Throughput:** both learners were EPYC 9354s (32 cores). They ran at ≈ 22K steps/h,
+  against 33.5K measured on P0's learner, a 96-core 9684X (`p0.md` → "Policy lag"). The anchor's extra forward pass runs on an
+  otherwise idle GPU, so the learner's CPU is the likely limit. The 432 box-hours buy fewer steps
+  on a slower learner, so the retry should get a learner like P1's.
+
 ## To fill in before launch
 
-- **Arm and seed:** the better arm by G0's point estimates once `p1-a`'s T-std is in. P1 leads
-  now (`p1-b` −0.0131 against P0's −0.0268). Seed 1 (pilot A) is fixed now, whatever the
-  seeds' results, so the seed isn't picked on its noise.
+- **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1
+  −0.017 (seeds −0.0209 and −0.0131) against P0 −0.0268. Seed 1 (pilot A, from `p1a-b0`) was
+  fixed beforehand. (The tuning ran on P1 before `p1-a`'s verdict, at the user's word. It
+  settled only the coefficient rule.)
 - **K2's settings** (`05` §5.1):
   - the anchor's form (reverse KL to the frozen π_SL, exact over the legal mask, on the learner)
     and its coefficient rule (fixed decay or a controller toward a target);
