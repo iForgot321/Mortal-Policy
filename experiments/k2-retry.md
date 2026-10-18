@@ -189,11 +189,37 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
     (≈ 0.019), so the live alert and the p25 check measure the same thing.
   - Entropy stayed near pilot A's 0.52; P1 had collapsed to ≈ 0.16 by p25.
 - **Throughput:** both learners were EPYC 9354s (32 cores). They ran at ≈ 22K steps/h,
-  against 33.5K measured on P0's learner, a 96-core 9684X (`p0.md` → "Policy lag"). The anchor's extra forward pass runs on an
-  otherwise idle GPU, so the learner's CPU is the likely limit. The 432 box-hours buy fewer steps
-  on a slower learner, so the retry should get a learner like P1's.
+  against ≈ 29.6K for P1's average and 33.5K for P0's learner (which has no critic). The vCPU
+  quota is ≈ 32 on every host, so core count doesn't explain it; the anchor's extra forward pass
+  likely does (see Launch). Not measured: a learner profile would settle it.
 
-## To fill in before launch
+## Launch (2026-10-18 11:04 UTC)
+
+- **Approval:** quoted ≈ $250 (stop $275). At launch the live quote was $2.08/h (≈ $300), and the
+  user said "Launch now" with the stop at $320. It rented at **$1.93/h**: learner 68591 (EPYC
+  7B13), actors 101026 (Ryzen 9 7945HX) and 127613 (Ryzen 9 5950X). That projects ≈ $278 over
+  144 h.
+- **Commands:**
+
+  ```bash
+  F="python3 tools/fleet/fleet.py"
+  $F up --run k2 --config experiments/configs/k2.toml --init workdir/fleet/runs/p1a-b0/snapshots/full.pth \
+      --actors 2 --procs 2 --set dataset.num_workers=4 --set control.num_threads=8 --hard-hours 156 --verify --yes
+  EC="env LD_LIBRARY_PATH=$HOME/miniconda3/envs/mortal/lib $HOME/miniconda3/envs/mortal/bin/python \
+      experiments/k2_early_check.py --init workdir/pilot/qs-a/pilot-qs-a-final.pth --states workdir/diag/credit-a"
+  setsid -f $F watch --run k2 --replace --allow-zen2 --budget-box-hours 432 --snapshot-at 0.25,0.5 \
+      --max-dollars 320 --anchor-alert 0.10 --early-check "$EC" > workdir/fleet/runs/k2/watch.out 2>&1 < /dev/null
+  ```
+
+- **Watchdog:** 2026-10-24 23:04 UTC (156 h). `full` comes at 432 box-hours, ≈ 2026-10-24 11:00
+  UTC with no losses. The p25 early check comes ≈ 36 h in, ≈ 2026-10-19 23:00 UTC. It runs on
+  the workstation, which must stay on and not train meanwhile.
+- **Learner speed:** the tuning learners ran ≈ 22K steps/h, against ≈ 29.6K for P1's average
+  (`p1-b`: 4.27M steps in 144 h). P0's learner, which has no critic, ran 33.5K. The anchor's
+  extra forward pass is the likely cost, so the same box-hours buy ≈ 25% fewer steps than P1
+  had.
+
+## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1
   −0.017 (seeds −0.0209 and −0.0131) against P0 −0.0268. Seed 1 (pilot A, from `p1a-b0`) was
