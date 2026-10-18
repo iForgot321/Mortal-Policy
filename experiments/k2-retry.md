@@ -244,6 +244,18 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
   - It re-checks the price every 15 min and gives up after 48 h.
   - The fleet's rsync now resumes dropped transfers (`--partial-dir`, 12 tries for box syncs).
 
+### Relaunch: run `k2b` (2026-10-18 17:59 UTC)
+
+- **Launched by the waiting script:** the link had held 0% loss since ≈ 17:22, and the quote was
+  **$1.80/h** (≈ $259 over 144 h). Learner 52976 (EPYC 9354), actors 13450 and 68591 (EPYC 7B13).
+- **Bring-up took 9 min** (setup ≈ 7 min per box with the thread cap; 13450 had taken 40 min before
+  the fix). Both actors' clients were running at 18:08.
+- **Watchdog:** 2026-10-25 05:59 UTC.
+  - **p25 early check** (108 box-hours) ≈ 2026-10-20 06:00 UTC.
+  - **full** (432 box-hours) ≈ 2026-10-24 18:00 UTC with no losses.
+- The commands are those of the Launch section with `--run k2b`, and the watcher flags are the
+  same (`--max-dollars 320`).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-18 17:10 UTC)
+## Current position (2026-10-18 18:15 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -35,8 +35,9 @@ research is under way.**
   - Box setup took 40 min on 256-thread hosts (pytest threads), fixed in 675c3db. That also explains
     p1-a's lost actor.
   - The retry: approved (≈ $300, stop $320). Its first launch, `k2`, was downed at 12:39 UTC on 10-18 by
-    the bad home link ($2.30). It relaunches automatically as `k2b` once the link holds ≤ 5% loss for
-    20 min and the quote is ≤ $2.05/h (the user chose to wait; `experiments/k2-retry.md`).
+    the bad home link ($2.30). **Relaunched as `k2b` at 17:59 UTC on 2026-10-18**, automatically once the
+    link recovered and the quote was $1.80/h (≈ $259). p25 early check ≈ 2026-10-20 06:00 UTC; full
+    ≈ 2026-10-24 18:00 UTC; watchdog 2026-10-25 05:59 UTC.
 - **P0's doubling estimate** (16:03 UTC, `20261017-043916-measure`): full vs p50 Δu +0.0071 [+0.0047,
   +0.0093], 100K sets. By the pre-registered reading the CI's lower bound > 0.004, so the G0 review
   weighs a v5 switch. Caveat from the diagnosis: both checkpoints are below the init, so part of it
