@@ -2,7 +2,8 @@
 
 - **Status:** built 2026-10-10; parity at the plan's scale passed 2026-10-11 (Results). The
   validation game passed on 2026-10-14. **The 100K-game test found two adapter bugs** (item 4).
-  Both were fixed on 2026-10-15; the test runs again on the next eval-box rental. The user's
+  Both were fixed on 2026-10-15, and **the 100K test passed on 2026-10-18** (third run: 0 failures
+  in 100,000 games). The user's
   decisions of 2026-10-12 are under "Before ranked play".
 - **Code:** `deploy/riichidev_bot.py` (the adapter and its WebSocket runner),
   `deploy/riichidev_parity.py` (the parity harness), `tests/test_riichidev.py`.
@@ -221,6 +222,12 @@ that seat as the arena masks it.
      ≈ 15 chunks done with no failures, seeds 14,176 and 20,281 among them, but there's no
      report. **Third run (r3)** queued 2026-10-17 04:53 UTC on eval box 56337703 (the user's yes),
      with the same seeds and settings (`workdir/riichidev/submit-100k-r3.sh`).
+   - **Third run (r3): pass** (finished 2026-10-18 by 13:55 UTC on eval box 56337703;
+     `workdir/riichidev/parity-100k-r3-c00…c19.json`). All 20 chunks passed: 100,000 games,
+     63,674,663 requests, **0 observation mismatches, 0 fallbacks, 0 adapter failures**. That meets
+     07 §1's "illegal-action rate is 0 over 100K lab games". The last 5 reports were copied over a
+     60%-loss home link, one file at a time. (The r2 reports were never recovered: Vast restarted
+     the old box with an empty disk.)
    - Speed: ≈ 0.6–0.9 s per game with 20 workers, GPU-bound (each worker sends one decision at a
      time), so ≈ a day of box time. Fewer workers may be as fast; compare before queuing.
    - **Compared 2026-10-14 on the new box** (EPYC 9474F, 32 cores, 4090; 200 games, seeds

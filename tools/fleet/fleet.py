@@ -382,10 +382,17 @@ def remote(run, box, script, timeout=300, check=True):
     return p
 
 
+# a dropped transfer resumes on the next try instead of starting over. Partial data waits in a
+# hidden dir and the destination appears only when complete, so a torn snapshot never looks
+# whole. A stall fails after 120 s. (2026-10-18: a home link at 60% loss and ≈ 200 KB/s never
+# finished a box's 60-120 MB upload in one piece.)
+RSYNC_OPTS = ['-az', '--partial-dir=.rsync-partial', '--timeout=120']
+
+
 def rsync(run, box, args, timeout=1800):
     e = shlex.join(['ssh', *ssh_opts(run, box)])
     try:
-        p = subprocess.run(['rsync', '-az', '-e', e, *args], cwd=REPO, capture_output=True,
+        p = subprocess.run(['rsync', *RSYNC_OPTS, '-e', e, *args], cwd=REPO, capture_output=True,
                            text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         raise FleetError(f'{box["name"]}: rsync timed out') from None
@@ -476,9 +483,10 @@ def sync(run, box):
     retry(remote, run, box, 'command -v rsync >/dev/null || { apt-get update -qq && '
                             'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync >/dev/null; }\n',
           timeout=900)
+    # resumable (RSYNC_OPTS), so more tries add up instead of starting over
     retry(rsync, run, box, ['--filter=:- .gitignore', '--exclude=.claude/', '--exclude=.pytest_cache/',
-                            './', on_box(box)])
-    retry(rsync, run, box, ['-R', *inputs(cfg, box['role'], run.data.get('init')), on_box(box)])
+                            './', on_box(box)], tries=12)
+    retry(rsync, run, box, ['-R', *inputs(cfg, box['role'], run.data.get('init')), on_box(box)], tries=12)
     # what the box actually got: a replacement syncs the working tree as it is now
     with run.lock:
         box['commit'] = git_commit(allow_dirty=True)

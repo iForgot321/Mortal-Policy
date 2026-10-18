@@ -3,7 +3,7 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-18 05:30 UTC)
+## Current position (2026-10-18 17:10 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
@@ -15,6 +15,16 @@ research is under way.**
 - **`p1-b` fails G0** (04:39 UTC, `20261017-040806-T-std`): full vs pilot B, Δu −0.0131 (≈ [−0.024,
   −0.003]), stopped at 5,000 sets with LLR −6.17. So P1 can't pass §2.3 step 1, whatever `p1-a`
   does (`experiments/p1.md` → "G0 results"). P0's doubling measure runs next (04:39 UTC, ≈ 10 h).
+- **07's 100K-game parity test passes** (2026-10-18): 20/20 chunks, 100,000 games, 63.7M requests, 0
+  mismatches, fallbacks or adapter failures (`experiments/riichidev-adapter.md`).
+- **Eval box 56337703 destroyed** (2026-10-18 17:03 UTC). Its queue had drained, and its registry
+  matched the workstation's (27 run rows, 29 nonce rows). The lab lease is released. The full
+  `evalbox.py down` couldn't run over the 60%-loss home link, so the parity reports and `labq/`
+  were copied one file at a time.
+- **The home internet link** loses 50–90% of packets (to 1.1.1.1; 0% to the router) since
+  ≈ 11:20 UTC on 2026-10-18. Uploads run ≈ 200 KB/s and drop. The fleet's rsync now resumes dropped
+  transfers (`--partial-dir`, 12 tries for box syncs), and the watcher won't judge boxes
+  unreachable while its own link is down.
 - **`p1-a` fails G0** (2026-10-18 05:26 UTC, `20261018-044407-T-std`): Δu −0.0209 (≈ [−0.032, −0.010]),
   5,000 sets. Every online arm-seed has now failed. P1 (mean −0.017) beats P0 (−0.0268), so the G0
   retry with K2 runs P1 seed 1 (D59).

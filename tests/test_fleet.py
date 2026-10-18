@@ -545,3 +545,19 @@ def test_link_ok_reads_ping_loss(monkeypatch):
     assert not fleet.link_ok()
     monkeypatch.setattr(fleet.subprocess, 'run', fake('ping: connect: Network is unreachable\n'))
     assert not fleet.link_ok()
+
+
+def test_rsync_resumes_dropped_transfers(tmp_path, monkeypatch):
+    """Every fleet rsync keeps partial data aside and resumes it (2026-10-18: no box upload finished
+    in one piece over a 60%-loss link), and fails a stalled transfer instead of hanging."""
+    seen = []
+    monkeypatch.setattr(fleet.subprocess, 'run',
+                        lambda argv, **k: seen.append(argv) or subprocess.CompletedProcess(argv, 0, '', ''))
+    monkeypatch.setattr(fleet, 'RUNS', tmp_path)
+    run = fleet.Run('t')
+    box = {'name': 'actor1', 'instance': 1, 'ip': '192.0.2.1', 'ssh_port': 22}
+    fleet.rsync(run, box, ['a', 'b'])
+    argv = seen[0]
+    assert argv[0] == 'rsync' and '--partial-dir=.rsync-partial' in argv and '--timeout=120' in argv
+    assert '--partial' not in argv  # a plain --partial would leave a torn file under the real name
+    assert argv[-2:] == ['a', 'b']
