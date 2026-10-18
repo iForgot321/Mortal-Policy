@@ -167,6 +167,9 @@ if ((SKIP_TESTS == 0)); then
     log "cargo test"
     cargo test --workspace --release --no-default-features --features flate2/zlib
     log "pytest"
-    "$PY" -m pytest tests/ -q
+    # capped threads: on 256-thread hosts under load, torch's and rayon's default pools made the
+    # suite take 40 min (80 s on the workstation) and failed provisions at the 40 min limit
+    # (k2-tune-a and p1-a's actor replacements, 2026-10-16/18). --durations names any slow test.
+    OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 RAYON_NUM_THREADS=8 "$PY" -m pytest tests/ -q --durations=10
 fi
 log "done: $ROOT is ready ($(git describe --always --dirty --abbrev=12))"
