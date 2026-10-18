@@ -40,8 +40,8 @@ research is under way.**
   - `vastai start` is queued ("resources unavailable"), and `vastai copy` off it fails.
   - On it: P0's G0 T-std and doubling measure, and the 100K parity rerun (r2, chunks c01–c12 at
     least). I hadn't pulled it in its 40 h up.
-  - It sits in `workdir/fleet/runs/eval/fleet.json` → `kept`: no sweep destroys it, and storage
-    only bills while it's stopped. If it starts, pull it by hand, then destroy it.
+  - Vast restarted it on 2026-10-18 at 16:01 UTC with an empty disk: the results are gone. It was
+    destroyed at 16:10 (`retired` in `workdir/fleet/runs/eval/fleet.json`).
   - Rule for which result counts (`experiments/p0.md`): the rerun decides once it starts. The lost
     family-B ranges are burned in the ledger (`b8f27d2`).
   - Fix (`e0281e5`): offers whose contract ends within 7 days are skipped, and `evalbox.py status`
