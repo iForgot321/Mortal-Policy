@@ -1187,6 +1187,95 @@ def finish_kept(run):
             raise
 
 
+# ---------------------------------------------------------------- the G0 retry's early check (D59)
+
+def launch_detached(argv, log):
+    """Start `argv` in its own session from the repo root, output to `log`; returns its pid."""
+    with open(log, 'a') as f:
+        return subprocess.Popen(argv, cwd=REPO, stdout=f, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                start_new_session=True).pid
+
+
+def pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def early_check(run, cmd, label='p25', launch=launch_detached):
+    """D59's early check, once per run. When the `label` snapshot is in, run
+    `cmd --ckpt <snapshot> --out <run dir>/early-check-<label>.json` detached on the workstation
+    (`experiments/k2_early_check.py`). When its verdict file appears, record it and return
+    'stop' or 'continue'; otherwise None. A check that died without a verdict is reported once
+    and never stops the run: only the pre-registered measures do."""
+    snap = run.data.get('snapshots', {}).get(label)
+    if not cmd or not snap:
+        return None
+    st = run.data.get('early_check')
+    out = run.dir / f'early-check-{label}.json'
+    if st is None:
+        argv = [*shlex.split(cmd), '--ckpt', str(REPO / snap['path']), '--out', str(out)]
+        pid = launch(argv, run.dir / f'early-check-{label}.log')
+        with run.lock:
+            run.data['early_check'] = {'label': label, 'pid': pid, 'started': now_iso(), 'argv': argv}
+            run.save()
+        run.event('early_check_started', label=label, pid=pid)
+        return None
+    if st.get('verdict'):
+        return None
+    if out.exists():
+        res = json.loads(out.read_text())
+        with run.lock:
+            st['verdict'] = res['verdict']
+            st['fired'] = res['fired']
+            run.save()
+        run.event('early_check', label=label, verdict=res['verdict'], fired=','.join(res['fired']) or '-',
+                  rkl=round(res['drift']['rkl'], 4), agreement=round(res['drift']['agreement'], 4),
+                  du=None if not res.get('argmax') else round(res['argmax']['du'], 4))
+        return res['verdict']
+    if not pid_alive(st['pid']) and not st.get('failed'):
+        with run.lock:
+            st['failed'] = now_iso()
+            run.save()
+        run.event('early_check_failed', label=label, pid=st['pid'],
+                  note=f'no verdict; see {run.dir.name}/early-check-{label}.log; run it by hand')
+    return None
+
+
+def anchor_alert(run, threshold, hours=2.0, now=None):
+    """Early warning, not a stop (D59 stops only on the p25 check): the mean `anchor/kl` the
+    trainer logged over the last `hours` (learner-run/anchor.jsonl, pulled with the run dir)
+    against `threshold`. Logs an event when the mean crosses it either way; returns the mean, or
+    None without enough data."""
+    path = run.dir / 'learner-run' / 'anchor.jsonl'
+    if not threshold or not path.exists():
+        return None
+    now = time.time() if now is None else now
+    recent = []
+    for line in path.read_text().splitlines():
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # a line being written as it was pulled
+        if now - rec['time'] <= hours * 3600:
+            recent.append(rec['kl'])
+    if len(recent) < 3:
+        return None
+    mean = sum(recent) / len(recent)
+    above = mean > threshold
+    if above != run.data.get('anchor_alert', False):
+        with run.lock:
+            run.data['anchor_alert'] = above
+            run.save()
+        run.event('anchor_alert' if above else 'anchor_alert_cleared', kl=round(mean, 4), threshold=threshold,
+                  hours=hours, entries=len(recent))
+    return mean
+
+
 # ---------------------------------------------------------------- commands
 
 def git_commit(allow_dirty):
@@ -1328,7 +1417,9 @@ def cmd_watch(a):
     fractions = sorted(float(f) for f in a.snapshot_at.split(',')) if a.budget_box_hours else []
     full_failures = 0
     run.event('watch', interval=a.interval, replace=a.replace, max_hours=a.max_hours, max_dollars=a.max_dollars,
-              budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None)
+              budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None,
+              early_check=a.early_check, early_check_at=a.early_check_at if a.early_check else None,
+              anchor_alert=a.anchor_alert)
     while True:
         with run.locked():
             if not run.boxes:
@@ -1402,6 +1493,12 @@ def cmd_watch(a):
                 except FleetError as e:
                     run.log(f'pull failed: {e}')
                 last_pull = time.time()
+                anchor_alert(run, a.anchor_alert)
+            # D59: the G0 retry's early check; a 'stop' verdict downs the run
+            if early_check(run, a.early_check, a.early_check_at) == 'stop':
+                run.event('early_check_stop', label=a.early_check_at, cost=round(cost(run), 2))
+                down(run)
+                return 0
         time.sleep(a.interval)
 
 
@@ -1626,6 +1723,11 @@ def main(argv=None):
                    help="the arm-seed's compute budget (05 §2.2: 3 boxes x 6 days = 432): snapshot at "
                         "--snapshot-at fractions, then `full`, then down")
     s.add_argument('--snapshot-at', default='0.25,0.5', help='budget fractions to snapshot at (D49)')
+    s.add_argument('--early-check', help="D59: once the --early-check-at snapshot is in, run this command "
+                                         "(+ --ckpt SNAP --out FILE) detached; a 'stop' verdict downs the run")
+    s.add_argument('--early-check-at', default='p25', help='the snapshot label the early check waits for')
+    s.add_argument('--anchor-alert', type=float, help="log an event when the trainer's anchor/kl, averaged "
+                                                      "over 2 h, crosses this (nats; an alert, never a stop)")
     s = p('down', cmd_down, 'pull, revoke and destroy')
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')

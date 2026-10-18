@@ -95,10 +95,70 @@ K2 (`05` §5.1) adds the KL anchor and anneals the update size, LR and entropy t
     starts at ≈ 217K–245K of those, so a decay would have begun well along. It's fixed: the
     anchor runs on the same clock.
 
+## The early check, automated (2026-10-18)
+
+- **`experiments/k2_early_check.py --ckpt SNAP --init INIT --states DIR --out FILE`** runs D59's
+  three measures and writes the verdict (JSON, atomically, at the end).
+  - Measures 1 and 2 come first (≈ 30 s). If either fires, measure 3 isn't played.
+  - It reuses `rl_drift.measure` and `rl_diag_sampling.play`, with the diagnosis's states, key
+    and nonces.
+- **`fleet.py watch --early-check '<that command without --ckpt and --out>'`** launches it
+  detached on the workstation once the `p25` snapshot is in (`--early-check-at`). Then:
+  - a "stop" verdict downs the run (event `early_check_stop`);
+  - "continue" is logged;
+  - a check that dies without a verdict is reported once (`early_check_failed`) and never stops
+    the run.
+- **`fleet.py watch --anchor-alert 0.10`** logs an event when the trainer's batch KL, averaged over
+  2 h, crosses 0.10 either way. It's an alert only. The trainer appends `anchor.jsonl` beside its
+  state file, and the regular pull brings it back.
+- **Tests** (`tests/test_k2_early_check.py`, 7): the verdict's thresholds and strict boundaries;
+  the hook waiting for its snapshot, launching once, returning the verdict once, and reporting a
+  check that died; the alert's crossings.
+- **End to end:** the hook launched the real check on `p1-b`'s p25 snapshot. That gave reverse
+  KL 0.3534 and agreement 81.12%, the diagnosis's numbers, so "stop", in 30 s.
+
+## The retry's settings (pre-registered 2026-10-18, before tuning)
+
+`experiments/configs/k2.toml`: P1 seed 1 (pilot A, from the `p1a-b0` snapshot, as `p1-a`) plus:
+
+| K2 part | Setting | Why |
+|---|---|---|
+| Anchor | adaptive, reverse KL to pilot A, target 0.02 nats/decision, held constant (`target_growth = 0`) | 05 §5.1's start target. A rising target would push the KL toward the early check's limits (0.10 nats; agreement 90%) by p25 by design, so the anchor's decay waits for a later package |
+| Anchor controller | start 0.1, ×/÷ 1.5 per 400 steps outside [target/1.5, target×1.5], floor 0.01, ceiling 10, hold 5 updates | The local smokes: 0.1 held the KL near 0.007, and factor 2 overshot |
+| LR | 2e-5 · (1 + t/100K)^−0.3, floor 5e-6 | P0/P1's LR at the start. ≈ 6.4e-6 by the end (t ≈ 4.3M steps) |
+| Clip ε | 0.2 · (1 + t/100K)^−0.2, floor 0.1 | P0/P1's at the start, 0.1 from t ≈ 3M |
+| Entropy weight | 1e-3 · (1 + t/100K)^−0.5, floor 1e-4 | P0/P1's at the start, ≈ 1.5e-4 by the end |
+
+The LR, clip and entropy schedules are fixed here, not tuned: a few hours can't show their long-run
+effect. The tuning settles only the anchor's coefficient rule.
+
+## Tuning (05 §2.2's allowance: ≤ 1 box-day; pre-registered 2026-10-18)
+
+- **Question:** at full scale (400-step controller windows, P1's batch sizes), which coefficient
+  rule holds the batch KL in the band [0.013, 0.03]?
+- **Two runs in parallel**, each the full P1 fleet (learner + 2 actors, 2 processes each), from
+  `p1a-b0`, under a 4 h hard deadline:
+  - `k2-tune-a` (`k2-tune-a.toml`): the retry's settings above, adaptive;
+  - `k2-tune-b` (`k2-tune-b.toml`): the same with 05 §5.1's literal fixed power law,
+    c(t) = 0.05 · (1 + t/100K)^−0.3.
+- **Cost:** ≤ 24 box-hours, ≈ $13–17 at 2026-10 prices; each watcher has `--max-dollars 10`.
+- **Measures**, from each run's `anchor.jsonl` (pulled with the run dir), after its first hour:
+  - the fraction of logged batch-KL values inside [0.013, 0.03];
+  - their maximum;
+  - the coefficient's trace;
+  - the learner's drain rate against P1's.
+- **Choice rule:**
+  - The retry uses the rule with the larger in-band fraction, if it is at least 70%.
+  - Within 10 points of each other, adaptive is kept (05 §5.1 states a target).
+  - If neither reaches 70%: no launch. Report and adjust the controller.
+- **Also, reported only:** the early check (`experiments/k2_early_check.py`) on each run's last
+  checkpoint, as a dry run of the p25 check.
+
 ## To fill in before launch
 
 - **Arm and seed:** the better arm by G0's point estimates once `p1-a`'s T-std is in. P1 leads
-  now (`p1-b` −0.0131 against P0's −0.0268).
+  now (`p1-b` −0.0131 against P0's −0.0268). Seed 1 (pilot A) is fixed now, whatever the
+  seeds' results, so the seed isn't picked on its noise.
 - **K2's settings** (`05` §5.1):
   - the anchor's form (reverse KL to the frozen π_SL, exact over the legal mask, on the learner)
     and its coefficient rule (fixed decay or a controller toward a target);

@@ -103,56 +103,66 @@ class Recorder:
                 'probe_entropy': {k: v / n for k, v in self.probe_h.items()}}
 
 
-def engines(args):
+def engines(challenger_spec, champion_spec, mode, temp, probe_specs=(), probe_temps=()):
     import torch
     from lab.arena import load_engine
-    challenger = load_engine(args.challenger, enable_amp=True,
-                             enable_rule_based_agari_guard=args.mode == 'argmax', name='challenger')
-    if args.mode == 'sample':
+    challenger = load_engine(challenger_spec, enable_amp=True,
+                             enable_rule_based_agari_guard=mode == 'argmax', name='challenger')
+    if mode == 'sample':
         challenger.explore_rate = 1.0
-    if args.temp != 1.0:
-        if args.mode != 'sample':
+    if temp != 1.0:
+        if mode != 'sample':
             raise SystemExit('--temp needs --mode sample')
-        challenger.dqn = tempered(challenger.dqn, args.temp).to(challenger.device).eval()
-    champion = load_engine(args.champion, enable_amp=True, enable_rule_based_agari_guard=True,
+        challenger.dqn = tempered(challenger.dqn, temp).to(challenger.device).eval()
+    champion = load_engine(champion_spec, enable_amp=True, enable_rule_based_agari_guard=True,
                            name='champion')
     probes = []
-    for spec in getattr(args, 'probe', None) or []:
+    for spec in probe_specs:
         probe = load_engine(spec, enable_amp=True, name='probe')
-        for t in args.probe_temps:
+        for t in probe_temps:
             pol = probe.dqn if t == 1.0 else tempered(probe.dqn, t).to(probe.device).eval()
             probes.append((f'{os.path.basename(spec)}@{t:g}', probe.brain, pol))
     torch.backends.cudnn.benchmark = False
     return Recorder(challenger, probes), champion
 
 
-def cmd_play(args):
+def play(challenger, champion, mode='sample', temp=1.0, sets=4000, nonce_start=0, chunk=500, out=None,
+         probe_specs=(), probe_temps=(), progress=True):
+    """Play `sets` duplicate sets on the diagnostic key and return the summary (also written next
+    to `out`, with the per-set arrays in `out`, when given)."""
     from lab.arena import play_sets
-    rec, champion = engines(args)
+    rec, champ = engines(challenger, champion, mode, temp, probe_specs, probe_temps)
     t0 = time.time()
     parts = []
-    for start in range(args.nonce_start, args.nonce_start + args.sets, args.chunk):
-        n = min(args.chunk, args.nonce_start + args.sets - start)
-        parts.append(play_sets(rec, champion, DIAG_KEY, start, n))
-        print(f'{start + n - args.nonce_start}/{args.sets} sets, {time.time() - t0:.0f} s', flush=True)
+    for start in range(nonce_start, nonce_start + sets, chunk):
+        n = min(chunk, nonce_start + sets - start)
+        parts.append(play_sets(rec, champ, DIAG_KEY, start, n))
+        if progress:
+            print(f'{start + n - nonce_start}/{sets} sets, {time.time() - t0:.0f} s', flush=True)
     seeds, seats, ranks, scores = (np.concatenate(c) for c in zip(*parts))
     u = UTILITY[ranks]
     order = np.argsort(seeds, kind='stable')
     seeds, seats, ranks, u = seeds[order], seats[order], ranks[order], u[order]
     per_set = u.reshape(-1, 4).mean(1)  # 4 games per set: the challenger in each seat
     summary = {
-        'challenger': os.path.abspath(args.challenger), 'champion': os.path.abspath(args.champion),
-        'mode': args.mode, 'temp': args.temp, 'key': hex(DIAG_KEY), 'nonce_start': args.nonce_start,
+        'challenger': os.path.abspath(challenger), 'champion': os.path.abspath(champion),
+        'mode': mode, 'temp': temp, 'key': hex(DIAG_KEY), 'nonce_start': nonce_start,
         'sets': int(len(per_set)), 'du': float(per_set.mean()),
         'se': float(per_set.std(ddof=1) / np.sqrt(len(per_set))),
         'avg_rank': float((ranks + 1).mean()), 'rank_hist': np.bincount(ranks, minlength=4).tolist(),
         'seconds': round(time.time() - t0), **rec.stats(),
     }
-    if args.out:
-        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-        np.savez_compressed(args.out, seeds=seeds, seats=seats, ranks=ranks, per_set=per_set)
-        with open(args.out.replace('.npz', '.json'), 'w') as f:
+    if out:
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        np.savez_compressed(out, seeds=seeds, seats=seats, ranks=ranks, per_set=per_set)
+        with open(out.replace('.npz', '.json'), 'w') as f:
             json.dump(summary, f, indent=1)
+    return summary
+
+
+def cmd_play(args):
+    summary = play(args.challenger, args.champion, args.mode, args.temp, args.sets, args.nonce_start, args.chunk,
+                   args.out, getattr(args, 'probe', None) or (), getattr(args, 'probe_temps', ()))
     print(json.dumps(summary, indent=1))
 
 

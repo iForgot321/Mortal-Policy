@@ -543,6 +543,13 @@ def train():
                     writer.add_scalar('ppo/lag_max', lag_max, steps)
                     for k, v in anchor_stats.items():
                         writer.add_scalar(f'anchor/{k}', v / ppo_batches, steps)
+                    if anchor_stats:
+                        # beside the state file, so the fleet's pull brings it back for
+                        # `fleet.py watch --anchor-alert` (no tensorboard needed there)
+                        rec = {k: float(v / ppo_batches) for k, v in anchor_stats.items()}
+                        with open(path.join(path.dirname(state_file), 'anchor.jsonl'), 'a') as f:
+                            f.write(json.dumps({'time': datetime.now().timestamp(), 'steps': steps,
+                                                't': steps - schedule_origin, **rec}) + '\n')
                     if kl_anchor is not None:
                         writer.add_scalar('anchor/target', kl_anchor.target(steps - schedule_origin), steps)
                     ppo_stats.clear()
