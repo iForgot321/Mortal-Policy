@@ -234,8 +234,15 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
 - **Fix:** `fleet.py watch` now checks its own link (`link_ok`: ping loss to 1.1.1.1 ≤ 20%) before
   judging any box unreachable, and logs `link_down` instead (`tests/test_fleet.py`).
 - **Relaunch:** under a new run name (`k2` is taken), with the same config and commands, once the
-  link is healthy again. That's 10 straight minutes of ≤ 5% loss, then an upload test of at least
-  1 MB/s to the eval box. It's within the user's approval for this retry.
+  link is healthy again. It's within the user's approval for this retry.
+  - At 17:10 UTC the live quote was $2.21/h (≈ $318, right at the $320 stop), and the link was still
+    at 50–90% loss. The user chose to wait.
+  - A detached script (`auto_launch_k2b.sh` in the session scratchpad, log `auto_launch.log`)
+    launches run `k2b` with the Launch section's commands once both hold:
+    - 20 straight minutes of ≤ 5% ping loss;
+    - a live quote of ≤ $2.05/h (≈ $295).
+  - It re-checks the price every 15 min and gives up after 48 h.
+  - The fleet's rsync now resumes dropped transfers (`--partial-dir`, 12 tries for box syncs).
 
 ## Before launch (done)
 

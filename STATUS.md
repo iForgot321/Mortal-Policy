@@ -34,7 +34,9 @@ research is under way.**
     adaptive anchor: 100% of KL readings in band, against 95% for the fixed rule.
   - Box setup took 40 min on 256-thread hosts (pytest threads), fixed in 675c3db. That also explains
     p1-a's lost actor.
-  - The retry itself (≈ $250) waits for the user's yes.
+  - The retry: approved (≈ $300, stop $320). Its first launch, `k2`, was downed at 12:39 UTC on 10-18 by
+    the bad home link ($2.30). It relaunches automatically as `k2b` once the link holds ≤ 5% loss for
+    20 min and the quote is ≤ $2.05/h (the user chose to wait; `experiments/k2-retry.md`).
 - **P0's doubling estimate** (16:03 UTC, `20261017-043916-measure`): full vs p50 Δu +0.0071 [+0.0047,
   +0.0093], 100K sets. By the pre-registered reading the CI's lower bound > 0.004, so the G0 review
   weighs a v5 switch. Caveat from the diagnosis: both checkpoints are below the init, so part of it
