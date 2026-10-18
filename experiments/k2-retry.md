@@ -219,6 +219,24 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
   extra forward pass is the likely cost, so the same box-hours buy ≈ 25% fewer steps than P1
   had.
 
+### First attempt aborted (2026-10-18 11:04–12:39 UTC, $2.30)
+
+- **What happened:** the learner set up fine, at 11:18. All 6 actor attempts, on 6 hosts, failed:
+  5 on the code upload (rsync "Broken pipe"), 1 host never ran. Re-provisioning actor1 alone
+  worked (13 min upload, 8 min setup with the thread cap), but the ssh that started its clients
+  dropped, and the watcher's pulls failed too.
+- **Cause: the workstation's internet link.** It had 60% ping loss to 1.1.1.1 with 0% to the router,
+  and uploads at ≈ 210 KB/s. The boxes were fine.
+- **Why downed:** nothing could train without actors. And with every box looking unreachable,
+  `watch --replace` would have destroyed healthy boxes and rented replacements that couldn't
+  set up either. The learner had no drains, so its checkpoint was still the initialization:
+  nothing was lost.
+- **Fix:** `fleet.py watch` now checks its own link (`link_ok`: ping loss to 1.1.1.1 ≤ 20%) before
+  judging any box unreachable, and logs `link_down` instead (`tests/test_fleet.py`).
+- **Relaunch:** under a new run name (`k2` is taken), with the same config and commands, once the
+  link is healthy again. That's 10 straight minutes of ≤ 5% loss, then an upload test of at least
+  1 MB/s to the eval box. It's within the user's approval for this retry.
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

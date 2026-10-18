@@ -1189,6 +1189,22 @@ def finish_kept(run):
 
 # ---------------------------------------------------------------- the G0 retry's early check (D59)
 
+LINK_HOST = '1.1.1.1'
+
+
+def link_ok(host=LINK_HOST, count=10, max_loss=20.0):
+    """Whether this workstation's own internet link works: ping loss to `host` at most `max_loss`
+    percent. On 2026-10-18 the home link lost 60% of packets, and every box would have looked
+    unreachable to the watcher, which then replaces healthy boxes."""
+    try:
+        p = subprocess.run(['ping', '-c', str(count), '-i', '0.2', '-W', '1', host], capture_output=True,
+                           text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    m = re.search(r'([\d.]+)% packet loss', p.stdout)
+    return m is not None and float(m.group(1)) <= max_loss
+
+
 def launch_detached(argv, log):
     """Start `argv` in its own session from the repo root, output to `log`; returns its pid."""
     with open(log, 'a') as f:
@@ -1435,11 +1451,22 @@ def cmd_watch(a):
                 return 0
             report = health(run)
             learner_ok = report.get('learner', ('ok',))[0] in ('ok', 'warn')
+            link = None
             for name, (verdict, problems, _) in report.items():
                 if verdict in ('ok', 'warn') or (name != 'learner' and not learner_ok):
                     # actors can't be judged while the learner is down
                     bad_since.pop(name, None)
                     continue
+                if verdict == 'unreachable':
+                    # a bad link on this end makes healthy boxes look unreachable: judge none, and
+                    # restart their clocks, until the workstation's own link works again
+                    if link is None:
+                        link = link_ok()
+                        if not link:
+                            run.event('link_down', host=LINK_HOST, note='not judging unreachable boxes')
+                    if not link:
+                        bad_since.pop(name, None)
+                        continue
                 t0 = bad_since.setdefault(name, time.time())
                 waited = time.time() - t0
                 box = run.boxes[name]

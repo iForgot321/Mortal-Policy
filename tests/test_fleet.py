@@ -530,3 +530,18 @@ def test_value_runs_start_the_value_trainer():
     _, v = fleet.load_config(os.path.join(ROOT, 'experiments', 'configs', 'v-a.toml'))
     assert fleet.trainer_script(p0) == 'train_online.py'
     assert fleet.trainer_script(v) == 'train_value.py'
+
+
+def test_link_ok_reads_ping_loss(monkeypatch):
+    """The watcher judges no box unreachable while this end's own link is bad (2026-10-18: 60% loss)."""
+    def fake(out):
+        return lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=out, stderr='')
+    tail = '10 packets transmitted, {} received, {}% packet loss, time 1810ms\n'
+    monkeypatch.setattr(fleet.subprocess, 'run', fake(tail.format(10, 0)))
+    assert fleet.link_ok()
+    monkeypatch.setattr(fleet.subprocess, 'run', fake(tail.format(9, 10)))
+    assert fleet.link_ok()
+    monkeypatch.setattr(fleet.subprocess, 'run', fake(tail.format(4, 60)))
+    assert not fleet.link_ok()
+    monkeypatch.setattr(fleet.subprocess, 'run', fake('ping: connect: Network is unreachable\n'))
+    assert not fleet.link_ok()
