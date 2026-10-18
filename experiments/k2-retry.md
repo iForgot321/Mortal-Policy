@@ -175,6 +175,19 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
 - **Choice, by the pre-registered rule:** both reach 70%, and they're within 10 points, so
   **adaptive is kept** (`k2.toml` as written). Beyond the rule, `b`'s KL was still rising as its
   coefficient decayed, which would carry it toward the early check's limits over 6 days.
+- **Early-check dry runs** on each run's last checkpoint (`k2_early_check.py`, workstation;
+  reported only). Both say "continue":
+
+  | Run | Reverse KL | Agreement | Entropy | Δu at argmax vs pilot A (4,000 sets) |
+  |---|---|---|---|---|
+  | `k2-tune-a` | 0.0183 | 95.0% | 0.486 | +0.0052 ± 0.0053 |
+  | `k2-tune-b` | 0.0324 | 93.2% | 0.455 | +0.0024 ± 0.0054 |
+
+  - Checkpoints after ≈ 3 h (69K and 62K learner steps), so the Δu says nothing about the
+    retry's strength.
+  - The check's reverse KL on the diagnosis's states (0.018) matches the trainer's batch KL
+    (≈ 0.019), so the live alert and the p25 check measure the same thing.
+  - Entropy stayed near pilot A's 0.52; P1 had collapsed to ≈ 0.16 by p25.
 - **Throughput:** both learners were EPYC 9354s (32 cores). They ran at ≈ 22K steps/h,
   against 33.5K measured on P0's learner, a 96-core 9684X (`p0.md` → "Policy lag"). The anchor's extra forward pass runs on an
   otherwise idle GPU, so the learner's CPU is the likely limit. The 432 box-hours buy fewer steps
