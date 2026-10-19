@@ -586,34 +586,22 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
 
 ## Next steps
 
-Read `docs/design/handoff-2026-10-10.md` first: it has the live runs, the exact commands and the
-failure modes already met.
+Read `docs/design/handoff-2026-10-18.md` first: it has the live run, what to do at each of its
+events, and the failure modes met since 2026-10-10.
 
-1. **Live runs.** Keep P0's watcher alive until it downs the fleet (≈ 2026-10-16 02:15 UTC). Then,
-   on the workstation:
-   - G0 T-std, P0 `full` against pilot A;
-   - the pre-registered doubling `measure`, `full` against `p50`, 100K sets (`experiments/p0.md`).
-2. **P1 (live, handoff §1b).** Keep both watchers alive until ≈ 2026-10-17 03:20 UTC. Then, per
-   seed, G0's T-std against its own pilot, the head-to-head against P0 and the doubling estimate
-   (`experiments/p1.md`), queued after P0's evaluations.
-3. **Arm V** (`experiments/v.md`, `experiments/v-tuning.md`): **stopped by the sweep's stop rule
-   (2026-10-14).** The Q function collapses online. Diagnosis per `05` §8, with the user: the
-   1v3 Q-target scale and action alignment (local, free), then whether to keep the CQL term
-   online. V's runs need a fix and a new approval. Arm H follows V.
+1. **The G0 retry `k2b` (live).** Keep its watcher alive, and keep the workstation on and
+   online.
+   - The p25 early check runs by itself ≈ 2026-10-20 06:00 UTC: a "stop" downs the fleet and
+     goes to the user.
+   - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
+2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
+   the SL incumbent plus inference search; inconclusive → a second seed.
+3. **Search pilot (`06` §0):** built and tested. It waits for "G0's blueprint". Ask the user
+   whether to run it now on pilot A, ≈ 5–6 h on the workstation, clear of the p25 check.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
-   - b24c512 AWR and BC teachers, then the students;
-   - the riichi.dev smoke deploy (L1). The adapter and its parity tests are done
-     (`experiments/riichidev-adapter.md`); the user decided its inputs on 2026-10-12 (the
-     student; the shared 4090). The supervisor, daily summary and latency metrics are built; the
-     validation game passed (2026-10-14). The 100K-game test found two adapter bugs (chankan
-     missed; a chi riichienv doesn't offer). Next: fix them on the workstation (free), then run
-     the test again on the next eval-box rental, which needs the user's go-ahead.
-5. **Search pilot (`06` §0):** the oracle stage reports by G0. Both stages are built and tested
-   (`experiments/search-pilot.md`; design choices fixed by D58). It waits for G0's blueprint;
-   then the blueprint's self-play, its hand model, and the pilot run (≈ 7 h on the
-   workstation, no cloud).
-6. **Fleet:**
-   - a fleet soak report from P0's `health.jsonl`;
-   - ~~the eval-box queue~~ done 2026-10-12 (`tools/fleet/evalbox.py`, README "The eval box");
-   - re-running the cost forecast with D50's 4090 prices.
+   - the b24c512 teachers, then the π_SL student;
+   - the riichi.dev smoke deploy (L1). The adapter's 100K parity test passed on 2026-10-18, and
+     ranked play waits for the student.
+5. **G0's observation review (D49):** v4 or v5, weighing P0's doubling estimate and its caveat.
+6. **Arm V:** stopped (D57's test failed). A fix needs a design change and a new approval.
