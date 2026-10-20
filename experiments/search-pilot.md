@@ -414,3 +414,30 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
   gave. So the same training run longer is unlikely to be enough on its own. A better model
   (more self-play data, which is cheap; a larger head; a longer schedule; more weight on late-kyoku
   and tenpai opponents) is the direction.
+
+### A bigger hand model: lower loss, same search (2026-10-20, exploratory; the user's go-ahead)
+
+- **Setup:** the same architecture, learning rates, stride and held-out games as `hands-a`, with
+  5× the data and 3× the steps: 16,000 more games of pilot A self-play on the dev key (nonces
+  104,000–119,999, 55 min) plus `hands-a`'s 4,000; 60,000 steps (1.9 h). Held-out loss **17.21**
+  nats per hand (17.68 at 20K steps, 17.39 at 40K; still falling slowly: 17.25 → 17.21 over the
+  last 10K). `workdir/search/hands-a-big/handmodel.pth` (read-only, sha256 `7d38d4035dd59329…`). The belief
+  stage on all 20,000 decisions, 2.8 h: `workdir/search/pilot-a-handsbig`
+  (`slope-full.txt`, `slope-sub4k.txt`).
+
+  | 20,000 decisions, primary rule | Current (17.64) | Bigger (17.21) |
+  |---|---|---|
+  | Belief gain, u per decision | +0.0018 ± 0.0005 | +0.0016 ± 0.0005 |
+  | Recovery | 0.157 [0.071, 0.240] | 0.140 [0.058, 0.220] |
+  | Correlation with the oracle, without noise | 0.52 | 0.52 |
+  | Riichi overrating, all / late third | +0.0091 / +0.0165 | +0.0069 / +0.0138 |
+  | Decisions with < 64 particles | 822 | 472 |
+
+- **Paired difference, bigger − current: −0.0002 ± 0.0005 u per decision (z −0.4).** None.
+- **Reading:** the trend from the weak model (18.55) to the current one doesn't continue. 0.43
+  nats less loss cut the riichi overrating by a quarter and the particle shortfall by 40%, but the
+  belief's verdicts track the oracle's no better, and the gain didn't move. So more data and steps
+  of this recipe don't close the gap, and the riichi bias alone isn't what holds recovery down.
+- **Open:** whether the gap can be closed at all. Part of the oracle's gain may come from
+  information no inference from public events can recover (06 §0's caveat that the oracle is an
+  optimistic bound). Untested.

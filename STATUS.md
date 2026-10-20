@@ -617,7 +617,8 @@ events, and the failure modes met since 2026-10-10.
    The user decides whether to work on the belief (D32: reconstruction, calibration, opponent
    model). The hand model is the lever: a weaker one (18.55 vs 17.64 nats) gains nothing, paired
    difference +0.0030 ± 0.0012 u per decision; the belief rates riichi too high, more so late in
-   the kyoku (`experiments/search-pilot.md`). If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.
+   the kyoku. But a bigger model (5× data, 3× steps, 17.21 nats) changes nothing: paired −0.0002 ±
+   0.0005, recovery 0.140 (`experiments/search-pilot.md`). If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - the b24c512 teachers, then the π_SL student;
