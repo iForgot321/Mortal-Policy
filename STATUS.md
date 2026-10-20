@@ -3,11 +3,15 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-20 00:45 UTC)
+## Current position (2026-10-20 07:10 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **`k2b`'s p25 early check: continue** (2026-10-20 07:01 UTC; `experiments/k2-retry.md`). Reverse
+  KL 0.025 (stop > 0.10), argmax agreement 94.2% (stop < 90%), Δu at argmax vs pilot A +0.012 ±
+  0.0055 on 4,000 diagnostic sets: the first online checkpoint above its initialization.
+  Exploratory; G0's T-std at `full` (≈ 2026-10-24 18:00 UTC) decides.
 - **The search pilot ran on pilot A and fails on recovery** (2026-10-19 19:24 → 10-20 00:27 UTC,
   the user's go-ahead; `experiments/search-pilot.md` → "Pilot run on pilot A"). 20,000 riichi-vs-dama
   decisions from 1,200 games (family-A block `search-pilot`). Oracle +0.0112 u per decision (z

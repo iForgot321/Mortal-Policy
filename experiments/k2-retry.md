@@ -256,6 +256,27 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
 - The commands are those of the Launch section with `--run k2b`, and the watcher flags are the
   same (`--max-dollars 320`).
 
+## Early check at p25 (2026-10-20): continue
+
+- **p25 snapshot:** 06:02 UTC on 2026-10-20, step 1,048,400, 108.16 box-hours, sha256
+  `286cf185ba093274…`. The watcher launched the check on the workstation at once; it took 59 min.
+  `workdir/fleet/runs/k2b/early-check-p25.json`.
+
+  | # | Measure | `k2b` p25 | Stop if | P0/P1 at p25 |
+  |---|---|---|---|---|
+  | 1 | Reverse KL(π_p25 ‖ π_SL), mean per decision (15,215 decisions) | **0.0253** (median 0.0082) | > 0.10 | 0.35–0.38 |
+  | 2 | Argmax agreement with π_SL | **94.2%** | < 90% | 78–81% |
+  | 3 | Δu at argmax vs pilot A, 4,000 sets, diagnostic key | **+0.0120 ± 0.0055** (≈ [+0.001, +0.023]), avg rank 2.484 | CI entirely below 0 | p50: −0.022 to −0.033 (family A) |
+
+- **Verdict: continue** (nothing fired). The policy's entropy on these states is 0.47; P1's
+  collapsed to 0.11.
+- The anchor holds the drift at K2's target, an order of magnitude below the unanchored runs.
+  This is also the first online checkpoint whose Δu against its initialization is above 0, where
+  every P0/P1 checkpoint measured was below it.
+- **Not a verdict** (pre-registered above): exploratory, 4,000 sets on the diagnostic key, argmax
+  play. Passing means only that the run continues. G0's T-std on family B, `full` vs pilot A,
+  decides (≈ 2026-10-24 18:00 UTC).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1
