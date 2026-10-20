@@ -356,3 +356,32 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
   calibration on riichi → dama decisions specifically, more particles against noise (plain z > 0
   collapses to ≈ 0, a sign of noise), and a stronger hand model (its held-out loss was still
   falling at 20K steps).
+
+### Why belief fails: noise or bias? (2026-10-20, exploratory)
+
+- **The belief's gain is search, not "riichi more often"** (`search_pilot_riichi_more.py`). A
+  no-search rule that riichis on the same number of dama decisions (667), picked by the policy's
+  own riichi share, gains +0.0004 ± 0.0004 against the belief's +0.0018 ± 0.0005. Only 61 of its
+  picks are the belief's.
+- **Accuracy** (`search_pilot_accuracy.py`): per decision, the belief's estimate of
+  riichi − dama against the oracle's.
+
+  | Decisions | Correlation | Without sampling noise | Belief − oracle (u) | Share of the disagreement that is noise |
+  |---|---|---|---|---|
+  | All 20,000 | 0.39 | 0.52 | +0.0091 | 28% |
+  | Early in the kyoku (first third by event index) | 0.46 | 0.65 | +0.0035 | 43% |
+  | Middle third | 0.39 | 0.52 | +0.0076 | 29% |
+  | Late third | 0.31 | 0.39 | +0.0165 | 17% |
+
+  - "Without sampling noise" divides by the split-half reliabilities (oracle 0.87, belief 0.66).
+    Even with unlimited particles, the belief would track the oracle at ≈ 0.5.
+  - Most of the gap is systematic: **the belief rates riichi above the oracle**, by more the
+    later in the kyoku. That fits its switches: 667 to riichi and 119 to dama.
+  - A guess, not tested: the sampled hands are less threatening than the true ones late in the
+    kyoku (opponents near tenpai), which makes riichi, after which the player can't fold, look
+    better than it is. 822 decisions had fewer than 64 particles, because sampled hands for
+    riichi opponents often weren't tenpai (68% were, in D58's test).
+- **The hand model's training curve** (`workdir/search/hands-a/train.log`): held-out loss 31.5
+  nats per hand at step 0, 18.49 at 2,500 steps, 17.90 at 10K, 17.64 at 20K (cosine schedule to
+  0). Train ≈ held-out, so no overfitting. Only the final model was kept, so recovery against
+  model quality hasn't been measured.
