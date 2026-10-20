@@ -3,10 +3,23 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-18 18:15 UTC)
+## Current position (2026-10-20 00:45 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
+
+- **The search pilot ran on pilot A and fails on recovery** (2026-10-19 19:24 → 10-20 00:27 UTC,
+  the user's go-ahead; `experiments/search-pilot.md` → "Pilot run on pilot A"). 20,000 riichi-vs-dama
+  decisions from 1,200 games (family-A block `search-pilot`). Oracle +0.0112 u per decision (z
+  12.7); belief +0.0018 (z 3.4); **recovery 0.157 [0.071, 0.24]** against D32's 0.5. p99 latency
+  1.95 s on the 3060 (passes). By D32's rule the fix is in the belief; what to try is the user's
+  call.
+- **The workstation was off ≈ 06:50–19:15 UTC on 2026-10-19.** `k2b` trained on unsupervised; its
+  watcher and watchdog were restarted at 19:16 UTC with `resume-supervision.sh`. KL ≈ 0.025 nats
+  (target 0.02), 84K games/h, $45.50 at 75.9 box-hours.
+- **D49 memo** (`docs/design/observation-review-d49.md`): P0's doubling estimate meets its bar,
+  but it measures recovery from drift. Recommendation: keep v4 for now, pre-register a `k2b` full
+  vs p50 measure, and decide before the teachers start. Waiting on the user.
 
 - **P0 fails G0** (2026-10-17 04:08 UTC, `20261017-033700-T-std`): `p0-a` full vs pilot A, Δu
   −0.0268 (≈ [−0.038, −0.016]), stopped at 5,000 sets with LLR −10.57. Per 05 §2.3.6 a failing
@@ -596,8 +609,9 @@ events, and the failure modes met since 2026-10-10.
    - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
 2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
    the SL incumbent plus inference search; inconclusive → a second seed.
-3. **Search pilot (`06` §0):** built and tested. It waits for "G0's blueprint". Ask the user
-   whether to run it now on pilot A, ≈ 5–6 h on the workstation, clear of the p25 check.
+3. **Search pilot (`06` §0):** ran on pilot A (2026-10-20) and fails on recovery (0.157 vs 0.5).
+   The user decides whether to work on the belief (D32: reconstruction, calibration, opponent
+   model). If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - the b24c512 teachers, then the π_SL student;

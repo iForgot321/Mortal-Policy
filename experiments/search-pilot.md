@@ -1,5 +1,8 @@
 # Search pilot: riichi vs dama (06 §0, D32)
 
+- **Status (2026-10-20): the pilot ran on pilot A and fails on recovery** (below, "Pilot run on
+  pilot A"): oracle +0.0112 u per decision (z 12.7), belief +0.0018 (z 3.4), recovery 0.157
+  [0.071, 0.24] against D32's 0.5; p99 latency 1.95 s on the 3060.
 - **Status (2026-10-15):**
   - the oracle stage's code is built and tested (below). It runs on the workstation, with no
     cloud box;
@@ -299,3 +302,57 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
   - belief: −0.002 u (z −0.8), switching at 2%;
   - clairvoyant bound +0.075 u (z 4.5).
   - The recovery ratio means nothing at this size; the pilot's 20K decisions decide it.
+
+## Pilot run on pilot A (2026-10-19/20, the user's go-ahead): oracle passes, belief fails
+
+- **Why pilot A:** no RL arm has passed G0, so the user chose to run the pilot on the SL blueprint
+  while the G0 retry (`k2b`) runs (2026-10-19). If `k2b` fails, the SL incumbent plus search is
+  the main path and this is the blueprint that matters. If it passes, the pilot runs again on
+  `k2b`'s blueprint, on the same block.
+- **Run:** `workdir/search/pilot-a` (results read-only). Self-play: 1,200 games of pilot A
+  (`15121432…`) on the new family-A block `search-pilot` (nonces 43,000–44,199,
+  `20261019-122435-search-selfplay`), 4.5 min. 25,149 riichi-legal decisions; 20,000 sampled
+  (seed 0; 373 excluded as non-discards). Oracle 2.2 h, belief 2.8 h on the 3060, 19:24 →
+  00:27 UTC. The hand model is the one from D58's test (`hands-a`, `cf371ba7…`). Stages in order:
+  `selfplay --block search-pilot --games 1200`, `decisions --count 20000`, `oracle --redeals 64`,
+  `belief --hand-model workdir/search/hands-a/handmodel.pth --particles 64`, `report`.
+- **Reproduced 20,000/20,000:** the policy's action in the true world gives back the self-play
+  kyoku.
+
+| Per decision, u (paired, SE clustered by game) | Oracle | Belief |
+|---|---|---|
+| **plain z > 2 (primary, D58)** | **+0.0112 ± 0.0009 (z 12.7), switches 10.3%** | **+0.0018 ± 0.0005 (z 3.4), switches 3.9%** |
+| plain z > 0 | +0.0112 ± 0.0016 (z 7.1), 32.5% | −0.0003 ± 0.0015 (z −0.2), 29.9% |
+| regularized λ = 0.05 | +0.0095 ± 0.0010 (z 9.6), 8.9% | +0.0025 ± 0.0007 (z 3.3), 6.0% |
+| regularized λ = 0.1 | +0.0063 ± 0.0007 (z 8.5), 5.3% | +0.0016 ± 0.0005 (z 3.0), 3.4% |
+| Clairvoyant bound (the better candidate in the true world) | +0.0774 ± 0.0017 | |
+
+- **Recovery ratio (primary rule): 0.157, 95% CI [0.071, 0.24]** (game-clustered bootstrap,
+  10K resamples, `experiments/search_pilot_breakdown.py`; none reached 0.5).
+- **Latency** (`python -m search latency`, 100 decisions one at a time, 64 particles, the 3060):
+  total **p50 0.82 s, p99 1.95 s**, max 2.28 s. Rollouts p50 0.71 s and p99 1.86 s; beliefs p50
+  0.10 s. `latency.json`.
+- **D32's go criteria for scaling search:** the oracle gain is significant (passes); **recovery
+  ≥ 0.5 fails**; p99 latency < 2.5 s passes on the 3060, so it would on a deploy-class 4090.
+  **The pilot fails on recovery.** By D32's diagnosis rule (oracle passes, belief fails), the fix
+  is in reconstruction, calibration or the opponent model.
+- **Where the gains are** (`search_pilot_breakdown.py`):
+
+  | Policy's choice (share) | Oracle: gain, switches | Belief: gain, switches |
+  |---|---|---|
+  | riichi, the search may go dama (41%) | +0.0100, 8.4% | +0.0004, 1.4% |
+  | dama, the search may riichi (59%) | +0.0121, 11.6% | +0.0027, 5.7% |
+
+  - Almost all of the belief's gain is in riichi where the policy went dama. When the policy
+    riichis and the oracle would go dama, the belief recovers nearly nothing. A guess, not
+    tested: that choice depends most on what the opponents hold.
+  - The belief's switches overlap the oracle's little: 262 of its 786 are also oracle switches
+    (33%), and it finds 13% of the oracle's 2,055. Per switch it gains +0.045 u, the oracle
+    +0.109.
+- **Not a strength result.** The oracle condition is a lab-only diagnostic. The belief gain is
+  one-decision paired Δu in the true worlds, not a full-game T-std (06 §0, D33a).
+- **Open (the user):** whether to work on the belief now (D32's rule: reconstruction,
+  calibration, opponent model), and what that would be. Candidates: the hand model's
+  calibration on riichi → dama decisions specifically, more particles against noise (plain z > 0
+  collapses to ≈ 0, a sign of noise), and a stronger hand model (its held-out loss was still
+  falling at 20K steps).
