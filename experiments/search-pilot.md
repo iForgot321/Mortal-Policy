@@ -385,3 +385,32 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
   nats per hand at step 0, 18.49 at 2,500 steps, 17.90 at 10K, 17.64 at 20K (cosine schedule to
   0). Train ≈ held-out, so no overfitting. Only the final model was kept, so recovery against
   model quality hasn't been measured.
+
+### Recovery against hand-model quality (2026-10-20, exploratory; the user's go-ahead)
+
+- **Setup:** a weaker hand model, the same recipe and data as `hands-a` stopped at 2,500 steps
+  (cosine schedule to 0 there): held-out 18.55 nats per hand against 17.64.
+  `workdir/search/hands-a-2500/handmodel.pth` (read-only, sha256 `35614b30370f3667…`), 5 min.
+  The belief stage with it on pilot-a's first 4,000 decisions (a random subset; ids follow the
+  seed-0 shuffle), 34 min: `workdir/search/pilot-a-sub4k-hands2500`. Compared on the same
+  decisions and true worlds with `experiments/search_pilot_handmodel_slope.py` (output
+  `slope.txt` there).
+
+  | 4,000 decisions, primary rule | Weak model (18.55) | Current model (17.64) |
+  |---|---|---|
+  | Belief gain, u per decision | −0.0005 ± 0.0011 | +0.0025 ± 0.0010 |
+  | Recovery (oracle +0.0089 on this subset) | −0.06 [−0.38, 0.17] | 0.28 [0.07, 0.50] |
+  | Correlation with the oracle, without noise | 0.45 | 0.53 |
+  | Riichi overrating, all / late third | +0.0148 / +0.0274 | +0.0089 / +0.0166 |
+  | Decisions with < 64 particles | 1,040 | 168 |
+
+- **Paired difference, current − weak: +0.0030 ± 0.0012 u per decision (z 2.5).**
+- **Reading:** hand-model quality is the lever. 0.9 nats per hand took the belief gain from
+  nothing to the full run's level, cut the riichi overrating by 40% and the particle shortfall by
+  6×. The current model's recovery on this subset (0.28) is above the full run's 0.157; that is
+  subset noise, and the full run's number stands.
+- **Extrapolation, two points only:** if the gain rose linearly with the loss, recovery 0.5 on the
+  full set would need ≈ 1.2 nats more, against the 0.9 the last 17,500 steps of the current recipe
+  gave. So the same training run longer is unlikely to be enough on its own. A better model
+  (more self-play data, which is cheap; a larger head; a longer schedule; more weight on late-kyoku
+  and tenpai opponents) is the direction.
