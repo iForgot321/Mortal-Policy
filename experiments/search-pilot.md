@@ -1,5 +1,7 @@
 # Search pilot: riichi vs dama (06 §0, D32)
 
+- **Status (2026-10-21): parked by the user.** A bigger hand model (5× data, 3× steps) doesn't
+  move recovery (below). Not pursued for now: the ceiling test and a threat-aimed hand model.
 - **Status (2026-10-20): the pilot ran on pilot A and fails on recovery** (below, "Pilot run on
   pilot A"): oracle +0.0112 u per decision (z 12.7), belief +0.0018 (z 3.4), recovery 0.157
   [0.071, 0.24] against D32's 0.5; p99 latency 1.95 s on the 3060.

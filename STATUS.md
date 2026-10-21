@@ -613,12 +613,10 @@ events, and the failure modes met since 2026-10-10.
    - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
 2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
    the SL incumbent plus inference search; inconclusive → a second seed.
-3. **Search pilot (`06` §0):** ran on pilot A (2026-10-20) and fails on recovery (0.157 vs 0.5).
-   The user decides whether to work on the belief (D32: reconstruction, calibration, opponent
-   model). The hand model is the lever: a weaker one (18.55 vs 17.64 nats) gains nothing, paired
-   difference +0.0030 ± 0.0012 u per decision; the belief rates riichi too high, more so late in
-   the kyoku. But a bigger model (5× data, 3× steps, 17.21 nats) changes nothing: paired −0.0002 ±
-   0.0005, recovery 0.140 (`experiments/search-pilot.md`). If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.
+3. **Search pilot (`06` §0): parked** (the user, 2026-10-21). It fails on recovery (0.157 vs 0.5);
+   a bigger hand model doesn't move it (`experiments/search-pilot.md`). Not pursued for now: the
+   ceiling test (can any belief reach 0.5 on riichi vs dama?) and a hand model aimed at late-kyoku
+   threat. If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.
 4. **SL substrate (`04`):**
    - the secure-tier data path (D23) and the D17a measurement;
    - the b24c512 teachers, then the π_SL student;
