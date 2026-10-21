@@ -79,7 +79,13 @@ the bar assumes.
    strength claim takes SL pairs, and at ±0.003 u of training luck per network that is ≈ 4 pairs
    to resolve ±0.005 (§6): ≈ 37 h each on the workstation, or cloud time.
 
-## What I need from you
+## Decided (2026-10-21)
+
+The user approved option 1's measure: `k2b` full vs p50, family B, 100K sets, after G0's T-std,
+pre-registered in `experiments/k2-retry.md` → "Doubling estimate". The p50 vs p25 measure is
+skipped. The v4/v5 decision itself waits for that result and G0's verdict.
+
+## What I needed from you (answered above)
 
 - Whether to pre-register the `k2b` full vs p50 measure now (option 1). It's an addition to
   `experiments/k2-retry.md`. It doesn't change D59's verdict, which stays the T-std against pilot A.

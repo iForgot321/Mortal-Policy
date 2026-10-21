@@ -277,6 +277,42 @@ stopped at their 4 h deadlines, 04:23 and 04:25. Cost: $7.20 + $6.92 = **$14.12*
   play. Passing means only that the run continues. G0's T-std on family B, `full` vs pilot A,
   decides (≈ 2026-10-24 18:00 UTC).
 
+## Doubling estimate (D49): pre-registered 2026-10-21, before `full` exists
+
+The user approved it on 2026-10-21 (`docs/design/observation-review-d49.md`, option 1). The p50
+snapshot exists (2026-10-21 18:00 UTC, step 1,964,400, sha256 `7d5937a792f0ca3e…`); `full` does
+not yet.
+
+- **Measurement:** after G0's T-std, on the workstation (≈ 15 h on the 3060):
+
+  ```bash
+  python -m lab measure --sets 100000 --family B --arm P1 --package K2 --horizon H \
+      --challenger workdir/fleet/runs/k2b/snapshots/full.pth \
+      --champion workdir/fleet/runs/k2b/snapshots/p50.pth \
+      --description "k2b full vs p50 (doubling estimate, D49)"
+  ```
+
+  Fixed N on fresh family-B nonces, AMP on, Δu with a bootstrap 95% CI: the same design and size
+  as P0's (`experiments/p0.md`), so the two compare directly. 100K sets give a half-width of
+  ≈ 0.002 u.
+- **It runs whatever G0's verdict is,** so the choice to measure doesn't depend on the verdict.
+  The T-std goes first; this measure doesn't enter D59's verdict.
+- **Reading,** P0's thresholds, against v5's break-even of 0.002–0.004 u per doubling
+  (`experiments/sp-ablation.md` §7):
+  - CI lower bound > 0.004: a doubling clearly pays for v5's extra games. The G0 review weighs a
+    switch.
+  - CI upper bound < 0.002: it doesn't pay for them. v4 stays.
+  - Otherwise grey: no switch on this evidence alone; the user decides at the review with the
+    memo's other factors. (P0's rule sent grey to D31's actor-size curves, which were never run.)
+  - If the retry fails G0, the number is reported but doesn't decide v4 vs v5: the main path is
+    then the SL incumbent plus search, where the question is SL strength and rollout speed (the
+    memo).
+- **Caveat stated before the result:** K2's anchor target is constant (`target_growth = 0`), so
+  the policy stays within ≈ 0.02 nats of π_SL. This measures what a doubling buys under that
+  anchor; later doublings may buy less as the policy nears it. Both checkpoints sit near π_SL by
+  construction, so unlike P0's, it shouldn't include recovery from drift.
+- **Not measured (the user, 2026-10-21):** p50 vs p25, the doubling before.
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

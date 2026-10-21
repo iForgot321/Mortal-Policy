@@ -22,8 +22,8 @@ research is under way.**
   watcher and watchdog were restarted at 19:16 UTC with `resume-supervision.sh`. KL ≈ 0.025 nats
   (target 0.02), 84K games/h, $45.50 at 75.9 box-hours.
 - **D49 memo** (`docs/design/observation-review-d49.md`): P0's doubling estimate meets its bar,
-  but it measures recovery from drift. Recommendation: keep v4 for now, pre-register a `k2b` full
-  vs p50 measure, and decide before the teachers start. Waiting on the user.
+  but it measures recovery from drift. The user approved a `k2b` full vs p50 measure (2026-10-21,
+  pre-registered in `experiments/k2-retry.md`); the v4/v5 call waits for it.
 
 - **P0 fails G0** (2026-10-17 04:08 UTC, `20261017-033700-T-std`): `p0-a` full vs pilot A, Δu
   −0.0268 (≈ [−0.038, −0.016]), stopped at 5,000 sets with LLR −10.57. Per 05 §2.3.6 a failing
@@ -611,6 +611,8 @@ events, and the failure modes met since 2026-10-10.
    - The p25 early check runs by itself ≈ 2026-10-20 06:00 UTC: a "stop" downs the fleet and
      goes to the user.
    - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
+   - Then the pre-registered doubling estimate, `full` vs p50, 100K sets on family B, ≈ 15 h on
+     the workstation, whatever the verdict (`experiments/k2-retry.md` → "Doubling estimate").
 2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
    the SL incumbent plus inference search; inconclusive → a second seed.
 3. **Search pilot (`06` §0): parked** (the user, 2026-10-21). It fails on recovery (0.157 vs 0.5);
