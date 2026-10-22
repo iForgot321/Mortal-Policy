@@ -24,6 +24,9 @@ research is under way.**
 - **D49 memo** (`docs/design/observation-review-d49.md`): P0's doubling estimate meets its bar,
   but it measures recovery from drift. The user approved a `k2b` full vs p50 measure (2026-10-21,
   pre-registered in `experiments/k2-retry.md`); the v4/v5 call waits for it.
+- **v5's search speed** (2026-10-22, `docs/design/observation-review-d49.md`): batched rollouts 1.33×
+  faster than v4 (1.46× per event), one-at-a-time search 1.6× at p50 and 2.2× at p99 (2.00 → 0.90 s,
+  limit 2.5 s). Below the arena's 2.4–2.8×; for riichi vs dama the belief, not rollout count, binds.
 
 - **P0 fails G0** (2026-10-17 04:08 UTC, `20261017-033700-T-std`): `p0-a` full vs pilot A, Δu
   −0.0268 (≈ [−0.038, −0.016]), stopped at 5,000 sets with LLR −10.57. Per 05 §2.3.6 a failing

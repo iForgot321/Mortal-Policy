@@ -53,6 +53,30 @@ the bar assumes.
 - **Inconclusive:** a second seed needs your yes. Its p50 and full could give the doubling
   estimate too.
 
+## v5's search speed, measured (2026-10-22, the user's go-ahead)
+
+The fail branch's measurement, taken early so it's ready either way. Pilot A against its v5 timing
+copy (`workdir/sp-ablation/pilot-a-as-v5.pth`: pilot A's weights with v5 input, so its moves mean
+nothing; speed only), on the search pilot's decisions, the 3060, true FP32.
+`experiments/search_v5_speed.py`; outputs in `workdir/search/v5-speed/`.
+
+| | v4 | v5 | v5 / v4 |
+|---|---|---|---|
+| Batched rollouts (the oracle stage: 500 decisions, 65,000 rollouts, 2 passes agreeing within 0.3%) | 339 rollouts/s, 87.4 µs per logged event | 452 rollouts/s, 59.7 µs | **1.33×** per rollout, **1.46×** per event |
+| One decision at a time (`python -m search latency`, 100 decisions, 64 particles), p50 | 0.85 s | 0.53 s | **1.6×** |
+| Same, p99 (06 §0's limit: 2.5 s) | 2.00 s | 0.90 s | **2.2×** |
+
+- **Below the arena's 2.4–2.8×.** Rollouts start at a riichi-legal decision, late in the kyoku,
+  while v4's encoding cost sits in 3-shanten hands early in it (`experiments/sp-ablation.md` §3.1).
+  In big batches the network's share of the time is larger too. One decision at a time, the batches
+  are small and the encoder's share is larger, so the gain is bigger, most of all in the slow tail.
+- The v5 copy's rollouts are 9% longer (36.9 vs 33.7 events), so the latency ratios, which aren't
+  normalized per event, if anything understate v5's gain.
+- **What it buys:** v4 already meets the latency limit on the 3060 (p99 2.0 s). v5 would leave room
+  for ≈ 2.5× the particles or rollouts per decision, or search on more decision classes, within it.
+  But the pilot found the belief, not the rollout count, limits riichi vs dama (28% of the
+  disagreement with the oracle is sampling noise), so for now that's headroom, not quality.
+
 ## Timing
 
 - **A switch costs least before the b24c512 teachers are trained.** D49 puts all Phase 1 SL work
