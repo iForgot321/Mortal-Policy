@@ -312,6 +312,12 @@ not yet.
   anchor; later doublings may buy less as the policy nears it. Both checkpoints sit near π_SL by
   construction, so unlike P0's, it shouldn't include recovery from drift.
 - **Not measured (the user, 2026-10-21):** p50 vs p25, the doubling before.
+- **Started by itself** (the user, 2026-10-21): `experiments/k2b_g0_chain.sh` runs detached on the
+  workstation since 2026-10-22 03:10 UTC (log `workdir/fleet/runs/k2b/g0-chain.log`). Once the
+  watcher's `full` row is in `snapshots.jsonl` and the file's sha256 matches it, the chain runs G0's
+  T-std (`full` vs pilot A, the command in the handoff's §1), then this measure. It skips a step
+  whose registry row exists for these checkpoints. `resume-supervision.sh` restarts it after a
+  reboot; an interrupted step starts again on fresh nonces.
 
 ## Before launch (done)
 

@@ -613,6 +613,9 @@ events, and the failure modes met since 2026-10-10.
    - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
    - Then the pre-registered doubling estimate, `full` vs p50, 100K sets on family B, ≈ 15 h on
      the workstation, whatever the verdict (`experiments/k2-retry.md` → "Doubling estimate").
+   - Both start by themselves: `experiments/k2b_g0_chain.sh` waits on the workstation for `full`
+     (since 2026-10-22 03:10 UTC; log `workdir/fleet/runs/k2b/g0-chain.log`). Keep the workstation
+     free of other jobs from ≈ 2026-10-24 16:00 UTC. Then read the T-std by D59.
 2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
    the SL incumbent plus inference search; inconclusive → a second seed.
 3. **Search pilot (`06` §0): parked** (the user, 2026-10-21). It fails on recovery (0.157 vs 0.5);
