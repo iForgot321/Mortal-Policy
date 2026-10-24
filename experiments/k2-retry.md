@@ -330,8 +330,9 @@ not yet.
   |---|---|---|---|---|---|---|---|
   | T-std (family B) | `k2b` full vs pilot A | **pass** | 7,000 | **+0.0114** | [+0.003, +0.019] | 2.483 | `20261024-110559-T-std` |
 
-  - The GSPRT crossed its upper bound at the third look: LLR +3.88 against +2.944 (5,000 sets:
-    below; 6,000: +1.13; 6,500: +2.90). Nonces [1,000,920,000, +100,000); 18:05–19:20 UTC.
+  - The GSPRT crossed its upper bound at its fifth look (one every 500 sets from 5,000): LLR +3.88
+    against +2.944 (5,000 sets: +1.32; 6,000: +1.13; 6,500: +2.90). Nonces [1,000,920,000,
+    +100,000); 18:05–19:20 UTC.
   - The CI is the normal approximation, mean ± 1.96 · sd/√n with sd 0.340; it isn't part of the
     test, and a sequential mean that stopped on crossing is biased upward.
   - Rank histogram over 28,000 games: 7,147 / 7,061 / 6,905 / 6,887.
