@@ -319,6 +319,30 @@ not yet.
   whose registry row exists for these checkpoints. `resume-supervision.sh` restarts it after a
   reboot; an interrupted step starts again on fresh nonces.
 
+## G0 result (2026-10-24): the retry passes
+
+- **The run:** `k2b` reached its 432 billed box-hours at 18:04 UTC on 2026-10-24: `full` at step
+  3,880,000 (sha256 `f5a22c5c16d3d51e…`). Boxes destroyed at 18:04:33; **$259.09** in all (approved
+  ≈ $300, stop $320).
+- **The T-std**, started by `k2b_g0_chain.sh` at 18:05:58 on the workstation:
+
+  | Test | Challenger vs champion | Verdict | Sets | Δu | ≈ 95% CI | Avg rank | Run id |
+  |---|---|---|---|---|---|---|---|
+  | T-std (family B) | `k2b` full vs pilot A | **pass** | 7,000 | **+0.0114** | [+0.003, +0.019] | 2.483 | `20261024-110559-T-std` |
+
+  - The GSPRT crossed its upper bound at the third look: LLR +3.88 against +2.944 (5,000 sets:
+    below; 6,000: +1.13; 6,500: +2.90). Nonces [1,000,920,000, +100,000); 18:05–19:20 UTC.
+  - The CI is the normal approximation, mean ± 1.96 · sd/√n with sd 0.340; it isn't part of the
+    test, and a sequential mean that stopped on crossing is biased upward.
+  - Rank histogram over 28,000 games: 7,147 / 7,061 / 6,905 / 6,887.
+- **Reading by D59:** **pass. The G0 retry passes**, the first online arm-seed to beat its
+  initialization (P0 −0.0268, `p1-a` −0.0209, `p1-b` −0.0131). Consistent with the p25 early check
+  (+0.012 ± 0.0055 on the diagnostic key).
+- **Next, by the roadmap (`00` G0 row, D59):** L2's confirmation, a T-confirm on fresh family-C
+  nonces, before the arm is selected; the fleet soak (`03` §3.7) before T1. Both need the user:
+  the confirmation's N is fixed in advance, and the soak is a rental. The doubling estimate (above)
+  runs first; it started at 19:20 UTC (`20261024-122034-measure`).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

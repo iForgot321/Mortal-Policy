@@ -3,11 +3,16 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-20 07:10 UTC)
+## Current position (2026-10-24 19:30 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **The G0 retry passes** (2026-10-24 19:20 UTC, `20261024-110559-T-std`; `experiments/k2-retry.md`):
+  `k2b` full vs pilot A, Δu +0.0114 (≈ [+0.003, +0.019]), T-std pass at 7,000 sets, LLR +3.88. The
+  first online arm-seed above its initialization. `k2b` ended at 18:04 UTC ($259.09; nothing rented).
+  Next: the doubling estimate (running, ≈ 15 h), then L2's T-confirm on family C and the fleet soak,
+  both waiting on the user.
 - **`k2b`'s p25 early check: continue** (2026-10-20 07:01 UTC; `experiments/k2-retry.md`). Reverse
   KL 0.025 (stop > 0.10), argmax agreement 94.2% (stop < 90%), Δu at argmax vs pilot A +0.012 ±
   0.0055 on 4,000 diagnostic sets: the first online checkpoint above its initialization.
@@ -609,18 +614,14 @@ The user chose SSH tunnels over WireGuard/Tailscale (D48; `03` §2 and the `00` 
 Read `docs/design/handoff-2026-10-18.md` first: it has the live run, what to do at each of its
 events, and the failure modes met since 2026-10-10.
 
-1. **The G0 retry `k2b` (live).** Keep its watcher alive, and keep the workstation on and
-   online.
-   - The p25 early check runs by itself ≈ 2026-10-20 06:00 UTC: a "stop" downs the fleet and
-     goes to the user.
-   - `full` ≈ 2026-10-24 18:00 UTC. Then G0's T-std on the workstation, read by D59.
-   - Then the pre-registered doubling estimate, `full` vs p50, 100K sets on family B, ≈ 15 h on
-     the workstation, whatever the verdict (`experiments/k2-retry.md` → "Doubling estimate").
-   - Both start by themselves: `experiments/k2b_g0_chain.sh` waits on the workstation for `full`
-     (since 2026-10-22 03:10 UTC; log `workdir/fleet/runs/k2b/g0-chain.log`). Keep the workstation
-     free of other jobs from ≈ 2026-10-24 16:00 UTC. Then read the T-std by D59.
-2. **After the verdict** (the user): pass → L2's confirmation on family C; fail → the re-scope to
-   the SL incumbent plus inference search; inconclusive → a second seed.
+1. **The G0 retry passed** (2026-10-24, `experiments/k2-retry.md`). The doubling estimate (`full` vs
+   p50, `20261024-122034-measure`) runs on the workstation until ≈ 2026-10-25 10:30 UTC
+   (`experiments/k2b_g0_chain.sh`, log `workdir/fleet/runs/k2b/g0-chain.log`); read it by its
+   pre-registered rule. Then `rl_drift.py` / `rl_diag_sampling.py` on `full` for the write-up.
+2. **After the pass** (the user): L2's confirmation, a T-confirm (superiority) on fresh family-C
+   nonces with N fixed in advance (50K–250K sets); then the fleet soak (`03` §3.7, ≥ 48 h at T1
+   scale, a rental). Known risk for the soak: policy lag p95 ≈ 9–11 versions against its ≤ 2
+   (`experiments/p0.md` → "Policy lag").
 3. **Search pilot (`06` §0): parked** (the user, 2026-10-21). It fails on recovery (0.157 vs 0.5);
    a bigger hand model doesn't move it (`experiments/search-pilot.md`). Not pursued for now: the
    ceiling test (can any belief reach 0.5 on riichi vs dama?) and a hand model aimed at late-kyoku
