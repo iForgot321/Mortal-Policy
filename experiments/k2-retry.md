@@ -344,6 +344,29 @@ not yet.
   the confirmation's N is fixed in advance, and the soak is a rental. The doubling estimate (above)
   runs first; it started at 19:20 UTC (`20261024-122034-measure`).
 
+## L2's confirmation: pre-registered 2026-10-24, before it runs
+
+The user fixed N = 100K sets on 2026-10-24, after the T-std's pass and before any family-C play.
+
+- **Test:** T-confirm (`02` §4, D36), superiority: `k2b` full vs pilot A, **100,000 sets on fresh
+  family-C nonces**, AMP on, fixed N. **Pass if the 95% set-level bootstrap lower bound of Δu is
+  above 0** (`lab.toml` `[confirm]`: 10,000 resamples).
+
+  ```bash
+  python -m lab confirm --challenger workdir/fleet/runs/k2b/snapshots/full.pth \
+      --champion workdir/pilot/qs-a/pilot-qs-a-final.pth --sets 100000 --kind superiority \
+      --arm P1 --package K2 --horizon H --description "L2 confirmation: k2b full vs pilot A, 100K sets (D59)"
+  ```
+
+- **Why 100K:** σ_set ≈ 0.34 gives a standard error of ≈ 0.0011 u, so the power is ≈ 96% if the
+  true gain is 0.004 and ≈ 100% at 0.006. (50K: 75% and 98%.) The T-std's mean, +0.0114, stopped on
+  crossing and is biased upward; its rough interval reaches down to ≈ 0.003.
+- **When:** on the workstation after the doubling estimate (≈ 14.5 h), started by
+  `experiments/k2b_post_g0_chain.sh`.
+- **Reading:** pass → L2 is met; with the fleet soak (`03` §3.7) the arm can be selected (`00` G0
+  row). Fail → L2 isn't met. The plan names no fallback, so the next step goes to the user. The
+  family-C range is retired once its result informs a decision (`02` §4).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

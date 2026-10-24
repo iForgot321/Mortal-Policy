@@ -618,11 +618,18 @@ events, and the failure modes met since 2026-10-10.
    p50, `20261024-122034-measure`) runs on the workstation until ≈ 2026-10-25 10:30 UTC
    (`experiments/k2b_g0_chain.sh`, log `workdir/fleet/runs/k2b/g0-chain.log`); read it by its
    pre-registered rule. Then `rl_drift.py` / `rl_diag_sampling.py` on `full` for the write-up.
-2. **After the pass** (the user): L2's confirmation, a T-confirm (superiority) on fresh family-C
-   nonces with N fixed in advance (50K–250K sets); then the fleet soak (`03` §3.7, ≥ 48 h at T1
-   scale, a rental). Known risk for the soak: policy lag p95 ≈ 9–11 versions against its ≤ 2
-   (`experiments/p0.md` → "Policy lag").
-3. **Search pilot (`06` §0): parked** (the user, 2026-10-21). It fails on recovery (0.157 vs 0.5);
+2. **After the pass** (the user, 2026-10-24): queued on the workstation by
+   `experiments/k2b_post_g0_chain.sh` (log `workdir/fleet/runs/k2b/post-g0-chain.log`), after the
+   doubling estimate:
+   - L2's T-confirm, 100K sets on fresh family-C nonces (pre-registered in `experiments/k2-retry.md`),
+     ≈ 10-25 10:30 → 10-26 01:00 UTC;
+   - the diagnosis's drift and sampling runs on `full` (≈ 1.6 h);
+   - the search pilot on `full` (≈ 6 h; a hand model on its self-play, then the pilot on block
+     `search-pilot`), done ≈ 10-26 09:00 UTC.
+   Then the fleet soak (`03` §3.7, ≥ 48 h at T1 scale, a rental): the user's call. Known risk:
+   policy lag p95 ≈ 9–11 versions against its ≤ 2 (`experiments/p0.md` → "Policy lag").
+3. **Search pilot (`06` §0): parked** (the user, 2026-10-21), except the rerun on `k2b`'s `full`,
+   queued (the user, 2026-10-24; item 2). It fails on recovery (0.157 vs 0.5);
    a bigger hand model doesn't move it (`experiments/search-pilot.md`). Not pursued for now: the
    ceiling test (can any belief reach 0.5 on riichi vs dama?) and a hand model aimed at late-kyoku
    threat. If `k2b` passes G0, the pilot runs again on its blueprint, on the same block.

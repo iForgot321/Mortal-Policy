@@ -1,5 +1,8 @@
 # Search pilot: riichi vs dama (06 §0, D32)
 
+- **Status (2026-10-24): the rerun on `k2b`'s `full` is queued** (the user, after G0's pass;
+  `experiments/k2b_post_g0_chain.sh`): a hand model on 4,000 games of its self-play (dev key, held
+  out: 40 games at nonces 0–39), then the pilot on the block `search-pilot`, in `workdir/search/pilot-k2b`.
 - **Status (2026-10-21): parked by the user.** A bigger hand model (5× data, 3× steps) doesn't
   move recovery (below). Not pursued for now: the ceiling test and a threat-aimed hand model.
 - **Status (2026-10-20): the pilot ran on pilot A and fails on recovery** (below, "Pilot run on
