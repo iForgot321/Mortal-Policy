@@ -2,16 +2,19 @@
 no cross-seat targets, fixed reward units, and a behaviour probability (or a
 flag) for every entry."""
 import os
+import random
 import shutil
 
 import numpy as np
 import pytest
 import torch
 
+import critic as cr
 import rl_dataset as rd
 import trajectory as tj
 from libriichi.dataset import GameplayLoader
 from model import GRP
+from torch.utils.data import DataLoader
 
 PTS = [90, 50, -10, -130]
 GRP_NETWORK = {'hidden_size': 64, 'num_layers': 2}
@@ -136,3 +139,80 @@ def test_logs_without_sidecar_are_skipped(arena_run, grp_file, tmp_path):
                                 grp_state_file=grp_file, grp_network=GRP_NETWORK)
     ds.prepare()
     assert len(list(ds.trajectories(ds.file_list))) == 1
+
+
+# Packed gae chunks and in-place minibatch gathers (the fleet-soak learner check,
+# experiments/fleet-soak.md): throughput only, so the learner must get the same tensors.
+
+def same(a, b):
+    """Identical dtype, shape and values (NaN where the other is NaN: unknown b)."""
+    a, b = torch.as_tensor(a), torch.as_tensor(b)
+    if a.dtype != b.dtype or a.shape != b.shape:
+        return False
+    if a.dtype.is_floating_point:
+        return torch.equal(a.isnan(), b.isnan()) and torch.equal(a.nan_to_num(), b.nan_to_num())
+    return torch.equal(a, b)
+
+
+def gae_chunks(arena_run, grp_file, pack):
+    root, logs, _, _ = arena_run
+    random.seed(0)  # the dataset shuffles its files
+    ds = rd.OrderedDatasetsIter(version=4, file_list=list(logs), behaviour_dir=str(root / 'bp'), pts=PTS,
+                                grp_state_file=grp_file, grp_network=GRP_NETWORK, targets='gae', horizon='H',
+                                file_batch_size=3, pack=pack)
+    return list(DataLoader(ds, batch_size=None))
+
+
+def test_packed_chunks_hold_the_same_tensors(arena_run, grp_file):
+    plain, packed = gae_chunks(arena_run, grp_file, False), gae_chunks(arena_run, grp_file, True)
+    assert len(plain) == len(packed) > 1
+    for p, q in zip(plain, packed):
+        assert rd.chunk_decisions(p) == rd.chunk_decisions(q) == sum(len(t['action']) for t in p)
+        for k in cr.CHUNK_KEYS:
+            assert same(q['flat'][k], torch.cat([torch.as_tensor(t[k]) for t in p])), k
+        assert len(q['trajs']) == len(p)
+        for t, u in zip(q['trajs'], p):
+            for k in ('reward', 'done', 'at_kyoku'):
+                assert same(t[k], u[k]), k
+
+
+def test_packed_chunks_give_the_same_gae_targets(arena_run, grp_file):
+    torch.manual_seed(0)
+    critic = cr.Critic(conv_channels=32, num_blocks=1).eval()
+    for p in gae_chunks(arena_run, grp_file, False):
+        a = cr.gae_targets(p, critic, device=torch.device('cpu'), lam=0.95)
+        b = cr.gae_targets(rd.pack_chunk(p), critic, device=torch.device('cpu'), lam=0.95)
+        assert a.keys() == b.keys()
+        for k in a:
+            assert same(a[k], b[k]), k
+
+
+def concatenating_minibatches(flats, batch_size, keys):
+    """`shuffled_minibatches` as it was before the in-place gathers: the reference."""
+    leftover = None
+    for flat in flats:
+        if leftover is not None:
+            flat = {k: torch.cat((leftover[k], flat[k])) for k in keys}
+        n = len(flat[keys[0]])
+        perm = torch.randperm(n)
+        full = n - n % batch_size
+        for start in range(0, full, batch_size):
+            idx = perm[start:start + batch_size]
+            yield {k: flat[k][idx] for k in keys}
+        leftover = {k: flat[k][perm[full:]] for k in keys}
+
+
+@pytest.mark.parametrize('sizes', [(1000, 777, 1500), (512, 1024, 256), (100, 50, 900), (3000,)])
+def test_shuffled_minibatches_match_the_concatenating_version(sizes):
+    g = torch.Generator().manual_seed(7)
+    flats = [{'x': torch.randn(n, 3, 2, generator=g), 'i': torch.arange(n) + 10_000 * c}
+             for c, n in enumerate(sizes)]
+    keys = ('x', 'i')
+    torch.manual_seed(0)
+    new = list(rd.shuffled_minibatches(iter(flats), 256, keys))
+    torch.manual_seed(0)
+    old = list(concatenating_minibatches(iter(flats), 256, keys))
+    assert len(new) == len(old) == sum(sizes) // 256
+    for a, b in zip(new, old):
+        for k in keys:
+            assert torch.equal(a[k], b[k]), k

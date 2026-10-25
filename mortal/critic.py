@@ -52,10 +52,16 @@ class Critic(nn.Module):
         return self.head(self.actv(self.encoder(x))).squeeze(-1)
 
 
+# the per-decision arrays the learner concatenates over a chunk's trajectories
+CHUNK_KEYS = ('obs', 'priv', 'action', 'mask', 'behaviour_prob', 'param_version')
+
+
 def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False, eval_batch=1024):
     """Critic values (no grad) and GAE targets on whole trajectories, before
     any shuffling (05 §3.3). `chunk` is a list of `OrderedDatasetsIter.compact`
-    trajectories as tensors.
+    trajectories as tensors, or the same chunk packed by `rl_dataset.pack_chunk`
+    (the loader worker has already concatenated `CHUNK_KEYS`); both give the
+    same tensors.
 
     Returns the chunk's decisions concatenated, with `value`, `advantage` and
     `returns` (the λ-return, the critic's regression target; detached) added.
@@ -66,23 +72,29 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
     there is its clearest health check.
     Nothing crosses trajectories: each is its own GAE recursion.
     """
-    keys = ('obs', 'priv', 'action', 'mask', 'behaviour_prob', 'param_version')
-    flat = {k: torch.cat([torch.as_tensor(t[k]) for t in chunk]) for k in keys}
+    if isinstance(chunk, dict):
+        flat = dict(chunk['flat'])
+        trajs = chunk['trajs']
+    else:
+        flat = {k: torch.cat([torch.as_tensor(t[k]) for t in chunk]) for k in CHUNK_KEYS}
+        trajs = chunk
     was_training = critic.training
     critic.eval()
     values = []
     with torch.no_grad(), torch.autocast(device.type, enabled=enable_amp):
         for start in range(0, len(flat['obs']), eval_batch):
-            obs = flat['obs'][start:start + eval_batch].to(device=device, dtype=torch.float32)
-            priv = flat['priv'][start:start + eval_batch].to(device=device, dtype=torch.float32)
-            values.append(critic(obs, priv).float().cpu())
+            # copy first, convert on the device: from the loader's pinned memory the copy is async
+            obs = flat['obs'][start:start + eval_batch].to(device, non_blocking=True).float()
+            priv = flat['priv'][start:start + eval_batch].to(device, non_blocking=True).float()
+            values.append(critic(obs, priv).float())
     critic.train(was_training)
-    values = torch.cat(values).double().numpy()
+    # one device sync per chunk, not one per eval batch
+    values = torch.cat(values).cpu().double().numpy()
 
     advantage, returns, mc_return, group, last_kyoku = [], [], [], [], []
     start = 0
-    for i, t in enumerate(chunk):
-        n = len(t['action'])
+    for i, t in enumerate(trajs):
+        n = len(t['reward'])
         reward, done = np.asarray(t['reward']), np.asarray(t['done'])
         adv, ret = tj.gae(reward, done, values[start:start + n], gamma=gamma, lam=lam)
         advantage.append(adv)

@@ -19,7 +19,8 @@ experiments/fleet-host-benchmarks.md), measured on live drains of the same size.
 tuning allowance: the learner box has ≥ 32 vCPU, p0.toml uses 2).
 
 `--arm P1` times P1's path instead (p1.toml, D52): horizon H, and the K1 critic. The loader
-re-featurizes with the oracle channels and yields whole-trajectory chunks; the learner computes
+re-featurizes with the oracle channels and yields whole-trajectory chunks, packed in the worker as
+`train_online.py` has them (`rl_dataset.pack_chunk`); the learner computes
 critic values and GAE on each chunk, shuffles it into minibatches, and trains the policy (PPO) and
 a fresh b8c128 critic (MSE onto the λ-returns) in one backward, as `train_online.py` does. Samples
 are decisions loaded, in every mode. Peak memory (PSS of the benchmark and its loader workers) is
@@ -114,7 +115,7 @@ def loader(version, logs, drain, workers=WORKERS, arm='P0'):
     data = OrderedDatasetsIter(
         version=version, file_list=list(logs), behaviour_dir=os.path.join(drain, 'bp'), pts=PTS,
         grp_state_file=GRP_FILE, grp_network=GRP_NETWORK, **ARMS[arm],
-        player_names=['trainee'], file_batch_size=FILE_BATCH, obs_fp16=True,
+        player_names=['trainee'], file_batch_size=FILE_BATCH, obs_fp16=True, pack=arm == 'P1',
     )
     # P1: whole-trajectory chunks, batched by the learner after GAE
     return DataLoader(dataset=data, batch_size=BATCH if arm == 'P0' else None, drop_last=False,
@@ -249,7 +250,7 @@ class PeakMemory:
 
 def timed_pass(dl, learner=None, arm='P0'):
     import torch
-    from rl_dataset import shuffled_minibatches
+    from rl_dataset import chunk_decisions, shuffled_minibatches
     t0 = time.time()
     n = 0
     dl = iter(dl)  # forks the loader workers
@@ -261,12 +262,12 @@ def timed_pass(dl, learner=None, arm='P0'):
                 n += len(obs)
         elif learner is None:
             for chunk in dl:
-                n += sum(len(t['action']) for t in chunk)
+                n += chunk_decisions(chunk)
         else:
             def flats():
                 nonlocal n
                 for chunk in dl:
-                    n += sum(len(t['action']) for t in chunk)
+                    n += chunk_decisions(chunk)
                     yield learner.gae(chunk)
             for mb in shuffled_minibatches(flats(), BATCH, P1_KEYS):
                 learner.step(*(mb[k] for k in P1_KEYS))

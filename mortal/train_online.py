@@ -348,6 +348,8 @@ def train():
                 num_epochs = num_epochs,
                 obs_fp16 = obs_fp16,
                 versions = param_versions,
+                # the worker concatenates each chunk (same tensors; experiments/fleet-soak.md)
+                pack = use_critic,
             )
         else:
             file_data = FileDatasetsIter(

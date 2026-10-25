@@ -46,7 +46,7 @@ import torch
 from torch.utils.data import IterableDataset
 
 import trajectory as tj
-from critic import privileged
+from critic import CHUNK_KEYS, privileged
 from libriichi.dataset import GameplayLoader
 from model import GRP
 from reward_calculator import RewardCalculator
@@ -111,6 +111,11 @@ class OrderedDatasetsIter(IterableDataset):
 
     `versions` maps a log's file name to the parameter version it was played
     with (the server's drain reply); -1 where unknown.
+
+    `pack = True` (with 'gae') yields each chunk packed (`pack_chunk`): the
+    worker concatenates the per-decision arrays, so the learner's main process
+    doesn't (the fleet-soak learner check, experiments/fleet-soak.md). The
+    learner gets the same tensors either way.
     """
 
     def __init__(
@@ -128,6 +133,7 @@ class OrderedDatasetsIter(IterableDataset):
         num_epochs = 1,
         obs_fp16 = False,
         versions = None,
+        pack = False,
     ):
         super().__init__()
         if horizon not in tj.HORIZONS:
@@ -148,6 +154,7 @@ class OrderedDatasetsIter(IterableDataset):
         # fp16 obs halve worker RAM; identical under AMP (see FileDatasetsIter)
         self.obs_fp16 = obs_fp16
         self.versions = versions or {}
+        self.pack = pack
         # the critic's privileged channels need the exact hidden information
         self.oracle = targets == 'gae'
         self.iterator = None
@@ -173,7 +180,7 @@ class OrderedDatasetsIter(IterableDataset):
                 if self.targets == 'gae':
                     chunk = [self.compact(t) for t in trajs]
                     if chunk:
-                        yield chunk
+                        yield pack_chunk(chunk) if self.pack else chunk
                     continue
                 buffer = []
                 for traj in trajs:
@@ -250,19 +257,53 @@ class OrderedDatasetsIter(IterableDataset):
         return self.iterator
 
 
+def pack_chunk(chunk):
+    """A gae chunk with `critic.CHUNK_KEYS` concatenated over its trajectories,
+    as `critic.gae_targets` would concatenate them: {'flat': {key: tensor},
+    'trajs': [{'reward', 'done', 'at_kyoku'} per trajectory]}."""
+    return {
+        'flat': {k: torch.cat([torch.as_tensor(t[k]) for t in chunk]) for k in CHUNK_KEYS},
+        'trajs': [{k: t[k] for k in ('reward', 'done', 'at_kyoku')} for t in chunk],
+    }
+
+
+def chunk_decisions(chunk):
+    """The number of decisions in a gae chunk, packed or not."""
+    if isinstance(chunk, dict):
+        return len(chunk['flat']['action'])
+    return sum(len(t['action']) for t in chunk)
+
+
 def shuffled_minibatches(flats, batch_size, keys):
     """Minibatches of `batch_size` decisions, shuffled within each flat chunk
     of decisions (whose targets are already attached) plus the remainder
     carried over from the previous chunk. A final remainder smaller than
-    `batch_size` is dropped, as upstream does."""
+    `batch_size` is dropped, as upstream does.
+
+    The permutation runs over the remainder followed by the chunk; rows are
+    gathered from the two in place, without concatenating the chunk first."""
     leftover = None
     for flat in flats:
-        if leftover is not None:
-            flat = {k: torch.cat((leftover[k], flat[k])) for k in keys}
-        n = len(flat[keys[0]])
+        n_left = 0 if leftover is None else len(leftover[keys[0]])
+        n = n_left + len(flat[keys[0]])
         perm = torch.randperm(n)
         full = n - n % batch_size
         for start in range(0, full, batch_size):
-            idx = perm[start:start + batch_size]
-            yield {k: flat[k][idx] for k in keys}
-        leftover = {k: flat[k][perm[full:]] for k in keys}
+            yield _gather(leftover, flat, perm[start:start + batch_size], n_left, keys)
+        leftover = _gather(leftover, flat, perm[full:], n_left, keys)
+
+
+def _gather(leftover, flat, idx, n_left, keys):
+    """Rows `idx` of the remainder followed by `flat`, in `idx`'s order."""
+    old = idx < n_left
+    if not old.any():
+        return {k: flat[k][idx - n_left] for k in keys}
+    if old.all():
+        return {k: leftover[k][idx] for k in keys}
+    out = {}
+    for k in keys:
+        rows = torch.empty((len(idx), *flat[k].shape[1:]), dtype=flat[k].dtype)
+        rows[old] = leftover[k][idx[old]]
+        rows[~old] = flat[k][idx[~old] - n_left]
+        out[k] = rows
+    return out
