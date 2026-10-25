@@ -8,6 +8,11 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **Fleet-soak preparation** (2026-10-24/25, `experiments/fleet-soak.md`): D60 makes policy lag
+  non-blocking while learning stays stable (the user). The learner check found `k2b`'s learner path
+  bound by copies in its main process (≈ 4.6K samples/s against 6.0K for 3 actors). Two optimization
+  rounds (`fa61520`, `4c30a83`; same tensors, identity tests) bring it to ≈ 7.5K on an EPYC 9474F.
+  ≈ $1.40. The soak itself (a rental, ≈ $130) waits on the user.
 - **The G0 retry passes** (2026-10-24 19:20 UTC, `20261024-110559-T-std`; `experiments/k2-retry.md`):
   `k2b` full vs pilot A, Δu +0.0114 (≈ [+0.003, +0.019]), T-std pass at 7,000 sets, LLR +3.88. The
   first online arm-seed above its initialization. `k2b` ended at 18:04 UTC ($259.09; nothing rented).

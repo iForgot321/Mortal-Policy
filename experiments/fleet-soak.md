@@ -89,3 +89,40 @@ The user approved it on 2026-10-24 ("experiment 2").
   2. **2 actors per learner at T1** (`k2b`'s shape, which met the queue and blocking criteria): a
      change to `03` §3.7's T1 scale, so an `08` entry first.
   3. A faster learner CPU: none offered.
+
+### Optimization (2026-10-25, the user's option 1): the target is met, ≈ 7.5K samples/s
+
+Two rounds on the learner's main process, both throughput only: the learner gets the same tensors,
+checked by identity tests in `tests/test_rl_dataset.py` (packed chunks against the plain
+concatenation, `gae_targets` on both, and the new minibatch gathers against the old concatenating
+version, on the CPU and the GPU). The tests ran on the boxes, as the user asked: 149 and then 153
+passed.
+
+1. **`fa61520`:** the loader worker concatenates each gae chunk (`rl_dataset.pack_chunk`, enabled in
+   `train_online.py` for the critic path); `gae_targets` syncs the device once per chunk; the
+   minibatch shuffle gathers from the remainder and the chunk in place.
+2. **`4c30a83`:** `gae_targets` copies each chunk's obs and priv to the GPU once and returns them
+   there, so minibatches are gathered on the GPU; mixed gathers use integer indices. Round 1's
+   profile had the CPU gathers at ≈ 34% of the main thread, nearly every minibatch holding some
+   remainder rows.
+
+Same box class (EPYC 9474F, 30.7-CPU quota), same benchmark (`box_bench.sh … learner-k2`):
+
+| Pass | Before | Round 1 | **Round 2** |
+|---|---|---|---|
+| 4 workers, 4 threads | 4,582 | 5,503 | **7,514** (repeat 7,607) |
+| 4 workers, 8 threads | 4,683 | 5,570 | 7,417 |
+| 4 workers, 16 threads | 4,722 (4,559) | 5,757 (5,231) | 7,431 |
+| π_SL compiled | 4,149 | 5,171 | 7,530 |
+| 6 workers | 2,990 (32.9 GB) | 4,269 (36.8 GB) | 6,384 (36.0 GB): ineligible |
+| Peak memory, full (4 workers) | 24.3 GB | 28.5 GB | 25.8 GB |
+| GPU only | 19.6K | 19.0K | 20.3K |
+
+- **By the rule:** every 4-worker setting is within 5% of the fastest, so the simplest wins: **4 loader
+  workers, 4 trainer threads, π_SL eager: ≈ 7.5K samples/s, 25% above the 6.0K target**, +63% on the
+  start. The soak runs with these (`--set dataset.num_workers=4 --set control.num_threads=4`) at
+  learner + 3 actors.
+- **Not yet known:** how a live learner compares. `k2b`'s ran ≈ 3.6K on an EPYC 9354 against the old
+  code's ≈ 4.7K here, and the CPU differs, so the soak itself measures it.
+- **Cost:** five box runs (one failed setup on the missing CQL checkpoints, one lost to an sshd restart,
+  both fixed in `box_bench.sh`), ≈ $1.40 in all against the $5 cap.
