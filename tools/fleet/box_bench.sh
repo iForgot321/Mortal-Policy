@@ -94,7 +94,9 @@ step() {  # name, max_minutes, command
 # 2. code and frozen inputs
 cd "$REPO"
 rsync -az -e "$SSHC" --filter=':- .gitignore' --exclude=.claude/ --exclude=.pytest_cache/ ./ "root@$IP:/workspace/Mortal-Policy/" >> "$LOG" 2>&1 || { log "code rsync failed"; exit 1; }
-rsync -azR -e "$SSHC" workdir/pilot/qs-a/pilot-qs-a-final.pth workdir/grp-v2/grp-v2-frozen.pth "root@$IP:/workspace/Mortal-Policy/" >> "$LOG" 2>&1 || { log "frozen rsync failed"; exit 1; }
+# every frozen checkpoint (tools/fleet/frozen.sha256, as fleet.py syncs them): setup_box.sh checks
+# their hashes and the tests expect them all
+rsync -azR -e "$SSHC" $(awk '{print $2}' tools/fleet/frozen.sha256) "root@$IP:/workspace/Mortal-Policy/" >> "$LOG" 2>&1 || { log "frozen rsync failed"; exit 1; }
 log "synced $(git describe --always --dirty --abbrev=12)"
 
 # 3. setup (with tests)
