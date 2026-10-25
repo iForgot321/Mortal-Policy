@@ -625,6 +625,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Unchanged:** the retry's cap (≤ $0.6K from the reserve), the T-std definition, family B for the verdict, and K2's contents (`05` §5.1). K2's settings are written into `experiments/k2-retry.md` before the run starts.
 - **Reopen if:** the early check fires on a configuration error rather than on K2 itself, or the T-std is inconclusive. Then the user decides on a restart or a second seed.
 
+**D60 (2026-10-24): policy lag above 2 versions doesn't fail the fleet soak while learning stays stable.** Amends D39's and `03` §3.7's "policy lag p95 ≤ 2 parameter versions". Decided by the user.
+- **Why:**
+  - `k2b` ran at policy lag p95 ≈ 8 versions (median 6.7; 143 h of its learner's TensorBoard) and passed G0 (`experiments/k2-retry.md`). The PPO ratio, which corrects for the lag with stored behaviour probabilities (D46), stayed small: its p99 had median 1.15 and max 1.41.
+  - Lag in versions rises whenever the learner publishes more often, so a faster learner would score worse at equal staleness in minutes.
+  - The plan already names when lag starts to hurt: the ratio p99 above 2 is the trigger for off-policy correction (`05`, the V-trace row).
+- **The criterion:** the soak's lag criterion is met if policy lag p95 ≤ 2 versions, **or** if learning stays stable over the soak's last 24 h:
+  1. the PPO ratio's p99 is ≤ 2 in ≥ 95% of the trainer's 400-step intervals;
+  2. policy lag shows no upward trend (as for the replay queue);
+  3. with a KL anchor, no `anchor_alert` (the batch reverse KL to π_SL averaged > 0.10 nats over 2 h).
+- **Unchanged:** the soak's other criteria (replay queue bounded; useful updates ≥ 90% of actor production and actors blocked < 10%; recovery from box loss within 30 min), its ≥ 48 h at T1 scale, and that failing it moves the dates, never the test sizes. Lag is still measured and reported.
+- **Reopen if:** the ratio p99 nears 2, or a lag-related pathology (`05` §8.7) appears.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

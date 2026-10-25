@@ -99,7 +99,9 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
 
    **Pass criteria:**
    - replay-queue length bounded (no upward trend over the last 24 h);
-   - policy lag p95 ≤ 2 parameter versions;
+   - policy lag p95 ≤ 2 parameter versions, **or** learning stays stable over the last 24 h (D60): the
+     PPO ratio p99 ≤ 2 in ≥ 95% of 400-step intervals, no upward trend in lag, and with a KL anchor
+     no `anchor_alert`;
    - learner useful-update rate ≥ 90% of actor sample production, and actors blocked < 10% of wall-clock;
    - no box loss without automatic recovery within 30 min.
 
