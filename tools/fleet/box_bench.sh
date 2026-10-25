@@ -70,8 +70,13 @@ done
 read -r IP PORT < <(printf '%s' "$j" | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(d["public_ipaddr"].strip(), d["ports"]["22/tcp"][0]["HostPort"])')
 SSHC="ssh -i $KEY -p $PORT -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$OUT/known_hosts -o ConnectTimeout=20 -o LogLevel=ERROR"
 R() { $SSHC "root@$IP" "$@"; }
-for i in $(seq 1 30); do R true 2>/dev/null && break; sleep 10; done
-R true || { log "ssh never came up ($IP:$PORT)"; exit 1; }
+# two answers 20 s apart, as fleet.py's provision waits: the image's sshd restarts seconds after it
+# first answers, which cut a sync on 2026-10-25
+ok=0
+for i in $(seq 1 40); do
+    if R true 2>/dev/null; then ok=$((ok + 1)); ((ok >= 2)) && break; sleep 20; else ok=0; sleep 10; fi
+done
+((ok >= 2)) || { log "ssh never came up steadily ($IP:$PORT)"; exit 1; }
 log "running: $IP:$PORT"
 
 # run a step in a remote tmux session; echo its exit code (or dead/timeout/unreachable)
@@ -93,10 +98,11 @@ step() {  # name, max_minutes, command
 
 # 2. code and frozen inputs
 cd "$REPO"
-rsync -az -e "$SSHC" --filter=':- .gitignore' --exclude=.claude/ --exclude=.pytest_cache/ ./ "root@$IP:/workspace/Mortal-Policy/" >> "$LOG" 2>&1 || { log "code rsync failed"; exit 1; }
+tries() { for i in 1 2 3; do "$@" >> "$LOG" 2>&1 && return 0; sleep 15; done; return 1; }
+tries rsync -az -e "$SSHC" --filter=':- .gitignore' --exclude=.claude/ --exclude=.pytest_cache/ ./ "root@$IP:/workspace/Mortal-Policy/" || { log "code rsync failed"; exit 1; }
 # every frozen checkpoint (tools/fleet/frozen.sha256, as fleet.py syncs them): setup_box.sh checks
 # their hashes and the tests expect them all
-rsync -azR -e "$SSHC" $(awk '{print $2}' tools/fleet/frozen.sha256) "root@$IP:/workspace/Mortal-Policy/" >> "$LOG" 2>&1 || { log "frozen rsync failed"; exit 1; }
+tries rsync -azR -e "$SSHC" $(awk '{print $2}' tools/fleet/frozen.sha256) "root@$IP:/workspace/Mortal-Policy/" || { log "frozen rsync failed"; exit 1; }
 log "synced $(git describe --always --dirty --abbrev=12)"
 
 # 3. setup (with tests)
