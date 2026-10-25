@@ -65,6 +65,7 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
 
     Returns the chunk's decisions concatenated, with `value`, `advantage` and
     `returns` (the λ-return, the critic's regression target; detached) added.
+    `obs` and `priv` are returned on `device`; the rest stays on the CPU.
     For the diagnostics: `mc_return`, the observed return (independent of the
     critic), `group`, each decision's (trajectory, kyoku), and `last_kyoku`,
     whether the decision is in its trajectory's last kyoku. Under horizon H only
@@ -78,14 +79,17 @@ def gae_targets(chunk, critic, *, device, gamma=1.0, lam=0.95, enable_amp=False,
     else:
         flat = {k: torch.cat([torch.as_tensor(t[k]) for t in chunk]) for k in CHUNK_KEYS}
         trajs = chunk
+    # the chunk's obs and priv go to the device once (from the loader's pinned memory the copy is
+    # async) and stay there: the learner gathers its minibatches on the device
+    flat['obs'] = flat['obs'].to(device, non_blocking=True)
+    flat['priv'] = flat['priv'].to(device, non_blocking=True)
     was_training = critic.training
     critic.eval()
     values = []
     with torch.no_grad(), torch.autocast(device.type, enabled=enable_amp):
         for start in range(0, len(flat['obs']), eval_batch):
-            # copy first, convert on the device: from the loader's pinned memory the copy is async
-            obs = flat['obs'][start:start + eval_batch].to(device, non_blocking=True).float()
-            priv = flat['priv'][start:start + eval_batch].to(device, non_blocking=True).float()
+            obs = flat['obs'][start:start + eval_batch].float()
+            priv = flat['priv'][start:start + eval_batch].float()
             values.append(critic(obs, priv).float())
     critic.train(was_training)
     # one device sync per chunk, not one per eval batch

@@ -202,17 +202,22 @@ def concatenating_minibatches(flats, batch_size, keys):
         leftover = {k: flat[k][perm[full:]] for k in keys}
 
 
+@pytest.mark.parametrize('device', ['cpu', pytest.param('cuda', marks=pytest.mark.skipif(
+    not torch.cuda.is_available(), reason='no GPU'))])
 @pytest.mark.parametrize('sizes', [(1000, 777, 1500), (512, 1024, 256), (100, 50, 900), (3000,)])
-def test_shuffled_minibatches_match_the_concatenating_version(sizes):
+def test_shuffled_minibatches_match_the_concatenating_version(sizes, device):
     g = torch.Generator().manual_seed(7)
     flats = [{'x': torch.randn(n, 3, 2, generator=g), 'i': torch.arange(n) + 10_000 * c}
              for c, n in enumerate(sizes)]
     keys = ('x', 'i')
+    # as the learner has them: obs on the GPU (critic.gae_targets), the small keys on the CPU
+    on_device = [{'x': f['x'].to(device), 'i': f['i']} for f in flats]
     torch.manual_seed(0)
-    new = list(rd.shuffled_minibatches(iter(flats), 256, keys))
+    new = list(rd.shuffled_minibatches(iter(on_device), 256, keys))
     torch.manual_seed(0)
     old = list(concatenating_minibatches(iter(flats), 256, keys))
     assert len(new) == len(old) == sum(sizes) // 256
     for a, b in zip(new, old):
+        assert a['x'].device.type == device
         for k in keys:
-            assert torch.equal(a[k], b[k]), k
+            assert torch.equal(a[k].cpu(), b[k]), k

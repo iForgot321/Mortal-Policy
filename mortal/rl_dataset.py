@@ -294,16 +294,22 @@ def shuffled_minibatches(flats, batch_size, keys):
 
 
 def _gather(leftover, flat, idx, n_left, keys):
-    """Rows `idx` of the remainder followed by `flat`, in `idx`'s order."""
+    """Rows `idx` of the remainder followed by `flat`, in `idx`'s order, on the
+    device each key's tensor is on (`critic.gae_targets` leaves obs and priv on
+    the learner's GPU)."""
     old = idx < n_left
     if not old.any():
-        return {k: flat[k][idx - n_left] for k in keys}
+        return {k: flat[k][(idx - n_left).to(flat[k].device)] for k in keys}
     if old.all():
-        return {k: leftover[k][idx] for k in keys}
+        return {k: leftover[k][idx.to(leftover[k].device)] for k in keys}
+    # most minibatches hold a few remainder rows: integer indices, not boolean masks
+    pos_old, pos_new = old.nonzero().squeeze(1), (~old).nonzero().squeeze(1)
+    src_old, src_new = idx[pos_old], idx[pos_new] - n_left
     out = {}
     for k in keys:
-        rows = torch.empty((len(idx), *flat[k].shape[1:]), dtype=flat[k].dtype)
-        rows[old] = leftover[k][idx[old]]
-        rows[~old] = flat[k][idx[~old] - n_left]
+        dev = flat[k].device
+        rows = torch.empty((len(idx), *flat[k].shape[1:]), dtype=flat[k].dtype, device=dev)
+        rows[pos_old.to(dev)] = leftover[k][src_old.to(dev)]
+        rows[pos_new.to(dev)] = flat[k][src_new.to(dev)]
         out[k] = rows
     return out
