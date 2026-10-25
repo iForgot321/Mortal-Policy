@@ -151,10 +151,11 @@ def deal_akas(hands, unseen, aka_unseen, rng):
 
 class HandExamples(IterableDataset):
     """Examples from self-play logs, every `stride`-th decision of each game, shuffled within a
-    buffer. Observations are kept as float16 in the buffer."""
+    buffer. Observations (obs `version`, the blueprint's) are kept as float16 in the buffer."""
 
-    def __init__(self, paths, stride=2, buffer=2048, epochs=1, seed=0):
+    def __init__(self, paths, stride=2, buffer=2048, epochs=1, seed=0, version=4):
         self.paths, self.stride, self.buffer, self.epochs, self.seed = paths, stride, buffer, epochs, seed
+        self.version = version
 
     def __iter__(self):
         from libriichi.search import hand_examples
@@ -166,7 +167,7 @@ class HandExamples(IterableDataset):
             paths = self.paths[wid::nw]
             rng.shuffle(paths)
             for path in paths:
-                obs, hands, _, unseen = hand_examples(path, stride=self.stride,
+                obs, hands, _, unseen = hand_examples(path, version=self.version, stride=self.stride,
                                                       offset=rng.randrange(self.stride))
                 obs = obs.astype(np.float16)
                 # copies, not views: a buffered view keeps its whole game's array alive
@@ -184,8 +185,9 @@ def load_brain(init, device):
     from model import Brain
     state = torch.load(init, weights_only=False, map_location='cpu')
     cfg = state['config']['resnet']
-    brain = Brain(version=4, conv_channels=cfg['conv_channels'], num_blocks=cfg['num_blocks'],
-                  Norm=cfg.get('norm', 'GN'))
+    # the blueprint's observation version: the hand model reads the same observation
+    brain = Brain(version=state['config']['control'].get('version', 4), conv_channels=cfg['conv_channels'],
+                  num_blocks=cfg['num_blocks'], Norm=cfg.get('norm', 'GN'))
     brain.load_state_dict(state['mortal'])
     return brain.to(device), cfg
 
@@ -197,7 +199,7 @@ def evaluate(model, paths, device, stride=4, limit=None):
     total, n = 0.0, 0
     with torch.no_grad():
         for path in paths[:limit]:
-            obs, hands, _, unseen = hand_examples(path, stride=stride)
+            obs, hands, _, unseen = hand_examples(path, version=model.brain.version, stride=stride)
             for i in range(0, len(obs), 256):
                 o = torch.as_tensor(obs[i:i + 256], device=device)
                 with torch.autocast(device.type, dtype=torch.float16):
@@ -223,7 +225,8 @@ def train(args):
 
     train_paths = sorted(glob(os.path.join(args.logs, '*.json.gz')))
     val_paths = sorted(glob(os.path.join(args.val, '*.json.gz')))
-    data = DataLoader(HandExamples(train_paths, stride=args.stride, epochs=1000, seed=args.seed),
+    data = DataLoader(HandExamples(train_paths, stride=args.stride, epochs=1000, seed=args.seed,
+                                   version=brain.version),
                       batch_size=args.batch, num_workers=args.workers, persistent_workers=True,
                       prefetch_factor=2)
     print(f'{len(train_paths)} training games, {len(val_paths)} held out; brain b{cfg["num_blocks"]}'
@@ -252,8 +255,8 @@ def train(args):
         if step % args.eval_every == 0 or step == args.steps:
             val = evaluate(model, val_paths, device, limit=args.val_games)
             print(f'step {step}: held-out nats per hand {val:.3f}', flush=True)
-            torch.save({'model': model.state_dict(), 'resnet': cfg, 'step': step, 'val': val,
-                        'init': args.init, 'args': vars(args)}, args.out)
+            torch.save({'model': model.state_dict(), 'resnet': cfg, 'version': brain.version, 'step': step,
+                        'val': val, 'init': args.init, 'args': vars(args)}, args.out)
         if step >= args.steps:
             break
 
@@ -262,7 +265,8 @@ def load(path, device='cuda:0'):
     from model import Brain
     state = torch.load(path, weights_only=False, map_location='cpu')
     cfg = state['resnet']
-    brain = Brain(version=4, conv_channels=cfg['conv_channels'], num_blocks=cfg['num_blocks'],
+    # models saved before 2026-10-25 carry no version: they are v4
+    brain = Brain(version=state.get('version', 4), conv_channels=cfg['conv_channels'], num_blocks=cfg['num_blocks'],
                   Norm=cfg.get('norm', 'GN'))
     model = HandModel(brain)
     model.load_state_dict(state['model'])
@@ -287,7 +291,7 @@ def beliefs(model, roots, n, seed=0, shuffle=200):
     gen = torch.Generator(device=device).manual_seed(seed)
     rng = np.random.default_rng(seed)
     hands, logq = [], []
-    for _, obs, unseen, sizes, aka_unseen in root_views(roots):
+    for _, obs, unseen, sizes, aka_unseen in root_views(roots, version=model.brain.version):
         unseen = np.frombuffer(bytes(unseen), dtype=np.uint8).copy()  # pyo3 gives u8 arrays as bytes
         h, lq = model.sample(torch.as_tensor(obs, device=device).unsqueeze(0), torch.as_tensor(unseen),
                              torch.tensor(list(sizes)), n, generator=gen)
@@ -374,7 +378,7 @@ def calibrate_weighted(model, engine, run_dir, n=64, limit=None, betas=(0, 0.1, 
         oroots.append((seed_, lines, d['until']))
         riichi.append({json.loads(x)['actor'] for x in lines[:d['until']] if '"reach"' in x})
     b, _ = beliefs(model, roots, n, seed=seed)
-    b.weigh(engine)
+    b.weigh(engine, version=engine.version)
     true_hands = root_hands(oroots)
     seats, hands, lls = b.seats(), b.hands(), b.log_likelihoods()
     rows = []

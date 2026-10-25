@@ -57,7 +57,8 @@ class ShadowEngine:
             setattr(self, attr, getattr(inner, attr))
         self.device = inner.device
         self.amp = inner.enable_amp
-        self.brain = Brain(version=4, num_blocks=int(m[1]), conv_channels=int(m[2]), Norm='GN').to(self.device).eval()
+        self.brain = Brain(version=inner.version, num_blocks=int(m[1]), conv_channels=int(m[2]),
+                           Norm='GN').to(self.device).eval()
         self.policy = CategoricalPolicy().to(self.device).eval()
         self.compiled = compile_model
         self.forward = self._forward

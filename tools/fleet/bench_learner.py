@@ -59,6 +59,9 @@ os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments/configs/p0.t
 
 BENCH_KEY = 0x62656E6368  # "bench": outside the seed families (lab/seeds.toml)
 PILOT = os.path.join(ROOT, 'workdir/pilot/qs-a/pilot-qs-a-final.pth')
+# K2's π_SL must be a checkpoint of the timed observation version (KLAnchor checks): pilot A for v4,
+# its v5 counterpart from the SP ablation (No-SP A) for v5. `--anchor` overrides.
+ANCHORS = {4: PILOT, 5: os.path.join(ROOT, 'workdir/sp-ablation/nosp-a/nosp-a-final.pth')}
 GRP_FILE = os.path.join(ROOT, 'workdir/grp-v2/grp-v2-frozen.pth')
 GRP_NETWORK = {'hidden_size': 64, 'num_layers': 2}
 PTS = [90.0, 50.0, -10.0, -130.0]
@@ -80,6 +83,8 @@ def load_nets(version, device):
     import torch
     from model import Brain, CategoricalPolicy
 
+    # pilot A's weights for every version: the shapes are equal, and for timing v5 that's enough
+    # (the SP ablation's timing device); the drain's logs don't depend on the version either
     state = torch.load(PILOT, weights_only=False, map_location='cpu')
     brain = Brain(version=version, num_blocks=8, conv_channels=192, Norm='GN')
     policy = CategoricalPolicy()
@@ -123,7 +128,7 @@ def loader(version, logs, drain, workers=WORKERS, arm='P0'):
 
 
 class Learner:
-    def __init__(self, version, device, compile=True, arm='P0', anchor=False, anchor_compile=False):
+    def __init__(self, version, device, compile=True, arm='P0', anchor=None, anchor_compile=False):
         import torch
         from critic import Critic
         self.device = device
@@ -134,9 +139,9 @@ class Learner:
             self.critic = Critic(**CRITIC, version=version).to(device)
             self.critic.train()
         self.anchor = None
-        if anchor:
+        if anchor:  # π_SL's checkpoint
             from kl_anchor import KLAnchor
-            self.anchor = KLAnchor(ANCHOR, default_state_file=PILOT, device=device, version=version)
+            self.anchor = KLAnchor(ANCHOR, default_state_file=anchor, device=device, version=version)
             self.anchor_stats = {}
             self.t = 0
             if anchor_compile:
@@ -316,6 +321,8 @@ def main():
     ap.add_argument('--arm', choices=sorted(ARMS), default='P0', help="the learner path to time (P1: horizon H, critic)")
     ap.add_argument('--package', choices=['K2'], default=None, help="K2: add the KL anchor's step (k2.toml)")
     ap.add_argument('--anchor-compile', action='store_true', help="with K2: torch.compile π_SL's networks too")
+    ap.add_argument('--anchor', default=None,
+                    help="with K2: π_SL's checkpoint, of the timed version (default: pilot A for v4, No-SP A for v5)")
     ap.add_argument('--drain', required=True, help='dir with logs/ and bp/ (generated if missing)')
     ap.add_argument('--games', type=int, default=800)
     ap.add_argument('--versions', type=int, nargs='+', default=[4, 5])
@@ -365,7 +372,8 @@ def main():
     timed_gpu = False
     default_threads = torch.get_num_threads()
     for v in args.versions:
-        learner = Learner(v, device, compile=not args.no_compile, arm=arm, anchor=args.package == 'K2',
+        anchor = (args.anchor or ANCHORS[v]) if args.package == 'K2' else None
+        learner = Learner(v, device, compile=not args.no_compile, arm=arm, anchor=anchor,
                           anchor_compile=args.anchor_compile)
         timed_pass(loader(v, logs, args.drain, args.workers[0], arm), learner, arm)  # warm-up: compile, autotune
         for th in args.threads:

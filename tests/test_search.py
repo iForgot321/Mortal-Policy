@@ -242,6 +242,32 @@ def test_hand_model_density_is_exact():
     assert np.allclose(lp.numpy(), logq.numpy(), atol=1e-4)
 
 
+def test_hand_model_follows_the_blueprint_version(greedy_games, tmp_path):
+    """A v5 blueprint gets a v5 hand model: its data are v5 observations (v4 with the single-player
+    rows zeroed), and the version is saved with the model; models saved without one are v4."""
+    import torch
+    from libriichi.search import hand_examples
+    from model import Brain
+    from search import handmodel as hm
+    paths, _ = greedy_games
+    o4, *_ = hand_examples(paths[0])
+    o5, *_ = hand_examples(paths[0], version=5)
+    assert o5.shape == o4.shape and (o5[:, :889] == o4[:, :889]).all() and not o5[:, 889:].any()
+    resnet = {'conv_channels': 32, 'num_blocks': 1}
+    blueprint = tmp_path / 'blueprint.pth'
+    torch.save({'mortal': Brain(version=5, Norm='GN', **resnet).state_dict(),
+                'config': {'control': {'version': 5}, 'resnet': resnet}}, blueprint)
+    brain, _ = hm.load_brain(str(blueprint), 'cpu')
+    assert brain.version == 5
+    saved = tmp_path / 'handmodel.pth'
+    torch.save({'model': hm.HandModel(brain).state_dict(), 'resnet': resnet, 'version': brain.version}, saved)
+    assert hm.load(str(saved), 'cpu').brain.version == 5
+    state = torch.load(saved, weights_only=False)
+    del state['version']
+    torch.save(state, saved)
+    assert hm.load(str(saved), 'cpu').brain.version == 4
+
+
 def test_waits_and_shanten():
     """123m 456m 789m 11p 23s waits on 1s and 4s; one tile off, it isn't tenpai."""
     from libriichi.search import shanten, waits
