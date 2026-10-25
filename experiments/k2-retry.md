@@ -344,6 +344,21 @@ not yet.
   the confirmation's N is fixed in advance, and the soak is a rental. The doubling estimate (above)
   runs first; it started at 19:20 UTC (`20261024-122034-measure`).
 
+### Doubling estimate result (2026-10-25): grey
+
+| Measure (family B, fixed N) | Δu | 95% CI | Sets | Avg rank | Run id |
+|---|---|---|---|---|---|
+| `k2b` full vs p50 | **+0.0025** | [+0.0004, +0.0046] | 100,000 | 2.495 | `20261024-122034-measure` |
+
+- Nonces [1,001,020,000, +100,000), the workstation, 2026-10-24 19:20 → 10-25 13:04 UTC (17.7 h).
+  σ_set 0.341.
+- **Pre-registered reading:** the lower bound (0.0004) isn't above 0.004 and the upper bound
+  (0.0046) isn't below 0.002, so **grey: no switch on this evidence alone; the user decides at the
+  G0 review** with the memo's other factors (`docs/design/observation-review-d49.md`).
+- The second half of the budget did improve the anchored run (the CI excludes 0), by about half of
+  P0's +0.0071, which included recovery from drift. The point estimate sits inside v5's break-even
+  band (0.002–0.004 u per doubling).
+
 ## L2's confirmation: pre-registered 2026-10-24, before it runs
 
 The user fixed N = 100K sets on 2026-10-24, after the T-std's pass and before any family-C play.

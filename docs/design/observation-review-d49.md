@@ -103,6 +103,27 @@ nothing; speed only), on the search pilot's decisions, the 3060, true FP32.
    strength claim takes SL pairs, and at ±0.003 u of training luck per network that is ≈ 4 pairs
    to resolve ±0.005 (§6): ≈ 37 h each on the workstation, or cloud time.
 
+## The `k2b` estimate (2026-10-25): grey, at break-even
+
+`k2b` full vs p50: **Δu +0.0025, 95% CI [+0.0004, +0.0046]**, 100K sets on family B
+(`20261024-122034-measure`). By its pre-registered reading that's grey: no switch on this evidence
+alone, the user decides. G0 itself passed (`k2b` full vs pilot A, +0.0114 on the T-std; L2's
+confirmation runs 2026-10-25 13:06 → ≈ 10-26 06:40 UTC).
+
+What the numbers say, side by side (estimates, not verdicts):
+
+| | For v5 | For v4 |
+|---|---|---|
+| RL compute | ≈ 1.2–1.5 extra doublings at equal cost; at +0.0025 each, ≈ +0.003–0.004 u if the gain per doubling holds (under K2's fixed anchor it may shrink) | — |
+| SL strength | — | v5's measured cost: pooled −0.0024 [−0.0056, +0.0009], inconclusive (the pairs disagree) |
+| Net on strength | ≈ +0.001 u: inside the noise of both estimates | |
+| Cost and speed | SL training 2.9× faster; actors 2.4–2.8×; search rollouts 1.33× batched, 1.6–2.2× one at a time | — |
+| Continuity | — | G0's pass, L2's confirmation and the `k2b` network are v4 evidence; a v5 engine would start from a new student |
+| Timing | Cheapest now: the b24c512 teachers aren't trained yet | |
+
+On strength the two are about even; the choice is between v5's lower cost and v4's continuity with
+the evidence G0 just produced. That call is the user's (D49), and a switch needs an `08` entry.
+
 ## Decided (2026-10-21)
 
 The user approved option 1's measure: `k2b` full vs p50, family B, 100K sets, after G0's T-std,

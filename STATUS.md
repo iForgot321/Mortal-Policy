@@ -3,11 +3,15 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-24 19:30 UTC)
+## Current position (2026-10-25 13:10 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **The doubling estimate is grey** (2026-10-25 13:04 UTC, `20261024-122034-measure`): `k2b` full vs p50
+  Δu +0.0025 [+0.0004, +0.0046], 100K sets. By its pre-registered reading, no v4 → v5 switch on this
+  alone; the user decides at the G0 review (`docs/design/observation-review-d49.md`). L2's T-confirm
+  started 13:06 UTC (`20261025-060641-T-confirm`, family C), ≈ 17.5 h.
 - **Fleet-soak preparation** (2026-10-24/25, `experiments/fleet-soak.md`): D60 makes policy lag
   non-blocking while learning stays stable (the user). The learner check found `k2b`'s learner path
   bound by copies in its main process (≈ 4.6K samples/s against 6.0K for 3 actors). Two optimization
