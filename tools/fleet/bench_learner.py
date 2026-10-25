@@ -26,6 +26,11 @@ are decisions loaded, in every mode. Peak memory (PSS of the benchmark and its l
 reported per pass. `--threads 4 8 16` repeats the passes at each count of torch CPU threads in the
 main process (the trainer's `control.num_threads`).
 
+`--package K2` adds K2's KL anchor (k2.toml, D59) to every training step, as `train_online.py` does:
+π_SL's forward on the batch (pilot A, frozen, eager unless `--anchor-compile`), the reverse KL over
+the legal mask on decisions with a choice, c_KL times it in the loss, the adaptive controller's
+update and the argmax agreement (the fleet-soak learner check, experiments/fleet-soak.md).
+
 Usage, from the repo root:
     python tools/fleet/bench_learner.py --drain workdir/sp-ablation/learner-drain \
         --versions 4 5 --out workdir/sp-ablation/learner.json
@@ -33,6 +38,8 @@ Usage, from the repo root:
         --versions 4 --workers 2 4 8 --out workdir/box/learner-workers.json
     python tools/fleet/bench_learner.py --arm P1 --drain workdir/box/learner-drain --games 3200 \
         --versions 4 --workers 4 8 16 --no-compile --out workdir/box/p1-learner-workers.json
+    python tools/fleet/bench_learner.py --arm P1 --package K2 --drain workdir/box/learner-drain --games 3200 \
+        --versions 4 --workers 4 --threads 8 --out workdir/box/k2-learner.json
 """
 import argparse
 import glob
@@ -63,6 +70,9 @@ ARMS = {'P0': {'horizon': 'K', 'targets': 'mc'}, 'P1': {'horizon': 'H', 'targets
 CRITIC = {'conv_channels': 128, 'num_blocks': 8}
 CRITIC_LR, CRITIC_MAX_GRAD_NORM, GAMMA, LAMBDA = 1e-4, 1.0, 1.0, 0.95
 P1_KEYS = ('obs', 'action', 'mask', 'advantage', 'behaviour_prob', 'priv', 'returns')
+# experiments/configs/k2.toml [policy.kl_anchor]; π_SL is pilot A, as in k2b
+ANCHOR = {'mode': 'adaptive', 'coef': 0.1, 'target': 0.02, 'target_growth': 0.0, 'adapt_every': 400,
+          'hold_windows': 5, 'tolerance': 1.5, 'factor': 1.5, 'coef_min': 0.01, 'coef_max': 10.0}
 
 
 def load_nets(version, device):
@@ -112,7 +122,7 @@ def loader(version, logs, drain, workers=WORKERS, arm='P0'):
 
 
 class Learner:
-    def __init__(self, version, device, compile=True, arm='P0'):
+    def __init__(self, version, device, compile=True, arm='P0', anchor=False, anchor_compile=False):
         import torch
         from critic import Critic
         self.device = device
@@ -122,6 +132,15 @@ class Learner:
         if arm == 'P1':
             self.critic = Critic(**CRITIC, version=version).to(device)
             self.critic.train()
+        self.anchor = None
+        if anchor:
+            from kl_anchor import KLAnchor
+            self.anchor = KLAnchor(ANCHOR, default_state_file=PILOT, device=device, version=version)
+            self.anchor_stats = {}
+            self.t = 0
+            if anchor_compile:
+                self.anchor.brain.compile()
+                self.anchor.policy.compile()
         if compile:
             self.brain.compile()
             self.policy.compile()
@@ -148,6 +167,21 @@ class Learner:
         with torch.autocast(self.device.type):
             logits = self.policy.logits(self.brain(obs), masks)
         loss, _ = ppo_loss(logits, actions, advantage, b, **HP)
+        if self.anchor is not None:
+            from ppo import reverse_kl
+            with torch.autocast(self.device.type):
+                anchor_logits = self.anchor.logits(obs, masks)
+            # over decisions with a choice, as train_online.py and experiments/rl_drift.py measure it
+            multi = masks.sum(-1) > 1
+            kl = reverse_kl(logits, anchor_logits, masks)[multi]
+            kl_mean = kl.mean() if len(kl) else kl.sum()
+            loss = loss + self.anchor.coef(self.t) * kl_mean
+            self.anchor.observe(kl_mean, self.t + 1)
+            self.t += 1
+            with torch.no_grad():
+                agree = (logits.argmax(-1) == anchor_logits.argmax(-1))[multi].float()
+                for k, v in (('kl', kl_mean.detach()), ('agreement', agree.mean() if len(agree) else agree.sum())):
+                    self.anchor_stats[k] = self.anchor_stats.get(k, 0) + v
         if self.critic is not None:
             priv = priv.to(dtype=torch.float32, device=self.device, non_blocking=True)
             returns = returns.to(dtype=torch.float32, device=self.device, non_blocking=True)
@@ -279,6 +313,8 @@ def cgroup_limits():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--arm', choices=sorted(ARMS), default='P0', help="the learner path to time (P1: horizon H, critic)")
+    ap.add_argument('--package', choices=['K2'], default=None, help="K2: add the KL anchor's step (k2.toml)")
+    ap.add_argument('--anchor-compile', action='store_true', help="with K2: torch.compile π_SL's networks too")
     ap.add_argument('--drain', required=True, help='dir with logs/ and bp/ (generated if missing)')
     ap.add_argument('--games', type=int, default=800)
     ap.add_argument('--versions', type=int, nargs='+', default=[4, 5])
@@ -319,6 +355,7 @@ def main():
         'gpu': torch.cuda.get_device_name(0), 'cpus': len(os.sched_getaffinity(0)), **cgroup_limits(),
         'drain_games': len(logs), 'batch': BATCH, 'num_workers': args.workers, 'file_batch_size': FILE_BATCH,
         'compile': not args.no_compile, 'nofile': hard,
+        'package': args.package, 'anchor_compile': args.anchor_compile,
     }
     print(json.dumps(info), flush=True)
 
@@ -327,7 +364,8 @@ def main():
     timed_gpu = False
     default_threads = torch.get_num_threads()
     for v in args.versions:
-        learner = Learner(v, device, compile=not args.no_compile, arm=arm)
+        learner = Learner(v, device, compile=not args.no_compile, arm=arm, anchor=args.package == 'K2',
+                          anchor_compile=args.anchor_compile)
         timed_pass(loader(v, logs, args.drain, args.workers[0], arm), learner, arm)  # warm-up: compile, autotune
         for th in args.threads:
             torch.set_num_threads(th or default_threads)

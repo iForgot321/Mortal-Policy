@@ -15,7 +15,8 @@
 # Needs: the vastai CLI with an API key, ~/.ssh/vast_ed25519 registered with Vast, and a clean
 # commit (the box gets the working tree as is).
 #
-# Usage: tools/fleet/box_bench.sh <instance_id> <label> <none|full|matrix>
+# Usage: tools/fleet/box_bench.sh <instance_id> <label> <none|full|matrix|learner-k2>
+# (learner-k2: the K2 learner benchmark in place of the eval benchmark; launch with HARD_LIMIT=10800)
 set -uo pipefail
 ID=$1; LABEL=$2; EXTRAS=${3:-none}
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -100,14 +101,33 @@ log "synced $(git describe --always --dirty --abbrev=12)"
 rc=$(step setup 30 "tools/fleet/setup_box.sh"); log "setup: $rc"
 [[ $rc == 0 ]] || exit 1
 
-# 4. eval-mode benchmark, 15 min (the matrix has its own baseline)
-if [[ $EXTRAS != matrix ]]; then
+# 4. eval-mode benchmark, 15 min (the matrix has its own baseline; learner-k2 has no actor)
+if [[ $EXTRAS != matrix && $EXTRAS != learner-k2 ]]; then
     rc=$(step bench 25 "$PY tools/fleet/bench_1v3.py --model workdir/pilot/qs-a/pilot-qs-a-final.pth --minutes 15 --out workdir/box/bench-eval.json"); log "bench: $rc"
 fi
 
 # matrix: multi-process actors and the reduced inference matrix (bench_matrix.sh)
 if [[ $EXTRAS == matrix ]]; then
     rc=$(step matrix 110 "PY=$PY tools/fleet/bench_matrix.sh"); log "matrix: $rc"
+fi
+
+# learner-k2: the fleet soak's learner check (experiments/fleet-soak.md): k2b's learner path on a
+# 3,200-game drain made on the box (outside workdir/box, so it isn't copied back). Threads first
+# (k2b's 4 workers / 8 threads among them), then 4 vs 6 workers and the compiled anchor at the
+# fastest thread count, then a py-spy profile of the main process at the fastest settings.
+if [[ $EXTRAS == learner-k2 ]]; then
+    K2="$PY tools/fleet/bench_learner.py --arm P1 --package K2 --drain workdir/learner-drain --games 3200 --versions 4"
+    best() {  # the fastest full pass's value of $2 in workdir/box/$1.json, read on the box
+        R "cd /workspace/Mortal-Policy && $PY -c 'import json; r = json.load(open(\"workdir/box/$1.json\"))[\"results\"]; print(max((x for x in r if x.get(\"mode\") == \"full\"), key=lambda x: x[\"samples_per_s\"])[\"$2\"])'"
+    }
+    rc=$(step k2-threads 60 "$K2 --workers 4 --threads 4 8 16 --out workdir/box/k2-threads.json"); log "k2-threads: $rc"
+    [[ $rc == 0 ]] || exit 1
+    TH=$(best k2-threads threads); [[ $TH =~ ^[0-9]+$ ]] || { log "no fastest thread count: $TH"; exit 1; }
+    rc=$(step k2-workers 30 "$K2 --workers 4 6 --threads $TH --out workdir/box/k2-workers.json"); log "k2-workers: $rc"
+    W=$(best k2-workers workers); [[ $W =~ ^[0-9]+$ ]] || W=4
+    log "fastest so far: $TH threads, $W workers"
+    rc=$(step k2-anchor 30 "$K2 --workers $W --threads $TH --anchor-compile --out workdir/box/k2-anchor-compile.json"); log "k2-anchor: $rc"
+    rc=$(step k2-pyspy 30 "$PY -m pip install -q py-spy && /venv/main/bin/py-spy record --rate 50 --format speedscope -o workdir/box/k2-pyspy.json -- $K2 --workers $W --threads $TH --out workdir/box/k2-pyspy-run.json"); log "k2-pyspy: $rc"
 fi
 
 # 5. extras: py-spy profile; P0 throughput at 800- and 2,000-game actor batches
