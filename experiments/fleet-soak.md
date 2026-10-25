@@ -44,3 +44,48 @@ The user approved it on 2026-10-24 ("experiment 2").
   - They don't: the profile names the bottleneck. The options go to the user: optimize the named
     step (`03` §6), a faster learner CPU, or 2 actors per learner (a change to `03` §3.7's T1
     scale, so an `08` entry first).
+
+### Result (2026-10-25): the target is missed; the main process's chunk concatenation binds
+
+- **Box:** RTX 4090 + EPYC 9474F (Zen 4, 48 cores at a 30.7-CPU quota, 108 GB), Vast instance
+  57625912, $0.517/h; no 9354 was offered. The first attempt (57623785) failed setup's test suite:
+  `box_bench.sh` synced only pilot A and the GRP, not every frozen checkpoint (fixed in `6b8f196`).
+  Both boxes ≈ $0.50 in all. Results: `workdir/fleet/20261025-vast-4090-9474f-learner-k2b/box/`.
+- **Drain:** 3,200 games, 514,558 decisions (226 s to generate).
+
+  | Pass | Full, samples/s | Data only | Peak memory, full |
+  |---|---|---|---|
+  | 4 workers, 4 threads | 4,582 | 11,418 | 24.3 GB |
+  | 4 workers, 8 threads (`k2b`'s settings) | 4,683 | 11,541 | 24.9 GB |
+  | 4 workers, 16 threads | 4,722 (repeat 4,559) | 11,212 | 24.3 GB |
+  | 6 workers, 16 threads | 2,990 | 11,599 | 32.9 GB (over 32: ineligible) |
+  | 4 workers, 16 threads, π_SL compiled | 4,149 | 10,720 | 23.5 GB |
+
+  GPU only (training steps on batches already on the GPU): 17.7–21.7K samples/s.
+- **By the rule:** the thread counts are within 5% of each other (the repeat varied 3.5%), so the
+  fewest wins: **4 workers, 4 threads, π_SL eager, ≈ 4.6K samples/s. The 6.0K target is missed by
+  ≈ 23%.** On this faster CPU the benchmark runs ≈ 30% above `k2b`'s live learner (3.6K on an EPYC
+  9354), so a live learner would fall further short.
+- **The second CPU class wasn't run:** every other offer that day was older (Zen 2/3) or a
+  lower-clocked Zen 4 (9334, 9V74), and no desktop Ryzen 7950X/9950X was listed, so none could be
+  faster per core than the 9474F.
+- **What binds** (py-spy, 50 Hz, 351 s on the main thread; per full pass, from the warm-up and timed
+  passes):
+
+  | Main-thread work | Share |
+  |---|---|
+  | `critic.py:70`: `torch.cat` of each chunk's trajectories (obs and priv: ≈ 35 GB per pass) | ≈ 40% |
+  | training steps (forward, backward, AdamW) | ≈ 30% |
+  | `critic.py:76`: the critic's values for GAE, a GPU sync every 1,024 decisions | ≈ 20% |
+  | `shuffled_minibatches`: concatenation with the remainder and the gathers | ≈ 9% |
+
+  The loader workers deliver 11.5K samples/s on their own, and the GPU trains ≈ 20K/s: the learner
+  is bound by memory copies in its main process, as P1's check found before its thread fix.
+- **Options (the user's):**
+  1. **Optimize the named step** (`03` §6): concatenate in the loader workers, which have ≈ 2.5×
+     headroom, and overlap the critic's evaluation with training. The training tensors stay the
+     same. Removing ≈ 40% of the main thread's work would put the learner near 7–8K samples/s if
+     nothing else binds (an estimate). Code and tests, then a ≈ $0.50 re-benchmark.
+  2. **2 actors per learner at T1** (`k2b`'s shape, which met the queue and blocking criteria): a
+     change to `03` §3.7's T1 scale, so an `08` entry first.
+  3. A faster learner CPU: none offered.
