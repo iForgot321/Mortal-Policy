@@ -36,7 +36,12 @@ tracking measures). Each passes or fails as stated; a failure reopens D61.
 
 D61's first check is met. The recipe check (below) remains before a v5 result counts.
 
-## The recipe check: a DRAFT for the user's review (nothing is rented yet)
+## The recipe check: pre-registered 2026-10-26; launched on the user's word ("Launch")
+
+Stage 1 (B0, `p1v5-b0`) was rented at 22:12 UTC on 2026-10-26: learner EPYC 7B13 (machine 11349),
+actors Threadripper PRO 7975WX and EPYC 7713, ≈ $2.45/h; watcher `--budget-box-hours 12
+--snapshot-at 0.5 --max-dollars 20`, watchdog 2026-10-27 06:12 UTC. Stage 2 follows if B0 passes
+`experiments/b0_check.py`.
 
 D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures
 against No-SP A, with the thresholds `k2b` cleared at p25.

@@ -161,3 +161,12 @@ The user approved it on 2026-10-26 ("plan and rent the fleet soak"), with the le
   and the lag figures.
 - **Reading:** pass → the soak gate for T1 is met (`03` §3.7). Fail → the dates move, never the test
   sizes (D39), and the failing criterion names the fix.
+
+### Progress
+
+- **p25 stop rule (2026-10-26 19:52 UTC): continue.** Over the last 6 h: drained 99.8% of production,
+  actors blocked 1.1%, lag p95 12.3 versions with the ratio p99 ≤ 1.15 throughout, no alerts, no box
+  losses. 122,400 games/h at 11.8 h.
+- **Tracking, p25 vs `k2b` full** (`20261026-124738-measure`, 10K sets, block `soak`): Δu +0.0026
+  [−0.0039, +0.0092]. Twelve more hours of training haven't moved the policy measurably.
+
