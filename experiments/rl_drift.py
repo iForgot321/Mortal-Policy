@@ -22,16 +22,16 @@ def kind(a):
             else 'kan' if a == 42 else 'agari' if a == 43 else 'ryukyoku' if a == 44 else 'pass')
 
 
-def load_states(logs, config='experiments/configs/p1.toml', stride=2):
+def load_states(logs, config='experiments/configs/p1.toml', stride=2, version=4):
     """(obs fp16, masks) of the trainee's decisions with more than one legal action in a
-    `rl_credit_check.py --work` dir, every `stride`-th decision."""
+    `rl_credit_check.py --work` dir, every `stride`-th decision, as obs `version`."""
     import torch
     from rl_dataset import OrderedDatasetsIter
     with open(config, 'rb') as f:
         cfg = tomllib.load(f)
     log_dir = os.path.join(logs, 'logs')
     files = sorted(os.path.join(log_dir, f) for f in os.listdir(log_dir))
-    ds = OrderedDatasetsIter(version=4, file_list=files, behaviour_dir=os.path.join(logs, 'logs_behaviour'),
+    ds = OrderedDatasetsIter(version=version, file_list=files, behaviour_dir=os.path.join(logs, 'logs_behaviour'),
                              pts=cfg['env']['pts'], grp_state_file=cfg['grp']['state_file'],
                              grp_network=cfg['grp']['network'])
     ds.prepare()
@@ -54,10 +54,14 @@ def measure(logs, init, ckpts, config='experiments/configs/p1.toml', stride=2):
     kind of decision the initialization's argmax picks. Returns (init entropy, [dict])."""
     import torch
     from lab.arena import load_engine
-    obs, masks, _ = load_states(logs, config, stride)
+    # the states are featurized as the initialization's observation version (v5 from G0 on, D61)
+    version = load_engine(init, enable_amp=False, name='x').version
+    obs, masks, _ = load_states(logs, config, stride, version)
 
     def logp(spec):
         e = load_engine(spec, enable_amp=False, name='x')
+        if e.version != version:
+            raise ValueError(f'{spec} is obs v{e.version}, the initialization v{version}')
         out = []
         with torch.inference_mode():
             for s in range(0, len(obs), 2048):

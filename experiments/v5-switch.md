@@ -1,0 +1,55 @@
+# The switch to v5 (D61): its checks
+
+D61 (the user, 2026-10-26) makes v5 the observation from G0 on. Before a v5 result counts it asks for
+a v5 A/A with a frozen v5 hash, and a recipe check: does P1 + K2 work on v5 as it did on v4?
+
+## Workstation checks: pre-registered 2026-10-26, before they run
+
+`experiments/v5_checks.sh`, once the post-G0 queue has finished (≈ 15:00 UTC, before the soak's
+tracking measures). Each passes or fails as stated; a failure reopens D61.
+
+1. **v4 unchanged, v5 = v4 minus the single-player rows:** `tools/obs/hash_obs.py --version 4
+   --check-v5 --expect workdir/sp-ablation/golden-v4.json` over the SP ablation's 36 logs (22,794
+   decisions). Passes if it exits 0: every v4 hash matches, and at every decision v5's rows 0–888
+   equal v4's, rows 889–1011 are zero, and the masks match.
+2. **The frozen v5 hash:** `hash_obs.py --version 5 --out workdir/sp-ablation/golden-v5.json`,
+   made read-only. Recorded here once made; later encoder changes check against it.
+3. **Deterministic A/A with a v5 model:** `python -m lab aa --model No-SP A --no-amp --sets 500
+   --block aa-harness-nn` (true FP32, D43; the earlier neural A/As' deals). Passes if every
+   rotation of every set gives the same game (the lab's `PASS`).
+4. **The drift tool on v5:** `experiments/rl_drift.py` now featurizes the states as the
+   initialization's version (it was fixed at v4). No-SP A against itself on the diagnosis's states
+   must give reverse KL 0 and argmax agreement 1.
+
+## The recipe check: a DRAFT for the user's review (nothing is rented yet)
+
+D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures
+against No-SP A, with the thresholds `k2b` cleared at p25.
+
+- **Stage 1, B0 (`p1v5-b0`):** P1's critic warm-up, as `k2b`'s chain had (`p1a-b0`, D53). A critic
+  doesn't transfer (v4's was trained with the single-player rows), so v5 warms up its own:
+  `experiments/configs/p1-v5.toml` (p1.toml with `version = 5`, `workdir/p1v5/` paths, No-SP A as the
+  frozen opponent), `--set critic.warmup=true`, from No-SP A, 2 actors × 2 processes,
+  `--budget-box-hours 12`. Acceptance as P1's B0 (`experiments/p1.md`): over the last third, the
+  10-bin calibration monotone in the final window and the explained variance (overall and last
+  kyoku) not falling; one 4 box-hour extension if not. ≈ $7–9.
+- **Stage 2, K2 (`k2v5`):** `experiments/configs/k2-v5.toml` (k2.toml with `version = 5`, `workdir/k2v5/`
+  paths, No-SP A as the frozen opponent and π_SL), from B0's `full`, the learner check's settings
+  (`dataset.num_workers=4`, `control.num_threads=4`), learner + 2 actors × 2 processes as `k2b`.
+  `--budget-box-hours 108` (`k2b`'s p25), with a p50 snapshot at 54; `full` then is the checkpoint
+  judged, and the fleet goes down. A Zen 4 learner if one with a long contract is offered
+  (`--learner-machine`). ≈ $65–75 (≈ 36 h).
+- **The check** (`experiments/k2_early_check.py --ckpt k2v5/snapshots/full.pth --init No-SP A --states
+  workdir/diag/credit-a`, on the workstation, ≈ 1 h): **passes if** the reverse KL to No-SP A is
+  ≤ 0.10, the argmax agreement ≥ 90%, and the Δu at argmax against No-SP A (4,000 sets, the
+  diagnostic key) has a 95% CI not entirely below 0. `k2b` at p25: 0.025, 94.2%, +0.012 ± 0.0055.
+  The states are the same games as `k2b`'s check, featurized as v5, so the numbers compare.
+- **Differences from `k2b`, stated before the result:**
+  - v5 actors are ≈ 2.4× faster, so 108 box-hours hold more games than `k2b`'s p25 (step
+    1,048,400); with two v5 actors the learner probably binds. Steps and games are reported.
+  - The starting network is No-SP A, a weaker or equal student to pilot A (SP ablation: pair 1
+    −0.0060, pair 2 +0.0012), so Δu is measured against No-SP A, not pilot A.
+- **Reading:** pass → the recipe transfers; with the A/A passed, v5 results count (D61). Fail → D61
+  reopens and the user decides: back to v4, or a fix.
+- **Cost and timing:** ≈ $75–85, cap $95. It can run alongside the soak (its own fleet and watcher);
+  the check at the end needs the workstation for ≈ 1 h. A rental, so it waits for the user's yes.
