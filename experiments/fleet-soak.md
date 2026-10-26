@@ -126,3 +126,37 @@ Same box class (EPYC 9474F, 30.7-CPU quota), same benchmark (`box_bench.sh … l
   code's ≈ 4.7K here, and the CPU differs, so the soak itself measures it.
 - **Cost:** five box runs (one failed setup on the missing CQL checkpoints, one lost to an sshd restart,
   both fixed in `box_bench.sh`), ≈ $1.40 in all against the $5 cap.
+
+## The soak: pre-registered 2026-10-26, before it runs
+
+The user approved it on 2026-10-26 ("plan and rent the fleet soak"), with the learner on the EPYC
+9V74 (≈ $140 in all).
+
+- **Run `soak-a`:** P1 + K2 as registered (`experiments/configs/k2.toml`), continuing from `k2b`'s
+  `full` (π_SL stays pilot A), with the learner check's settings (`dataset.num_workers=4`,
+  `control.num_threads=4`) and its two optimizations (`fa61520`, `4c30a83`). Learner: machine 12764,
+  EPYC 9V74 (Zen 4, Norway, $0.823/h; no 9474F had a long enough contract). 3 actors × 2 processes,
+  the fleet's cheapest allowlisted boxes. T1 scale (`03` §3.7).
+- **Duration:** `--budget-box-hours 192` (4 boxes × 48 h): p25 at ≈ 12 h, p50 ≈ 24 h, `full` ≈ 48 h,
+  then down. Hard deadline 52 h. `--max-dollars 130` for the fleet (≈ $2.37/h, ≈ $118 projected).
+- **Eval box:** `evalbox.py` up when p25 lands. It runs exploratory tracking measures, each snapshot
+  (p25, then p50) against `k2b` full, 10K sets on a new family-A block `soak`, and goes down with the
+  fleet. It doesn't enter the criteria. It comes up after the workstation's search pilot has drawn its
+  nonces, because the eval box holds the lab registry.
+- **Criteria** (`experiments/fleet_soak_check.py --mode final`, at the end; windows end at the last
+  health record):
+  1. the replay queue's least-squares line over the last 24 h rises < 25% of capacity (1,600);
+  2. policy lag (D60): per-interval mean lag p95 ≤ 2 over the last 24 h, or stable: ratio p99 ≤ 2 in
+     ≥ 95% of intervals, the mean lag's line rises < 1 version over the 24 h, no `anchor_alert`;
+  3. games drained ≥ 90% of games produced, and actors blocked < 10%, over the soak after its first hour;
+  4. every box loss recovered within 30 min, none failed.
+
+  Dry run on `k2b`'s records (2 actors): pass, with the lag passing as stable.
+- **Stop rule at p25** (≈ 12 h; `--mode early` as the watcher's `--early-check`, over the last 6 h;
+  only clear failures stop): actors blocked > 25%, the learner draining < 75% of production, the ratio
+  p99 > 2 in > 20% of intervals, an `anchor_alert`, or a box loss not recovered within 60 min.
+  A stop downs the fleet and the result goes to the user.
+- **Also reported:** the live learner's samples/s (steps/h × 512) against the benchmark's 7.5K, games/h,
+  and the lag figures.
+- **Reading:** pass → the soak gate for T1 is met (`03` §3.7). Fail → the dates move, never the test
+  sizes (D39), and the failing criterion names the fix.

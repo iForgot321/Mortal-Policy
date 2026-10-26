@@ -1322,7 +1322,13 @@ def cmd_up(a):
     commit = git_commit(a.allow_dirty)
     ranked = rank_offers(vast('search', 'offers', OFFER_QUERY, '--storage', 50, '-o', 'dph_total'),
                          allow_zen2=a.allow_zen2)
-    n = 1 + a.actors
+    pinned = 0.0
+    if a.learner_machine:
+        offer = pick_offer(run, a.learner_machine)
+        pinned = offer['dph_total']
+        print(f'learner: machine {a.learner_machine}  ${pinned:.3f}/h  {offer.get("cpu_name")}')
+        ranked = [o for o in ranked if o['machine_id'] != a.learner_machine]
+    n = a.actors + (0 if a.learner_machine else 1)
     seen = set()
     ranked = [o for o in ranked if not (o['machine_id'] in seen or seen.add(o['machine_id']))]
     print(f'{len(ranked)} allowlisted machines; the {n} best:')
@@ -1330,7 +1336,7 @@ def cmd_up(a):
         print(f'  machine {o["machine_id"]:>6}  ${o["dph_total"]:.3f}/h  ~${o["usd_per_m"]:.1f}/M hanchan  {o["cpu_name"]}')
     if len(ranked) < n:
         raise FleetError(f'only {len(ranked)} allowlisted machines for {n} boxes')
-    print(f'≈ ${sum(o["dph_total"] for o in ranked[:n]):.2f}/h for the fleet')
+    print(f'≈ ${pinned + sum(o["dph_total"] for o in ranked[:n]):.2f}/h for the fleet')
     if not a.yes:
         print('rerun with --yes to rent')
         return 0
@@ -1352,7 +1358,9 @@ def cmd_up(a):
 
         def prov(nr):
             try:
-                return provision(run, nr[0], nr[1], skip_tests=a.skip_tests, allow_zen2=a.allow_zen2)
+                machine = a.learner_machine if nr[1] == 'learner' else None
+                return provision(run, nr[0], nr[1], machine=machine, skip_tests=a.skip_tests,
+                                 allow_zen2=a.allow_zen2)
             except FleetError as e:
                 run.log(f'gave up: {e}', nr[0])
                 return None
@@ -1724,6 +1732,8 @@ def main(argv=None):
     s.add_argument('--allow-zen2', action='store_true')
     s.add_argument('--allow-dirty', action='store_true')
     s.add_argument('--no-start', action='store_true', help='set the boxes up, but neither join nor start them')
+    s.add_argument('--learner-machine', type=int,
+                   help="the learner's Vast machine (a fast CPU for the learner's main process: experiments/fleet-soak.md)")
     s.add_argument('--yes', action='store_true', help='rent; without it, only show the offers')
     s = p('provision', cmd_provision, 'rent and set up one box')
     s.add_argument('--name', required=True)
