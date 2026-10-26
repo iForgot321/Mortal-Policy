@@ -446,3 +446,23 @@ rule (6, the plain rule with z > 2) on 2026-10-15 (D58).
 - **Open:** whether the gap can be closed at all. Part of the oracle's gain may come from
   information no inference from public events can recover (06 §0's caveat that the oracle is an
   optimistic bound). Untested.
+
+## The pilot on `k2b`'s network (2026-10-26; the conditional rerun after G0's pass)
+
+- **Run:** `workdir/search/pilot-k2b`, by `experiments/k2b_post_g0_chain.sh`. Blueprint `k2b` full
+  (`f5a22c5c…`). Hand model on 4,000 games of its self-play (dev key, 40 held out), the current
+  recipe: held-out 17.52 nats per hand at 20K steps (`hands-a`: 17.64). Self-play on the family-A
+  block `search-pilot`, the same deals as pilot A's run; 20,000 decisions, all reproduced.
+
+  | Per decision, u (primary rule: plain z > 2) | Pilot A | **`k2b`** |
+  |---|---|---|
+  | Oracle | +0.0112 ± 0.0009 (z 12.7), switches 10.3% | +0.0083 ± 0.0008 (z 9.7), 9.1% |
+  | Belief | +0.0018 ± 0.0005 (z 3.4), 3.9% | **+0.0005 ± 0.0004 (z 1.1)**, 3.1% |
+  | Recovery | 0.157 | **0.055** |
+  | Clairvoyant bound | +0.0774 | +0.0779 |
+  | Latency p99 (the 3060) | 1.95 s | 1.87 s |
+
+- **Reading:** the stronger blueprint leaves the oracle less to gain (−26%), and the belief's gain
+  is no longer distinguishable from 0. D32's go criteria fail on recovery again, more clearly.
+  This fits the parked state: the belief, not the blueprint, limits riichi-vs-dama search.
+

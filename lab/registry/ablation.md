@@ -34,3 +34,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261024-110559-T-std | exploratory | G0 retry: k2b full vs pilot A (D59) | T-std | B [1000920000, +100000) | 7000 | +0.0114 |  | +3.88 | pass | -0.0167 | +1.12 | yes | 8833d7a5+dirty |
 | 20261024-122034-measure | exploratory | k2b full vs p50 (doubling estimate, D49) | measure | B [1001020000, +100000) | 100000 | +0.0025 | [+0.0004, +0.0046] |  | measured | -0.0046 | +0.25 | yes | 7c2dab4f |
 | 20261025-060641-T-confirm | confirmed | L2 confirmation: k2b full vs pilot A, 100K sets (D59) | T-confirm | C [2000000000, +100000) | 100000 | +0.0195 | [+0.0174, +0.0216] |  | pass | -0.0268 | +1.94 | yes | d65aa590 |
+| 20261026-080110-AA | exploratory | D61: deterministic A/A with a v5 model (No-SP A, true FP32, D43) | A/A | A [500, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | b76423dd+dirty |

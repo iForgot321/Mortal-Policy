@@ -399,6 +399,38 @@ The user fixed N = 100K sets on 2026-10-24, after the T-std's pass and before an
   L2 confirms. What remains before **Select**: the fleet soak (`03` §3.7, D60), the actor size (D31),
   and the observation review (D49; the draft D61 is with the user).
 
+### The diagnosis's tools on `full` (2026-10-26, for the write-up; exploratory)
+
+The tools of `experiments/rl-diagnosis.md` on the same states and deals as P0's and P1's runs
+(`workdir/diag/k2b-*`; the post-G0 queue, `experiments/k2b_post_g0_chain.sh`).
+
+- **Drift from pilot A** (`rl_drift.py`, 15,215 decisions):
+
+  | Checkpoint | Reverse KL | KL(init ‖ ckpt) | Argmax agreement | Entropy |
+  |---|---|---|---|---|
+  | p25 | 0.0253 | 0.0305 | 94.2% | 0.472 |
+  | p50 | 0.0214 | 0.0261 | 94.8% | 0.467 |
+  | full | 0.0194 | 0.0242 | 95.4% | 0.468 |
+  | `p0-a` full / `p1-b` full (for scale) | — | 0.92 / 1.38 | 75.6% / 79.5% | 0.366 / 0.113 |
+
+  The anchor held the policy at its target the whole run; the drift even eased a little, and the
+  entropy stayed near pilot A's 0.522.
+- **Play against pilot A, 4,000 sets on the diagnostic key** (`rl_diag_sampling.py`):
+
+  | Challenger | Play | Δu vs pilot A (argmax) |
+  |---|---|---|
+  | `k2b` full | argmax (the lab's setting) | **+0.0245 ± 0.0053** |
+  | `k2b` full | sampled, T = 1 (its training setting) | −0.0191 ± 0.0060 |
+  | pilot A / `p0-a` full | sampled, T = 1 | −0.0861 / −0.0640 |
+
+  Paired on the same deals: **RL's gain in its own setting**, `k2b` sampled − pilot A sampled,
+  **+0.067 ± 0.008** (P0: +0.022). `k2b` sampled against pilot A sharpened to T = 0.7: +0.005 ± 0.008,
+  at more entropy (0.46 against 0.36), where P0 had −0.040 at matched entropy. Against P0's `full`:
+  +0.045 ± 0.008 sampled, +0.044 ± 0.008 at argmax.
+- **Reading:** the diagnosis found P0 and P1 drifting a quarter of their argmax decisions away and
+  doing worse than plain sharpening. With K2's anchor, `k2b` kept 95% agreement, improved its own
+  sampled play three times as much as P0, and turned that into argmax strength (+0.0195 confirmed).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1

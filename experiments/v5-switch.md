@@ -21,6 +21,21 @@ tracking measures). Each passes or fails as stated; a failure reopens D61.
    initialization's version (it was fixed at v4). No-SP A against itself on the diagnosis's states
    must give reverse KL 0 and argmax agreement 1.
 
+### Results (2026-10-26 15:00–15:04 UTC): all four pass
+
+1. `hash_obs.py --version 4 --check-v5`: every v4 hash matches `golden-v4.json` (`b9817059…`), and
+   v5 = v4 with the single-player rows zeroed at all 22,794 decisions. **Pass.**
+2. **Frozen v5 hash: `c0ec182577b80fcc4c03eda04a58c9e7e2ba6a9a29b0ab573c32519a75b82624`**
+   (`workdir/sp-ablation/golden-v5.json`, read-only; 36 logs, 22,794 decisions).
+3. Deterministic A/A with No-SP A (`20261026-080110-AA`, family A [500, +500), true FP32): 500 sets,
+   every set score 0, **0 sets with a divergent game. Pass.**
+4. `rl_drift.py` on v5 (`workdir/diag/v5-drift-selfcheck.txt`): No-SP A against itself on the
+   diagnosis's states as v5, reverse KL 0.0000 and agreement 1.0000 for every kind of decision.
+   **Pass.** (The per-kind counts differ from pilot A's by a few: they are grouped by the
+   initialization's own argmax.)
+
+D61's first check is met. The recipe check (below) remains before a v5 result counts.
+
 ## The recipe check: a DRAFT for the user's review (nothing is rented yet)
 
 D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures

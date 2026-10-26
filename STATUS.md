@@ -9,8 +9,14 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 research is under way.**
 
 - **The observation is v5 from G0 on** (D61, the user, 2026-10-26): about even on strength, much cheaper.
+  **The v5 checks pass** (15:04 UTC, `experiments/v5-switch.md`): v5 = v4 minus SP at 22,794 decisions,
+  frozen v5 hash `c0ec1825…`, deterministic v5 A/A (0 divergent sets), the drift tool on v5. The
+  recipe check is drafted and waits for the user's yes.
   Phase 1's results stay v4 evidence. Before a v5 result counts: a v5 A/A and frozen v5 hash (workstation),
   and a recipe check (k2-style from No-SP A to p25, ≈ $65, needs a yes). No-SP A/B are frozen inputs now.
+- **Post-G0 queue done** (2026-10-26 15:00 UTC): the diagnosis on `full` (drift 0.019, 95% agreement;
+  RL's gain in its own sampled play +0.067 ± 0.008 vs P0's +0.022; `experiments/k2-retry.md`), and the
+  search pilot on `k2b`: belief +0.0005 (z 1.1), recovery 0.055 (`experiments/search-pilot.md`).
 - **L2 is met: the G0 retry confirms** (2026-10-26 07:33 UTC, `20261025-060641-T-confirm`): `k2b` full vs
   pilot A, Δu +0.0195 [+0.0174, +0.0216], 100K sets on fresh family-C nonces. The first confirmed RL
   gain. Left before G0's Select: the fleet soak (a rental, the user), the actor size (D31), and the
