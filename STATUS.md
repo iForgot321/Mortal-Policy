@@ -3,11 +3,15 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-25 13:10 UTC)
+## Current position (2026-10-26 07:40 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **L2 is met: the G0 retry confirms** (2026-10-26 07:33 UTC, `20261025-060641-T-confirm`): `k2b` full vs
+  pilot A, Δu +0.0195 [+0.0174, +0.0216], 100K sets on fresh family-C nonces. The first confirmed RL
+  gain. Left before G0's Select: the fleet soak (a rental, the user), the actor size (D31), and the
+  observation review (draft D61, `docs/design/d61-draft.md`, with the user).
 - **The doubling estimate is grey** (2026-10-25 13:04 UTC, `20261024-122034-measure`): `k2b` full vs p50
   Δu +0.0025 [+0.0004, +0.0046], 100K sets. By its pre-registered reading, no v4 → v5 switch on this
   alone; the user decides at the G0 review (`docs/design/observation-review-d49.md`). L2's T-confirm

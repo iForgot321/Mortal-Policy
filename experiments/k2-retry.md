@@ -382,6 +382,23 @@ The user fixed N = 100K sets on 2026-10-24, after the T-std's pass and before an
   row). Fail → L2 isn't met. The plan names no fallback, so the next step goes to the user. The
   family-C range is retired once its result informs a decision (`02` §4).
 
+### L2's confirmation result (2026-10-26): pass, confirmed
+
+| Test | Challenger vs champion | Verdict | Sets | Δu | 95% CI (bootstrap) | Avg rank | Run id |
+|---|---|---|---|---|---|---|---|
+| T-confirm, superiority (family C, fixed N) | `k2b` full vs pilot A | **pass** | 100,000 | **+0.0195** | [+0.0174, +0.0216] | 2.473 | `20261025-060641-T-confirm` |
+
+- Nonces [2,000,000,000, +100,000), fresh; the workstation, 2026-10-25 13:06 → 10-26 07:33 UTC
+  (paused by the user 01:56–01:58 UTC; a fixed-N test is unaffected). Rank histogram over 400,000
+  games: 102,936 / 101,562 / 98,777 / 96,725.
+- **Reading (pre-registered above): the lower bound is above 0, so L2 is met.** The registry row is
+  `confirmed`. The family-C range is retired: it now informs a decision (`02` §4).
+- The unbiased fixed-N estimate (+0.0195) is above the T-std's +0.0114, which stopped on crossing
+  at 7,000 sets with a wide interval (≈ ±0.008), and the p25 early check's +0.012.
+- **G0 (`00`):** an arm has passed T-std against its initialization (the retry's one seed, D59) and
+  L2 confirms. What remains before **Select**: the fleet soak (`03` §3.7, D60), the actor size (D31),
+  and the observation review (D49; the draft D61 is with the user).
+
 ## Before launch (done)
 
 - **Arm and seed: P1, seed 1** (decided 2026-10-18 05:30 UTC). G0's point estimates: P1
