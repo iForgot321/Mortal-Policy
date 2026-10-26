@@ -637,6 +637,22 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Unchanged:** the soak's other criteria (replay queue bounded; useful updates ≥ 90% of actor production and actors blocked < 10%; recovery from box loss within 30 min), its ≥ 48 h at T1 scale, and that failing it moves the dates, never the test sizes. Lag is still measured and reported.
 - **Reopen if:** the ratio p99 nears 2, or a lag-related pathology (`05` §8.7) appears.
 
+**D61 (2026-10-26): from G0 on, the observation is v5 (v4 without the single-player tables); Phase 1's results stay v4 evidence.** Amends D49 (the review it schedules), `05` §1 item 4 (v4 frozen through Phase 1) and CLAUDE.md rule 2's observation item. Decided by the user (draft: `docs/design/d61-draft.md`; evidence: `docs/design/observation-review-d49.md`).
+- **Why** (G0's observation review, D49):
+  - **Strength is about even.** `k2b`'s doubling estimate is +0.0025 [+0.0004, +0.0046] (grey by its pre-registered reading). v5 buys ≈ 1.2–1.5 extra doublings of RL compute at equal cost, ≈ +0.003–0.004 u if the gain per doubling holds. v5's SL cost is −0.0024 [−0.0056, +0.0009], inconclusive (the SP ablation's pairs disagree). The net, ≈ +0.001 u, is inside the noise of both.
+  - **v5 is cheaper:** SL training 2.9× faster (the loader 90× per thread), actors 2.4–2.8×, search rollouts 1.33× batched and 1.6–2.2× one at a time.
+  - **Now is the cheapest time:** the b24c512 teachers aren't trained yet, so nothing is retrained.
+- **What moves to v5:** the teachers and students (`04`), Phase 2's RL (`05`; the engine P1 + K2 starts from a v5 initialization, with π_SL the same v5 checkpoint, which K2's anchor requires), search (`06`; the hand model follows the blueprint's version), and the deployed student (`07`).
+- **What stays v4 evidence, labelled so:** P0, P1, V and their diagnosis; the SP ablation; the search pilot on pilot A; G0's pass (`k2b` full vs pilot A), L2's confirmation and the doubling estimate; the fleet soak `soak-a` (v4, from `k2b`). The engine selection (P1 + K2) carries over as a recipe, not as a network.
+- **Before a v5 result counts:**
+  1. a deterministic A/A with a v5 model (`02` §6), and a frozen v5 featurizer hash beside v4's (the arena and training paths already agree: `experiments/sp-ablation.md` §2);
+  2. **the recipe check on v5:** a `k2`-style run from No-SP A (`workdir/sp-ablation/nosp-a/nosp-a-final.pth`, sha256 `498aabc8…`, the SP ablation's v5 counterpart of pilot A), stopped at p25 (108 box-hours, ≈ $65), with D59's early-check measures against No-SP A. It must clear the thresholds `k2b` cleared at p25 (reverse KL ≤ 0.10, argmax agreement ≥ 90%, Δu CI not entirely below 0). Pre-registered before it runs; a rental, so the user's go-ahead;
+  3. T1's final-student check (D41) then tests the engine on the final v5 student, as planned.
+- **Unchanged:** the utility vector, GRP-v2, the rules config, the seed families, the lab's test definitions, the data splits, and K2's settings.
+- **Cost:** the checks ≈ $66 (the recipe check, a v5 learner re-benchmark ≈ $1); the A/A on the workstation. Teacher runs get cheaper.
+- **Not in this entry:** obs v6 (the 889 rows without the zeroed block, a smaller input) and the cheaper shanten-threshold-1 variant. Either would need its own entry.
+- **Reopen if:** the recipe check fails a threshold, the v5 A/A fails, or the first v5 student is measurably weaker than its v4 counterpart beyond the SP ablation's interval.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

@@ -187,7 +187,7 @@ At a searched decision:
 ## 6. S-5: search-as-features (separately gated; D33c)
 
 - LuckyJ feeds search results into its policy network, in training and at play time (`01` §6).
-- Mortal's v4 observation already has opponent-blind single-player EV and win-probability tables (`encode_sp_table`).
+- Mortal's v4 observation has opponent-blind single-player EV and win-probability tables (`encode_sp_table`); v5, the observation from G0 on (D61), drops them.
 - **Extension:** per-candidate, opponent-aware features computed cheaply from S-1 particles and the waits and hand-value heads, without full rollouts:
   - estimated deal-in probability;
   - expected deal-in cost;

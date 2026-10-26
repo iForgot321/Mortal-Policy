@@ -93,7 +93,7 @@ The winning pair (2 seeds) forms the **teacher ensemble** used for distillation 
 
 **Optional larger teacher:** b40c512, about 70M params. Try it only if featurization can feed it (`03` §4.2) and if a T-std of student-from-b40 vs student-from-b24 is affordable.
 
-**Network:** b24c512, v4 observation (1012×34), trained with AMP.
+**Network:** b24c512, v5 observation (1012×34: v4 with the single-player tables zeroed; D61), trained with AMP. With v5, featurization stops binding (the SL loader is 90× faster per thread), so D17a's burst-GPU question is measured on v5.
 - Mortal-Policy's online code uses GroupNorm. The teacher can use either GN or BN; the student decision is in `03` §6 (item 4).
 
 **Heads.** This is new code: Mortal-Policy has only `CategoricalPolicy`.

@@ -37,7 +37,7 @@ Guidance for Claude Code (and humans) working in this repository.
 
 | Path | What's there |
 |---|---|
-| `libriichi/` (Rust, PyO3) | Rules engine, mjai, obs encoding (`state/obs_repr.rs`, v4 = 1012×34), dataset loader (`dataset/gameplay.rs`), duplicate arena (`arena/`), agents (`agent/`, incl. our `shanten_greedy.rs`) |
+| `libriichi/` (Rust, PyO3) | Rules engine, mjai, obs encoding (`state/obs_repr.rs`; v4 = 1012×34, v5 = v4 with the single-player rows zeroed), dataset loader (`dataset/gameplay.rs`), duplicate arena (`arena/`), agents (`agent/`, incl. our `shanten_greedy.rs`) |
 | `mortal/` (Python, flat imports, run from here) | `model.py`, `train_offline_phase1.py` (AWR/BC), `train_online.py` (PPO), `train_grp.py`, `dataloader.py`, `reward_calculator.py`, `server.py`/`client.py`, `engine.py`, `one_vs_three.py` |
 | `lab/` | **Evaluation lab** (`02`): GSPRT, calibration simulator, nonce ledger, registry. `python -m lab --help` from the repo root |
 | `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
@@ -74,7 +74,7 @@ Commit only when asked. Small, single-purpose commits.
 ## Project rules
 
 1. **No strength claim without a lab verdict.** Every behaviour change is an experiment with a registry row, labelled *exploratory* or *confirmed*. Loss curves and test_play numbers are not verdicts. Rows made while `lab.toml` says `calibrated = false` are provisional.
-2. **Frozen items need a decision-log entry to change:** utility vector, GRP checkpoint, observation schema (v4 through Phase 1, reviewed at G0: D49), rules config, seed families (`lab/seeds.toml`), lab test definitions (`lab/lab.toml`), data splits (`~/mj-data/splits`). Any featurizer change must keep arena and training paths hash-identical.
+2. **Frozen items need a decision-log entry to change:** utility vector, GRP checkpoint, observation schema (v5 from G0 on, D61; Phase 1's results are v4), rules config, seed families (`lab/seeds.toml`), lab test definitions (`lab/lab.toml`), data splits (`~/mj-data/splits`). Any featurizer change must keep arena and training paths hash-identical.
 3. **Utility:** `env.pts = [90, 50, -10, -130]` (u × 100, D2). Never the repo default `[6, 4, 2, 0]`. `[90, 45, 0, -135]` is display-only.
 4. **Masks must be identical** in actor, learner, KL, entropy and any loss. `CategoricalPolicy.forward` returns probabilities; use `CategoricalPolicy.logits` (masked raw logits) for losses, KL and ACH.
 5. **Reward units.** Upstream `RewardCalculator` standardizes with running statistics; the plan uses fixed units for RL (D37). Know which path you're touching.

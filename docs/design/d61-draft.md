@@ -1,8 +1,7 @@
 # Draft D61: switch the observation to v5 after G0 (for the user's review)
 
-**Status: a draft, not a decision.** Nothing in `08` or the plan changes until the user approves it.
-Then this text goes into `08_decision_log.md` as D61, dated that day, and the docs listed under
-"Edits once approved" follow. The evidence is in `docs/design/observation-review-d49.md`.
+**Status: approved by the user on 2026-10-26.** The entry is D61 in `08_decision_log.md` (with the
+soak `soak-a` added to the v4 evidence); the edits below are made. This file is the draft's history.
 
 ---
 

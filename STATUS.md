@@ -8,6 +8,9 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
 
+- **The observation is v5 from G0 on** (D61, the user, 2026-10-26): about even on strength, much cheaper.
+  Phase 1's results stay v4 evidence. Before a v5 result counts: a v5 A/A and frozen v5 hash (workstation),
+  and a recipe check (k2-style from No-SP A to p25, ≈ $65, needs a yes). No-SP A/B are frozen inputs now.
 - **L2 is met: the G0 retry confirms** (2026-10-26 07:33 UTC, `20261025-060641-T-confirm`): `k2b` full vs
   pilot A, Δu +0.0195 [+0.0174, +0.0216], 100K sets on fresh family-C nonces. The first confirmed RL
   gain. Left before G0's Select: the fleet soak (a rental, the user), the actor size (D31), and the

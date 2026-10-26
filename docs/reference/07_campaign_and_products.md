@@ -21,7 +21,7 @@ This file covers:
 - An illegal action is **chombo**.
 
 **Adapter** (Phase 1): `deploy/riichidev_bot.py`.
-1. Translate the riichienv observation into libriichi's event stream and player state. Mortal's observation v4 is built from mjai-style events.
+1. Translate the riichienv observation into libriichi's event stream and player state. Mortal's observations (v4; v5, the deployed student's from G0 on: D61) are built from mjai-style events.
 2. Run the engine (student, then champion, then champion plus search).
 3. Map the chosen action back to riichienv's legal-move format.
 

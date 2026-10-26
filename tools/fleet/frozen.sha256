@@ -3,3 +3,5 @@ b267c0267f1538c61ab962146750862fa9d4ae30bc9543ebd6f519d0a4272c3d  workdir/pilot/
 db28beaca25305b95eec7c74d6abe0441442fb6f7f0ba9bf3ee9a0d2875e9157  workdir/grp-v2/grp-v2-frozen.pth
 f8a867da0d26fdeaca81114a52e48e0483d8f2f4b71ee902cec78e72a66c8362  workdir/cql/qs-a/cql-qs-a-final.pth
 c0ea3b963de2d6121997952791d0908dc15d0126c7c54f46428a3e5d8a6b981f  workdir/cql/qs-b/cql-qs-b-final.pth
+498aabc83c34291c0028107fc7cee6f3ac0e662bc37fba79b66b558306418054  workdir/sp-ablation/nosp-a/nosp-a-final.pth
+3180f2f08bdeb3a1ab7824dd0b7149f86ce5e94fd8873d1b58e2390980312f27  workdir/sp-ablation/nosp-b/nosp-b-final.pth

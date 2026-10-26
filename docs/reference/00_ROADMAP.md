@@ -178,7 +178,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 | No arm passes, with healthy curves | Diagnose (`05` §8). One bounded retry of the best arm with package K2, ≤ $0.6K from the reserve: one seed, a second only if the first is inconclusive and the user agrees, with an early check at p25 (D59). |
 | The retry fails | Re-scope: the SL incumbent plus inference search becomes the main path. Phase 2 money moves to Phase 3 (D33a), conditional on the pilot. |
 
-**Observation review (D49):** keep v4 for Phase 2, or switch to v5 or a cheaper variant. The evidence is the doubling estimates (`05` §2.2) and the actor-size curves (D31), weighed against v5's break-even of about 0.002–0.004 u per doubling.
+**Observation review (D49):** keep v4 for Phase 2, or switch to v5 or a cheaper variant. The evidence is the doubling estimates (`05` §2.2) and the actor-size curves (D31), weighed against v5's break-even of about 0.002–0.004 u per doubling. **Decided 2026-10-26: v5 from G0 on** (D61), after a recipe check on v5 and a v5 A/A.
 
 ### Phase 2: Select and scale (weeks 10–18)
 

@@ -19,7 +19,7 @@ Changing any of these invalidates every comparison made before the change.
 1. The pilot quick students, the quick CQL model, the π_SL student and the BC human prior (`04`).
 2. The **GRP** checkpoint: train it with `train_grp.py` on `train` in Phase 0–1, then freeze it.
 3. The utility u = [+0.90, +0.50, −0.10, −1.30] (`02` §2), and the **reward units** (§3.2).
-4. The rule configuration and the observation schema: v4 through Phase 1, reviewed at G0 against the doubling estimates (§2.2, D49). Featurizer output hashes must match between the arena and training code paths.
+4. The rule configuration and the observation schema: v4 through Phase 1, reviewed at G0 against the doubling estimates (§2.2, D49); **v5 from G0 on** (D61). Featurizer output hashes must match between the arena and training code paths.
 5. The evaluation lab: seed families, test definitions, the population panel and the analysis code (`02`).
 6. The software environment: pinned torch (2.6), CUDA (12.4) and the Rust toolchain. That pin rules out Blackwell GPUs, so every role runs on RTX 4090s (D50).
 
@@ -126,7 +126,7 @@ The upstream loader shuffles individual decisions and gives each one its kyoku's
 
 ## 4. Critic specification (package K1)
 
-- **Inputs:** the v4 observation h concatenated with **partial privileged information i**: the opponents' concealed hands, from the `Invisible` oracle channels.
+- **Inputs:** the policy's observation h (v4 in Phase 1, v5 from G0 on: D61) concatenated with **partial privileged information i**: the opponents' concealed hands, from the `Invisible` oracle channels.
   - **Exclude the wall order.**
   - V(h, i) is unbiased (Ebi et al., ICML 2026). A state-only V(s) is biased.
 - **Data:** self-play logs record the arena seed (`StartGame.seed`), so `GameplayLoader(oracle=True, trust_seed=True)` reconstructs the hidden information exactly.
