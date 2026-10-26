@@ -139,10 +139,11 @@ The user approved it on 2026-10-26 ("plan and rent the fleet soak"), with the le
   the fleet's cheapest allowlisted boxes. T1 scale (`03` §3.7).
 - **Duration:** `--budget-box-hours 192` (4 boxes × 48 h): p25 at ≈ 12 h, p50 ≈ 24 h, `full` ≈ 48 h,
   then down. Hard deadline 52 h. `--max-dollars 130` for the fleet (≈ $2.37/h, ≈ $118 projected).
-- **Eval box:** `evalbox.py` up when p25 lands. It runs exploratory tracking measures, each snapshot
-  (p25, then p50) against `k2b` full, 10K sets on a new family-A block `soak`, and goes down with the
-  fleet. It doesn't enter the criteria. It comes up after the workstation's search pilot has drawn its
-  nonces, because the eval box holds the lab registry.
+- **No eval box** (the user, 2026-10-26, before p25): it doesn't enter the criteria, so this soak is
+  learner + 3 actors, and the record says so. The tracking measures run on the workstation instead,
+  as each snapshot lands (`experiments/soak_tracking.sh`): p25, p50 and `full`, each against `k2b`
+  full, 10K sets on a new family-A block `soak` (exploratory). `experiments/soak_eval.sh`, written for
+  the eval box, isn't used.
 - **Criteria** (`experiments/fleet_soak_check.py --mode final`, at the end; windows end at the last
   health record):
   1. the replay queue's least-squares line over the last 24 h rises < 25% of capacity (1,600);
