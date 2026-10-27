@@ -43,6 +43,16 @@ actors Threadripper PRO 7975WX and EPYC 7713, ≈ $2.45/h; watcher `--budget-box
 --snapshot-at 0.5 --max-dollars 20`, watchdog 2026-10-27 06:12 UTC. Stage 2 follows if B0 passes
 `experiments/b0_check.py`.
 
+- **B0 result (2026-10-27 02:16 UTC): pass.** 12.16 box-hours, $9.95, `full` at step 382,800
+  (`33fd344424704e92`). Over 568 windows: explained variance by third 0.0087 / 0.0115 / 0.0125,
+  last-kyoku 0.0345 / 0.0476 / 0.0538, the final window monotone (100/190 in the last third). Both
+  rising: a cleaner warm-up than P1's (`experiments/p1.md`).
+- **Stage 2 (`k2v5`) rented at 02:17 UTC:** learner Threadripper PRO 7975WX (Zen 4, machine 146111,
+  $0.905/h, a long contract; no Zen 4 EPYC had one), actors EPYC 7V13 and 7713; ≈ $1.98/h, ≈ $71 for
+  108 box-hours; watcher `--budget-box-hours 108 --snapshot-at 0.5 --max-dollars 85 --anchor-alert
+  0.10`, watchdog 2026-10-28 20:17 UTC. `full` ≈ 2026-10-28 14:30 UTC, then the check on the
+  workstation.
+
 D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures
 against No-SP A, with the thresholds `k2b` cleared at p25.
 
