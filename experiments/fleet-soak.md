@@ -169,4 +169,7 @@ The user approved it on 2026-10-26 ("plan and rent the fleet soak"), with the le
   losses. 122,400 games/h at 11.8 h.
 - **Tracking, p25 vs `k2b` full** (`20261026-124738-measure`, 10K sets, block `soak`): Δu +0.0026
   [−0.0039, +0.0092]. Twelve more hours of training haven't moved the policy measurably.
+- **p50 (2026-10-27 07:46 UTC, 96.2 box-hours, $62.70):** 120K games/h, actors blocked 0–1%.
+  Tracking, p50 vs `k2b` full (`20261027-004806-measure`, 10K sets, block `soak`): Δu −0.0036
+  [−0.0103, +0.0030]. Still no measurable movement either way.
 

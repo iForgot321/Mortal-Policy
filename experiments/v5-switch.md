@@ -52,6 +52,9 @@ actors Threadripper PRO 7975WX and EPYC 7713, ≈ $2.45/h; watcher `--budget-box
   108 box-hours; watcher `--budget-box-hours 108 --snapshot-at 0.5 --max-dollars 85 --anchor-alert
   0.10`, watchdog 2026-10-28 20:17 UTC. `full` ≈ 2026-10-28 14:30 UTC, then the check on the
   workstation.
+- **Stage 2 p50 (2026-10-27 20:18 UTC):** 54.04 box-hours, $35.94, step 1,568,800 (`7d9aee69…`),
+  ≈ 220K games/h. Already 1.5× `k2b`'s steps at its p25 (1,048,400 at 108 box-hours): the v5
+  actors' speed shows up as learner steps, so `full` will hold ≈ 3× `k2b` p25's.
 
 D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures
 against No-SP A, with the thresholds `k2b` cleared at p25.
