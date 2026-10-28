@@ -199,7 +199,10 @@ Also reported:
   agreement 95.3%, unchanged from `k2b` full's 0.019 and 95.4%.
 
 **Reading:** the soak gate for T1 (`03` §3.7) is met on v4, with learner + 3 actors and no eval box
-(the user's choice). The tracking measures (p25 +0.0026, p50 −0.0036, `full` pending) say 48 more
+(the user's choice). The tracking measures (p25 +0.0026, p50 −0.0036, `full` +0.0016) say 48 more
 hours from `k2b` full didn't move the policy measurably. That fits the grey doubling estimate:
 continuing training at a fixed anchor gives little.
+
+Tracking, `full` vs `k2b` full (`20261028-004949-measure`, 10K sets, block `soak`): Δu +0.0016
+[−0.0050, +0.0082].
 

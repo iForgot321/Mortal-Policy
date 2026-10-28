@@ -12,7 +12,7 @@ research is under way.**
   `k2b` full, learner + 3 actors (no eval box, the user's choice), $125.26. Queue bounded, lag stable
   (D60; p95 12.3, ratio p99 ≤ 1.145), 100% drained, actors blocked 1%, no box losses. The learner was
   supply-bound at ≈ 4.9K samples/s (benchmark 7.5K). Tracking vs `k2b` full: p25 +0.0026, p50
-  −0.0036, `full` running on the workstation. The T1 soak gate (`03` §3.7) is met.
+  −0.0036, `full` +0.0016 [−0.0050, +0.0082]: no measurable change. The T1 soak gate (`03` §3.7) is met.
 - **The v5 recipe check is running** (`k2v5`, `experiments/v5-switch.md`): B0 passed ($9.95); stage 2
   reached p50 at 54 box-hours (step 1,568,800). `full` ≈ 2026-10-28 14:20 UTC, then the early-check
   measures against No-SP A on the workstation.

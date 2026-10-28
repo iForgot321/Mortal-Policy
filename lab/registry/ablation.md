@@ -37,3 +37,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261026-080110-AA | exploratory | D61: deterministic A/A with a v5 model (No-SP A, true FP32, D43) | A/A | A [500, +500) | 500 | +0.0000 |  |  | pass | +0.0000 | +0.00 | yes | b76423dd+dirty |
 | 20261026-124738-measure | exploratory | fleet soak tracking: soak-a p25 vs k2b full | measure | A [44200, +10000) | 10000 | +0.0026 | [-0.0039, +0.0092] |  | measured | +0.0000 | +0.34 | yes | 5b9433cb+dirty |
 | 20261027-004806-measure | exploratory | fleet soak tracking: soak-a p50 vs k2b full | measure | A [44200, +10000) | 10000 | -0.0036 | [-0.0103, +0.0030] |  | measured | +0.0069 | -0.35 | yes | 8eed01f6+dirty |
+| 20261028-004949-measure | exploratory | fleet soak tracking: soak-a full vs k2b full | measure | A [44200, +10000) | 10000 | +0.0016 | [-0.0050, +0.0082] |  | measured | -0.0001 | +0.15 | yes | 87cc1082+dirty |
