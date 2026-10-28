@@ -55,6 +55,28 @@ actors Threadripper PRO 7975WX and EPYC 7713, ≈ $2.45/h; watcher `--budget-box
 - **Stage 2 p50 (2026-10-27 20:18 UTC):** 54.04 box-hours, $35.94, step 1,568,800 (`7d9aee69…`),
   ≈ 220K games/h. Already 1.5× `k2b`'s steps at its p25 (1,048,400 at 108 box-hours): the v5
   actors' speed shows up as learner steps, so `full` will hold ≈ 3× `k2b` p25's.
+- **Stage 2 `full` (2026-10-28 14:22 UTC):** 108.25 box-hours, step 2,836,000 (`0510c68c…`; 2.7×
+  `k2b` p25's 1,048,400), the fleet pulled and down, **$71.99** (cap $85). One actor host lost early
+  (10-27 03:36), recovered in 1,075 s; no `anchor_alert`.
+
+### Result (2026-10-28 14:38 UTC): pass, so the recipe transfers to v5
+
+`k2_early_check.py` on `full` against No-SP A (`workdir/fleet/runs/k2v5/early-check-full.json`, 909 s):
+
+| Measure | Threshold | `k2v5` full | `k2b` p25 (v4, vs pilot A) |
+|---|---|---|---|
+| Reverse KL to No-SP A (15,215 decisions) | ≤ 0.10 | **0.014** (median 0.004) | 0.025 |
+| Argmax agreement | ≥ 90% | **95.7%** | 94.2% |
+| Δu at argmax vs No-SP A (4,000 sets, diagnostic key) | CI not entirely below 0 | **+0.0132 ± 0.0052** (≈ [+0.003, +0.024]) | +0.012 ± 0.0055 |
+
+Every threshold passes, and nothing fired. As with `k2b` at p25, the online network is above its
+initialization on the diagnostic key, here with its 95% CI above 0. It's exploratory: the diagnostic
+key is a fixed 4,000-set measure, not a lab verdict. With the v5 A/A and the frozen v5 hash already
+passed, **D61's checks are met: v5 results count from here.** The recipe check cost $81.94 in all
+(B0 $9.95 + stage 2 $71.99).
+
+Over 2.7× `k2b` p25's learner steps, the policy drifted less (0.014 against 0.025). The anchor held it
+nearer π_SL while it trained on more games.
 
 D61 fixes its shape: a `k2`-style run from No-SP A to p25, judged by D59's early-check measures
 against No-SP A, with the thresholds `k2b` cleared at p25.
