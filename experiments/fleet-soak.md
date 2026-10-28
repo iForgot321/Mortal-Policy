@@ -173,3 +173,33 @@ The user approved it on 2026-10-26 ("plan and rent the fleet soak"), with the le
   Tracking, p50 vs `k2b` full (`20261027-004806-measure`, 10K sets, block `soak`): Δu −0.0036
   [−0.0103, +0.0030]. Still no measurable movement either way.
 
+### Result (2026-10-28 07:46 UTC): pass
+
+`full` at 192.19 box-hours, 47.8 h, step 5,517,600 (`9c0b7b34…`); the fleet pulled and down at
+07:46 UTC, **$125.26**. `fleet_soak_check.py --mode final` (`workdir/fleet/runs/soak-a/soak-final.json`):
+verdict **pass**, nothing fired.
+
+1. **Queue bounded:** its line over the last 24 h falls by 150 (capacity 1,600; limit a rise of 400);
+   mean length 310.
+2. **Policy lag, stable (D60):** per-interval mean lag p95 12.3 versions, so the ≤ 2 branch fails as
+   expected; the stability branch passes: ratio p99 ≤ 2 in 100% of intervals (max 1.145), the mean
+   lag's line rises 0.19 versions over 24 h, no `anchor_alert`.
+3. **Learner keeps up:** drained 100% of the 110,546 games/h produced; actors blocked 1%.
+4. **Box losses:** none in 48 h, so this soak didn't test recovery. (`k2v5`, alongside it, lost
+   two actor hosts and recovered in 1,075 s, within the 30 min; `k2b` recovered from losses too.)
+
+Also reported:
+- **Learner samples/s:** 1,637,600 steps in 47.9 h is 34.2K steps/h, ≈ 4.9K samples/s, about 65% of
+  the benchmark's 7.5K. The learner was supply-bound (100% drained, queue mostly near empty). So 3 v4
+  actors don't saturate it, with ≈ 1.5× headroom. (`k2v5`'s 7975WX learner drains ≈ 9.4K samples/s
+  from two v5 actors.)
+- **Games/h:** 110.5K mean (120K at p25 and p50; 93–95K in the last hours, as actor1's host slowed to
+  12.8K games/h with nothing blocked).
+- **Drift at `full`** (the watcher's anchor monitor, against π_SL = pilot A): reverse KL 0.019,
+  agreement 95.3%, unchanged from `k2b` full's 0.019 and 95.4%.
+
+**Reading:** the soak gate for T1 (`03` §3.7) is met on v4, with learner + 3 actors and no eval box
+(the user's choice). The tracking measures (p25 +0.0026, p50 −0.0036, `full` pending) say 48 more
+hours from `k2b` full didn't move the policy measurably. That fits the grey doubling estimate:
+continuing training at a fixed anchor gives little.
+

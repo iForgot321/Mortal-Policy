@@ -3,10 +3,19 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
-## Current position (2026-10-26 07:40 UTC)
+## Current position (2026-10-28 08:00 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
 research is under way.**
+
+- **The fleet soak passes** (2026-10-28 07:46 UTC, `soak-a`, `experiments/fleet-soak.md`): 47.8 h from
+  `k2b` full, learner + 3 actors (no eval box, the user's choice), $125.26. Queue bounded, lag stable
+  (D60; p95 12.3, ratio p99 ≤ 1.145), 100% drained, actors blocked 1%, no box losses. The learner was
+  supply-bound at ≈ 4.9K samples/s (benchmark 7.5K). Tracking vs `k2b` full: p25 +0.0026, p50
+  −0.0036, `full` running on the workstation. The T1 soak gate (`03` §3.7) is met.
+- **The v5 recipe check is running** (`k2v5`, `experiments/v5-switch.md`): B0 passed ($9.95); stage 2
+  reached p50 at 54 box-hours (step 1,568,800). `full` ≈ 2026-10-28 14:20 UTC, then the early-check
+  measures against No-SP A on the workstation.
 
 - **The observation is v5 from G0 on** (D61, the user, 2026-10-26): about even on strength, much cheaper.
   **The v5 checks pass** (15:04 UTC, `experiments/v5-switch.md`): v5 = v4 minus SP at 22,794 decisions,
