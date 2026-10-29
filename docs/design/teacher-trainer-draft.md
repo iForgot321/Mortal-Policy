@@ -110,6 +110,45 @@ golden-set per-category agreement table, computed on the workstation, where the 
 **Cost:** the estimate before the measurement is ≈ $55–160 per teacher, so ≈ $170–480 for the
 three. The measurement replaces it. The quick check costs nothing.
 
+## The training loop's GPU waits (investigated 2026-10-29, at the user's request)
+
+On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU alone (80%).
+- **Suspect:** `train_offline_phase1.py` waits on the GPU three times a step: a blocking copy of the
+  batch, the label-mask `assert` on GPU tensors, and `GradScaler.step`'s overflow check.
+- **Test:** `tools/secure/bench_loop.py` rebuilds that step on the real pipeline (quick500k, v5,
+  augmentation, Q6/Q8 masks) and removes one wait per variant, each in a fresh process (150 timed
+  steps). The 3060 runs it twice:
+  - at b24c512, batch 1024;
+  - at b8c512, batch 2048, which gives the 3060 roughly the A6000's balance at b24c512 (≈ 370 ms of
+    GPU work per step against ≈ 330).
+
+| Variant | b24c512, batch 1024 | b8c512, batch 2048 |
+|---|---|---|
+| base (as the trainer) | 1,880 /s, GPU 97.8% | 5,485 /s, GPU 98.5% |
+| the mask check on the CPU | 1,880 | 5,457 |
+| + the next batch copied on a side stream | 1,888 | 5,547 (+1.1%) |
+| + `AdamW(fused=True)` | 1,941 (+3.2%) | 5,657 (+3.1%) |
+| + bf16 without GradScaler | 1,968 (+4.7%) | 5,696 (+3.8%) |
+
+**Reading:**
+- **The syncs aren't the A6000's gap.** Even at the A6000's ratio of fixed costs to GPU work, the
+  loop is GPU-bound, and removing every wait gains < 4%. Data waits are ≈ 8–9 ms a step.
+- **`train_teacher.py` takes the free part:** the mask check on the CPU, the side-stream prefetch
+  and fused AdamW, ≈ +3–4%. It keeps fp16 with GradScaler: bf16's further +0.7% isn't worth a
+  numerics change against the quick students and the heads check.
+- **The A6000's other ≈ 15% is somewhere else.** Candidates, in order:
+  1. the bench's own checkpoint saves (≈ 500 MB every 400 steps; real runs save every 30 min);
+  2. the data pipeline under contention on the box (4 workers, the main process, compile threads);
+  3. the VM's host-to-device copies.
+
+  `bench_loop.py` now times the wait for data (`data_wait_ms_per_step`). Two ways to find out:
+  - **(a)** a ≈ 40 min A6000 run of `bench_loop.py` (≈ $0.35, a rental);
+  - **(b)** have `train_teacher.py` log the same split (data wait, step time, save time) every
+    interval, so the first teacher run reports it at no extra cost.
+
+  Recommended: (b). At most ≈ $10 of a $66 teacher is at stake, and (b) measures the real run, not
+  a proxy.
+
 ## Choices: decided by the user (2026-10-29), all as recommended
 
 1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale
