@@ -188,12 +188,15 @@ About 1–2 h on each of the two candidates (the provider's A100 80GB and the Va
 
 ## Decisions for the user
 
-1. **Storage:** (A) a private bucket (recommended: it frees the runs from the home link, and it can
-   hold the `raw/` backup), or (B) direct from the workstation.
+1. ~~Storage~~ **Decided 2026-10-28: a private bucket (A).** Which one is open. Hyperstack has its
+   own S3-style object storage (its API lists buckets and access keys; region CANADA-1 only), which
+   would keep the data with one provider. Cloudflare R2 and Backblaze B2 are the alternatives. Its
+   price and presigned-URL support are checked from the account.
 2. ~~Plaintext only in RAM~~ **Decided 2026-10-28:** the secure box's disk is fine.
-3. **Provider:** Hyperstack's A100 80GB as the main candidate (recommended: you create the account),
-   with the Vast 4090 as the fallback and the measurement deciding between them. Or Vast alone (no new
-   account), or another row of the table.
+3. ~~Provider~~ **Decided 2026-10-28: Hyperstack.** The user asked to explore it first with a CLI.
+   Hyperstack has none (only alpha SDKs), so `tools/secure/hyperstack.py` is a read-only stdlib client
+   (flavors, stock, prices, images, regions, VMs, buckets; every request a GET). The Vast 4090 stays
+   the fallback.
 4. Later, separately: the measurement session's rental (≈ $3–7), then the teacher runs.
 
 ## Not in this draft
