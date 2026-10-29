@@ -20,11 +20,13 @@ research is under way.**
   Nothing is rented.
 - **Next: the SL substrate** (the user, 2026-10-28, G0's option 1: teachers → students → the actor-size
   curves → π_SL → T1). First piece drafted for review: the secure data path (D23,
-  `docs/design/secure-data-path-draft.md`). The training set is 7.9 GiB encrypted, plaintext only in
-  RAM on Vast Secure Cloud, wiped after each run, with a ledger. b24c512 trains at 1.9K samples/s on
-  the 3060 (≈ 14 days per teacher), so teachers rent: ≈ $65–105 each on a secure 4090 (estimate). Open
-  for the user: a private bucket or direct upload, RAM-only plaintext, Vast Secure Cloud. Next draft:
-  the teacher trainer's heads.
+  `docs/design/secure-data-path-draft.md`). The training set is 7.9 GiB encrypted, decrypted on the
+  secure box's disk (the user: fine), wiped after each run, with a ledger. b24c512 trains at 1.9K
+  samples/s on the 3060 (≈ 14 days per teacher), so teachers rent. Providers compared at the user's
+  request: about $65–140 per teacher on a Vast 4090, Hyperstack/Massed Compute A100 80GB ($1.35/h) or
+  A6000-class (estimates). Recommended: Hyperstack A100, Vast 4090 as fallback, a measurement
+  deciding. Open for the user: a private bucket or direct upload, and the provider. Next draft: the
+  teacher trainer's heads.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.
