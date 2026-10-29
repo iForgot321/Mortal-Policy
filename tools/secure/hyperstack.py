@@ -51,8 +51,10 @@ def get(path, key=None):
     """GET one endpoint; the only request this tool makes."""
     if not path.startswith('/'):
         raise ValueError(f'path must start with /: {path!r}')
+    # Cloudflare in front of the API rejects urllib's default User-Agent (error 1010)
     req = urllib.request.Request(API + path, method='GET',
-                                 headers={'api_key': key or api_key(), 'Accept': 'application/json'})
+                                 headers={'api_key': key or api_key(), 'Accept': 'application/json',
+                                          'User-Agent': 'mortal-policy-secure/1'})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.load(r)
