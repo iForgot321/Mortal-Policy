@@ -9,6 +9,7 @@ encrypted raw/ backup. Boxes never get these credentials; they fetch through pre
     check            the bucket is private: an anonymous GET is refused, a presigned one works
     ls [PREFIX]      objects with sizes
     put FILE KEY     upload one file (multipart above 64 MB)
+    push DIR PREFIX  upload a directory under PREFIX/, skipping objects already there (manifest last)
     presign KEY      a time-limited GET URL (--minutes, default 120)
     rm KEY           delete one object
 
@@ -135,6 +136,26 @@ def cmd_put(a):
     print(f'put {a.file} → {a.key}')
 
 
+def cmd_push(a):
+    """Upload every file in DIR under PREFIX/, skipping objects already there with the same size."""
+    creds = load_creds()
+    s3, bucket = client(creds), creds['bucket']
+    have = {}
+    for page in s3.get_paginator('list_objects_v2').paginate(Bucket=bucket, Prefix=a.prefix.rstrip('/') + '/'):
+        have.update({o['Key']: o['Size'] for o in page.get('Contents', [])})
+    files = sorted(p for p in Path(a.dir).iterdir() if p.is_file())
+    # the manifest last, so a bundle prefix with a manifest is a complete upload
+    files.sort(key=lambda p: p.name == 'manifest.json')
+    cfg = TransferConfig(multipart_threshold=64 << 20, multipart_chunksize=64 << 20)
+    for p in files:
+        key = f'{a.prefix.rstrip("/")}/{p.name}'
+        if have.get(key) == p.stat().st_size:
+            continue
+        s3.upload_file(str(p), bucket, key, Config=cfg)
+        print(f'put {key} ({p.stat().st_size / 2**20:,.0f} MiB)', flush=True)
+    print(f'{a.prefix}: {len(files)} files in the bucket')
+
+
 def cmd_presign(a):
     creds = load_creds()
     print(client(creds).generate_presigned_url('get_object', Params={'Bucket': creds['bucket'], 'Key': a.key},
@@ -157,6 +178,9 @@ def main(argv=None):
     s = sub.add_parser('put')
     s.add_argument('file')
     s.add_argument('key')
+    s = sub.add_parser('push')
+    s.add_argument('dir')
+    s.add_argument('prefix')
     s = sub.add_parser('presign')
     s.add_argument('key')
     s.add_argument('--minutes', type=int, default=120)
