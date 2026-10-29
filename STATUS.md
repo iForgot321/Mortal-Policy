@@ -30,8 +30,10 @@ research is under way.**
   - Bucket `mortal-sl-0d00ec51`: private, presigned GETs work.
   - Encrypted bundle `45b6ffa43e2ceadd`: 1.85M logs, 9.32 GiB, uploaded.
   - Tools: `tools/secure/{hyperstack,bucket,pack}.py`.
-  - Next: `secure.py` (the box lifecycle), the teacher-trainer draft, and a ≈ $3 measurement session
-    (needs a yes).
+  - The box tools are built and tested: `secure.py`, `unpack.py`, `bootstrap_vm.sh`,
+    `bench_teacher.py`.
+  - Next: the ≈ $3.4 measurement session (L40, A100 spot and A6000; needs a yes), then the
+    teacher-trainer draft.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.

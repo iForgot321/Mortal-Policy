@@ -208,14 +208,36 @@ picks an A100 or a 32-vCPU 4090, a dated `08` note records it before any teacher
    with the quick500k subset. `train_offline_phase1.py` already has AWR/BC, AMP and resume.
 3. If (A): you create the bucket and a bucket-scoped key; I upload the ciphertext.
 
-## The first rental: a measurement session (D17a), ≈ $3–7, asked for when the tools are ready
+## The first rental: a measurement session (D17a), ≈ $4, waiting for the user's yes
 
-About 1–2 h on each of the two candidates (the provider's A100 80GB and the Vast 4090):
-- **The data path end to end:** fetch, decrypt, verify, wipe, destroy, with the ledger, and the
-  transfer time.
-- **The v5 pipeline's samples/s on the real data** at 2, 4 and 8 workers, pinned to 12 vCPU and to all of the box's.
-- **b24c512's training samples/s** with the real pipeline (compiled, batch 2048). This decides D17a
-  by `03` §4.2's rule (feed ≥ 80% of the GPU), the D50 note and the teachers' run time.
+**Boxes:** three Hyperstack VMs in CANADA-1 at once, quoted from the account on 2026-10-29:
+
+| Flavor | $/h (with the IP) |
+|---|---|
+| L40, on demand | 1.007 |
+| A100 80GB, spot | 1.087 |
+| RTX A6000, on demand | 0.507 |
+
+Optionally a fourth, H100 PCIe spot at $2.007/h.
+
+Each box runs `tools/secure/secure.py`:
+1. `up RUN --flavor F --hours 2.5 --yes`: SSH opens to the workstation's IPv4 only, and a watchdog
+   destroys the VM at 2.5 h.
+2. `setup RUN`: `bootstrap_vm.sh`, then `setup_box.sh` with the full test suite.
+3. `ship RUN`: the bundle from the bucket, checked and unpacked.
+4. `exec RUN "python tools/secure/bench_teacher.py --data <data dir>"`: the GPU-only rate, 15 min of
+   the real trainer (b24c512, batch 2048, 4 workers, augmentation) and the pipeline by worker count.
+5. `pull RUN` and `down RUN`: wiped and destroyed, with the ledger.
+
+**What it measures:** each GPU's real samples/s, so the hours and dollars per teacher; whether the
+28 vCPU feed it (`03` §4.2's 80% rule: GPU utilization, pipeline against GPU rate); and the data
+path itself (setup and ship times, wipe and destroy in the ledger).
+
+**Cost:** about 1.3 h per box, so ≈ $1.3 (L40) + $1.4 (A100 spot) + $0.7 (A6000) ≈ **$3.4**. At most
+≈ $6.5 if every box runs to the watchdog. The H100 adds ≈ $2.6, at most $5.
+
+**Reading:** the lowest measured dollars per teacher wins, unless it's spot and the run can't absorb
+preemptions. The result settles D17a, and the `08` note on D50's GPU and vCPU floor follows it.
 
 ## Built so far (2026-10-29)
 
@@ -235,8 +257,15 @@ About 1–2 h on each of the two candidates (the provider's A100 80GB and the Va
     needs a backup outside the workstation:** without it the bucket holds noise.
   - Uploaded with `bucket.py push … bundle/45b6ffa43e2ceadd`, the manifest last: 66 objects in
     14.5 min (06:26–06:41 UTC, ≈ 11 MB/s), every size matching the manifest.
-- **Not built yet:** `tools/secure/secure.py` (rent, ship, run, pull, wipe, ledger) and the teacher
-  trainer.
+- **Built 2026-10-29:**
+  - `tools/secure/secure.py`, the VM lifecycle with the ledger.
+  - `unpack.py`, tested on two bundle objects from the bucket; the extracted files are identical to
+    the workstation's.
+  - `bootstrap_vm.sh`.
+  - `bench_teacher.py`, smoke-tested on the 3060: 1,693 samples/s at batch 512 with the real
+    pipeline, GPU 84% busy.
+  - The test suite passes (166).
+- **Not built yet:** the teacher trainer's heads (its own draft).
 
 ## Decisions for the user
 
