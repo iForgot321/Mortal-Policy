@@ -24,9 +24,14 @@ research is under way.**
   secure box's disk (the user: fine), wiped after each run, with a ledger. b24c512 trains at 1.9K
   samples/s on the 3060 (≈ 14 days per teacher), so teachers rent. Providers compared at the user's
   request: about $65–140 per teacher on a Vast 4090, Hyperstack/Massed Compute A100 80GB ($1.35/h) or
-  A6000-class (estimates). The user chose Hyperstack and a private bucket (2026-10-28).
-  `tools/secure/hyperstack.py` (read-only, GET only) explores the account once its API key is in
-  `~/.config/hyperstack/api_key`. Next draft: the teacher trainer's heads.
+  A6000-class (estimates). The user chose Hyperstack, with its own object storage for the bucket.
+  - Hyperstack (2026-10-29): $55 credit; single-GPU VMs only in CANADA-1; on-demand A100/H100 sold
+    out, A100 spot $1.08, L40 $1.00, A6000 $0.50 in stock.
+  - Bucket `mortal-sl-0d00ec51`: private, presigned GETs work.
+  - Encrypted bundle `45b6ffa43e2ceadd`: 1.85M logs, 9.32 GiB, uploaded.
+  - Tools: `tools/secure/{hyperstack,bucket,pack}.py`.
+  - Next: `secure.py` (the box lifecycle), the teacher-trainer draft, and a ≈ $3 measurement session
+    (needs a yes).
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.

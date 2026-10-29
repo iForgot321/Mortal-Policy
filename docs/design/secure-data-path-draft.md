@@ -217,12 +217,30 @@ About 1–2 h on each of the two candidates (the provider's A100 80GB and the Va
 - **b24c512's training samples/s** with the real pipeline (compiled, batch 2048). This decides D17a
   by `03` §4.2's rule (feed ≥ 80% of the GPU), the D50 note and the teachers' run time.
 
+## Built so far (2026-10-29)
+
+- **The bucket:** `mortal-sl-0d00ec51` at `https://ca1.obj.nexgencloud.io` (CANADA-1), made by
+  `tools/secure/bucket.py init`.
+  - One region-scoped access key (id 358). Its secret lives only in `~/.config/hyperstack/s3.json`
+    (mode 600) on the workstation.
+  - `bucket.py check`: an anonymous GET is refused (403), and a presigned GET works.
+  - Measured from the workstation: a 150 MB multipart upload at 5.45 MB/s, download at 32.7 MB/s.
+  - boto3 runs from its own venv (`~/.venvs/s3`), as vastai does from `~/.venvs/vast`.
+- **The bundle:** `tools/secure/pack.py`, bundle **`45b6ffa43e2ceadd`**.
+  - 1,853,764 logs (train_E 901,752, train_O 903,624, heldout_game 48,388) in 64 shards, plus
+    `meta.tar.gpg` (the three split lists, `masks.jsonl`, `SPLITS.sha256`).
+  - 9.32 GiB of ciphertext (the tar headers add ≈ 1.4 GiB to the 7.9 GiB of logs), packed in 160 s.
+  - Every shard was decrypted again and matched its plaintext hash. The manifest has no game ids.
+  - Key id `630df087bbced396`; the key is `~/.config/mortal-secure/bundle.key` (mode 600). **It
+    needs a backup outside the workstation:** without it the bucket holds noise.
+  - Uploaded with `bucket.py push … bundle/45b6ffa43e2ceadd`, the manifest last.
+- **Not built yet:** `tools/secure/secure.py` (rent, ship, run, pull, wipe, ledger) and the teacher
+  trainer.
+
 ## Decisions for the user
 
-1. ~~Storage~~ **Decided 2026-10-28: a private bucket (A).** Which one is open. Hyperstack has its
-   own S3-style object storage (its API lists buckets and access keys; region CANADA-1 only), which
-   would keep the data with one provider. Cloudflare R2 and Backblaze B2 are the alternatives. Its
-   price and presigned-URL support are checked from the account.
+1. ~~Storage~~ **Decided 2026-10-28/29: a private bucket on Hyperstack's own object storage**
+   (CANADA-1, the GPUs' region; the user).
 2. ~~Plaintext only in RAM~~ **Decided 2026-10-28:** the secure box's disk is fine.
 3. ~~Provider~~ **Decided 2026-10-28: Hyperstack.** The user asked to explore it first with a CLI.
    Hyperstack has none (only alpha SDKs), so `tools/secure/hyperstack.py` is a read-only stdlib client
