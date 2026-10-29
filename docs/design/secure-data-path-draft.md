@@ -233,7 +233,8 @@ About 1–2 h on each of the two candidates (the provider's A100 80GB and the Va
   - Every shard was decrypted again and matched its plaintext hash. The manifest has no game ids.
   - Key id `630df087bbced396`; the key is `~/.config/mortal-secure/bundle.key` (mode 600). **It
     needs a backup outside the workstation:** without it the bucket holds noise.
-  - Uploaded with `bucket.py push … bundle/45b6ffa43e2ceadd`, the manifest last.
+  - Uploaded with `bucket.py push … bundle/45b6ffa43e2ceadd`, the manifest last: 66 objects in
+    14.5 min (06:26–06:41 UTC, ≈ 11 MB/s), every size matching the manifest.
 - **Not built yet:** `tools/secure/secure.py` (rent, ship, run, pull, wipe, ledger) and the teacher
   trainer.
 
