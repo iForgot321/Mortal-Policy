@@ -160,6 +160,37 @@ and `01` §10's ResNet-50 AMP figures (A100 1.55×, H100 PCIe 2.08×), not measu
   - The same account offers the H100 PCIe ($2.50) if the calendar binds.
 - **The measurement session settles it:** 1 h on each, then the cheaper measured cost per teacher wins.
 
+### The Hyperstack account, as its API shows it (2026-10-29 06:10 UTC, `tools/secure/hyperstack.py`)
+
+- **The account can't rent yet:** credit $0, `can_create_instance: false`. Credit has to be added
+  first (the user).
+- **Single-GPU VMs exist only in CANADA-1.** NORWAY-1 has an A4000 only, and US-1 has 8-GPU nodes
+  only. Every single-GPU flavor has 28 vCPU.
+- **Stock and prices now** (the price book, which matches the public page):
+
+| Flavor | $/h | RAM | Disk (root + ephemeral) | Single-GPU stock | Est. $ per teacher |
+|---|---|---|---|---|---|
+| A100 80GB PCIe, on demand | 1.35 | 120 GB | 100 + 750 GB | **0** | 70–140 |
+| A100 80GB PCIe, **spot** | 1.08 | 120 GB | 100 + 750 GB | 7 | 56–112, plus preemptions |
+| H100 PCIe, on demand | 2.50 | 180 GB | 100 + 750 GB | **0** | 95–188 |
+| H100 PCIe, spot | 2.00 | 180 GB | 100 + 750 GB | 4 | 76–150, plus preemptions |
+| L40, on demand | 1.00 | 58 GB | 100 + 725 GB | 33 | 87–159 (speed 0.85–0.95× a 4090) |
+| RTX A6000, on demand | 0.50 | 58 GB | 100 GB | 3 | 64–123 (slow: 5–10 days) |
+
+- **Spot VMs** can be taken back at any time **without notice**, with no hibernation or snapshots
+  (Hyperstack's knowledge base). A teacher on spot needs checkpoint pulls every ≈ 1 h and a restart
+  path: a new VM, the data fetched again from the in-region bucket, resume from the last checkpoint.
+  Each preemption costs ≈ 0.5–1.5 h. That's cheap if they come rarely; how rarely is unknown.
+- **The OS image:** "Ubuntu Server 22.04 LTS R550 CUDA 12.4" matches the pinned torch 2.6 + CUDA 12.4.
+- **Object storage:** S3-compatible, region CANADA-1 only (the same region as the GPUs), at
+  $0.000019397 per GB-hour (≈ $0.014/GB-month: ≈ $0.11/month for the bundle, ≈ $0.60 with the `raw/`
+  backup). Egress price and presigned-URL support are checked by trying them. Presigned URLs are
+  standard S3, so they're likely supported.
+- **Reading:** on-demand A100s are sold out today, so the choice is between L40 on demand (in stock,
+  no interruptions), A100 spot (cheapest per run if preemptions are rare) and A6000 (cheapest per
+  hour, slowest). The speed estimates can't separate them; the measurement session can. All three
+  are in CANADA-1, and each costs ≈ $0.50–1.10 for an hour.
+
 **D50's vCPU floor:** D50 has the teachers on "a 4090 with ≥ 48 vCPU", a figure set by v4's
 featurization. On v5 the SL pipeline gives ≈ 19K samples/s with 2 workers on the workstation
 (`experiments/sp-ablation.md`), and a 4090 needs ≤ 8K for b24c512. So 12–32 vCPU likely feed it, and
