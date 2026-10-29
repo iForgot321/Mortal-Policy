@@ -34,8 +34,8 @@ research is under way.**
     `bench_teacher.py`.
   - **The measurement session ran (2026-10-29, $1.74):** the data path worked end to end on three
     VMs (shipped, wiped, destroyed, ledgered). The real trainer: A6000 4,995 samples/s (130 h,
-    **$66 per teacher**), L40 5,346 (122 h, $122). D17a points to the A6000; a D50 note is needed
-    (the user).
+    **$66 per teacher**), L40 5,346 (122 h, $122). **D62 (the user, 2026-10-29): the teachers train on
+    Hyperstack RTX A6000s**, resolving D17a.
   - The teacher-trainer draft is written (`docs/design/teacher-trainer-draft.md`) and awaits the
     user's choices.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its

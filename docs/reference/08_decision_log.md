@@ -653,6 +653,27 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Not in this entry:** obs v6 (the 889 rows without the zeroed block, a smaller input) and the cheaper shanten-threshold-1 variant. Either would need its own entry.
 - **Reopen if:** the recipe check fails a threshold, the v5 A/A fails, or the first v5 student is measurably weaker than its v4 counterpart beyond the SP ablation's interval.
 
+**D62 (2026-10-29): the b24c512 teachers train on Hyperstack RTX A6000 VMs (secure tier, CANADA-1, 28 vCPU, on demand), not a 4090 with ≥ 48 vCPU or an H100. Resolves D17a.** Amends D50's teacher consequence, `03` §2's burst row and §4.2, and `04` §5's hardware paragraph. Decided by the user (draft: `docs/design/d62-draft.md`; evidence: `docs/design/secure-data-path-draft.md` → "The measurement session's result").
+- **Why** (the measurement session, 2026-10-29, $1.74; b24c512 v5, the real trainer with BC, batch 2048, 4 workers, augmentation):
+
+  | | RTX A6000 | L40 | A100 80GB spot |
+  |---|---|---|---|
+  | $/h | 0.507 | 1.007 | 1.087 |
+  | Real trainer (samples/s) | 4,995 | 5,346 | ≈ 6.1K (estimated from its GPU-only 7.6K) |
+  | One teacher (2.34B presentations) | 130 h, **$66** | 122 h, $122 | ≈ 107 h, ≈ $116, plus preemptions |
+
+  - The A6000 costs about half as much per teacher, at nearly the same speed: b24c512 is small for these GPUs.
+  - The secure tier has no 4090 with ≥ 48 vCPU: Vast Secure Cloud's 4090s have ≤ 32 (2026-10-28), and Hyperstack offers none.
+  - ≥ 48 vCPU isn't needed on v5. On 28 vCPU the pipeline gives 12–17K samples/s with 4 workers against GPU rates of 6–7.6K, so `03` §4.2's 80% rule passes on every flavor measured.
+  - No H100 is needed: no measured GPU runs short of data, and an H100 costs ≈ 2–4× as much per hour.
+- **Consequences:**
+  - Teacher runs (AWR s1 ∥ BC s1, then the winner's s2) use `n3-RTX-A6000x1` through `tools/secure/secure.py`, with the data from the bucket (`tools/secure/pack.py`, `bucket.py`): ≈ 130 h and ≈ $66 per teacher as measured, ≈ $200 for the three, inside the SL substrate's ≈ $1.0K (`00`).
+  - The environment matches the fleet's pin: Python 3.12 and torch 2.6.0+cu124 on Hyperstack's Ubuntu 22.04 R550 / CUDA 12.4 image (`tools/secure/bootstrap_vm.sh`). The GPU is Ampere (sm_86). SL training needs no bitwise determinism; the deterministic A/A and every lab verdict stay on the workstation and the 4090 fleet.
+  - If the A6000 is out of stock (3 single-GPU VMs were listed on 2026-10-29; AWR ∥ BC needs 2): the L40 on demand (≈ $122 per teacher) or waiting. An A100 spot only with the user's yes, since a preemption costs ≈ 0.5–1.5 h.
+  - D50's other roles (learner, actors, eval, deploy on 4090s) are unchanged.
+- **Not decided here:** the students' distillation and the teacher-output cache (`04` §6) get their own measurement or note with that draft.
+- **Reopen if:** the A6000 is unavailable for more than a day when a teacher run is due; its price moves by more than 30%; the teacher network changes size (`04` §5's optional b40c512 needs its own measurement); or a training-loop change moves the per-GPU ranking.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -677,7 +698,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
 - **D16:** the student net size (`03` §4.1 + `04` §6).
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed.
-- **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50), decided by the featurization rate (`03` §4.2) once it is measured on a secure-tier box.
+- **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
 - **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.
 - **D18:** the Gate G0 outcome: the selected engine (D29) and actor size (D31), and the branch taken.
 - **D30a/b:** the T2 and T3 release decisions.

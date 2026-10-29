@@ -63,7 +63,7 @@ Many Vast hosts run older EPYC chips (e.g. a 7542 at 2.9 GHz), so **benchmark ca
 | **Learner** | 1× RTX 4090, ≥ 32 vCPU, ≥ 64 GB RAM | On-demand, verified/reliable host | Its CPU also featurizes incoming replays. Upgrade to an H100 SXM only by the §5 rule. |
 | **Actor** | 1× 4090, **≥ 32 vCPU** | Interruptible where it saves ≥ 25%; otherwise on-demand | Stateless; reconnects after interruption. Runpod's fixed 6–9 vCPU per consumer GPU is **too few** for these. |
 | **Eval** | 1× 4090, ≥ 32 vCPU | On-demand | Runs the GSPRT queue 24/7 (`02`) |
-| **Burst** | 1× H100 SXM or a 4090 with ≥ 48 vCPU | Hourly | SL teachers (choose by featurization rate, §4.2); benchmarks |
+| **Burst** | 1× RTX A6000, 28 vCPU (Hyperstack, secure tier; D62) | Hourly | SL teachers (§4.2); benchmarks |
 | **Deploy** | 1× 4090, ≥ 16 vCPU | On-demand, reliable, with low RTT to riichi.dev | Phase 4 |
 
 **Lanes (T2–T3):** actors are split into a **champion lane** and a **candidate lane**.
@@ -133,6 +133,7 @@ Candidate networks (obs v4, 1012×34) [calc]:
 - **The real constraint is CPU featurization.** H100 instances usually come with only 16–26 vCPU. Featurized samples are about 137 KB each at FP32, so they can't be cached for 1B samples; they are generated on the fly.
 - **Rule:** if (instance vCPU × measured samples/s per vCPU) can't feed ≥ 80% of the GPU's training rate, use a **4090 with ≥ 48 vCPU** instead of an H100.
 - Run the teachers on **secure-tier** providers only (D23).
+- **Measured 2026-10-29 (D62):** on v5, 28 vCPU feed every GPU tried (the pipeline gives 12–17K samples/s with 4 workers). The real trainer ran at 4,995 samples/s on an RTX A6000 ($0.507/h, 130 h and $66 per teacher), 5,346 on an L40 ($1.007/h, $122), ≈ 6.1K estimated on an A100 spot. The teachers train on Hyperstack A6000s; the compute estimate above was optimistic by ≈ 2–3×, and featurization no longer binds.
 
 ## 5. Learner upgrade rule
 

@@ -162,7 +162,7 @@ On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU 
    Each is one quick student and one T-std on the workstation if wanted later.
 4. **GN** in the trunk, as every network here uses.
 
-**Hardware:** Hyperstack RTX A6000s, pending draft D62 (`docs/design/d62-draft.md`).
+**Hardware:** Hyperstack RTX A6000s (D62, approved 2026-10-29). **Timing:** `train_teacher.py` logs the data-wait, step and save time per interval (the user, 2026-10-29), so the first teacher run shows where the A6000's remaining ≈ 15% goes.
 
 ## Not in this draft
 

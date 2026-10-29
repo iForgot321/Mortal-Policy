@@ -339,6 +339,7 @@ The previous snapshot (2026-10-01) is in git history. Rows not re-checked on 202
 | Verda | RTX PRO 6000 $2.08 (spot $1.04); H100 SXM $3.77 (spot $1.89) | 30 | SOC 2, EU |
 | Lambda | H100 PCIe $3.29; H100 SXM $4.29; GH200 $2.29 | 26; GH200 64 (ARM Grace) | GH200 would need an aarch64 build of libriichi |
 | Runpod Secure | 5090 $0.99; H100 SXM $3.49 | 9; 20 | 5090 below the CPU requirement |
+| **Hyperstack** (used, D62) | RTX A6000 $0.507; L40 $1.007; A100 80GB $1.357 (spot $1.087); H100 PCIe $2.507 (spot $2.007), incl. the public IP; account price book, 2026-10-29 | 28 per single-GPU VM | SOC 2 Type 2; single-GPU VMs only in CANADA-1; on-demand A100/H100 sold out on 2026-10-29; S3-compatible object storage in CANADA-1 at $0.000019397/GB-h |
 
 ### CPU (per SMT thread-hour)
 

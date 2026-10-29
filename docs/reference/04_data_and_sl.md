@@ -93,7 +93,7 @@ The winning pair (2 seeds) forms the **teacher ensemble** used for distillation 
 
 **Optional larger teacher:** b40c512, about 70M params. Try it only if featurization can feed it (`03` §4.2) and if a T-std of student-from-b40 vs student-from-b24 is affordable.
 
-**Network:** b24c512, v5 observation (1012×34: v4 with the single-player tables zeroed; D61), trained with AMP. With v5, featurization stops binding (the SL loader is 90× faster per thread), so D17a's burst-GPU question is measured on v5.
+**Network:** b24c512, v5 observation (1012×34: v4 with the single-player tables zeroed; D61), trained with AMP. With v5, featurization stops binding (the SL loader is 90× faster per thread), and the teachers train on Hyperstack RTX A6000s (D62).
 - Mortal-Policy's online code uses GroupNorm. The teacher can use either GN or BN; the student decision is in `03` §6 (item 4).
 
 **Heads.** This is new code: Mortal-Policy has only `CategoricalPolicy`.
@@ -131,12 +131,9 @@ The winning pair (2 seeds) forms the **teacher ensemble** used for distillation 
 - Presentations = decisions × augmentation × epochs. With roughly 0.5–1.5B decisions, ×2 augmentation and 1–2 epochs, that is **1–6B presentations per teacher**. Measure the decision count in Phase 0 (`04a` §3).
 - Compute is about 8–9 EFLOP per 1B presentations at b24c512, so roughly 30–40 h on a 4090 or 5–8 h on an H100 **per 1B**. Scale by the measured presentations.
 - **Default:** 1 epoch with augmentation. A second epoch only if a quick-scale check shows a gain.
-- The **binding constraint is CPU featurization**:
-  - Features are about 137 KB per sample at FP32, so they can't be cached at 1B samples and are generated on the fly.
-  - H100 instances come with only 16–26 vCPU.
-  - Choose an H100 or a 4090 with ≥ 48 vCPU by the `03` §4.2 rule (D50).
-- Use secure-tier hosts only (§1, D23).
-- Expect **0.5–3 days per teacher run**, depending on measured presentations and featurization rate.
+- **Hardware (D62):** Hyperstack RTX A6000 VMs (secure tier, 28 vCPU), measured at 4,995 samples/s for b24c512 with the real pipeline. On v5, CPU featurization no longer binds. Features are about 137 KB per sample at FP32, so they are still generated on the fly, not cached.
+- Use secure-tier hosts only (§1, D23); the data path is `tools/secure/` (`docs/design/secure-data-path-draft.md`).
+- Expect **≈ 5.4 days (130 h) and ≈ $66 per teacher run** at 2.34B presentations.
 
 ## 6. Student distillation
 

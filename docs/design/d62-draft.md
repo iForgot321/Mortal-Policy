@@ -1,6 +1,6 @@
 # Draft D62: the SL teachers train on Hyperstack RTX A6000s (for the user's review)
 
-**Status: draft, 2026-10-29.** Nothing in `08` or the reference docs changes until the user approves.
+**Status: approved by the user on 2026-10-29.** The entry is D62 in `08_decision_log.md`; the edits below are made. This file is the draft's history.
 Evidence: the measurement session (`docs/design/secure-data-path-draft.md` → "The measurement
 session's result"). Follows the user's choices of Hyperstack and its object storage (2026-10-28/29).
 
