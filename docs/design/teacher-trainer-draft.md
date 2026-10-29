@@ -110,24 +110,20 @@ golden-set per-category agreement table, computed on the workstation, where the 
 **Cost:** the estimate before the measurement is ≈ $55–160 per teacher, so ≈ $170–480 for the
 three. The measurement replaces it. The quick check costs nothing.
 
-## Open choices (recommendations first)
+## Choices: decided by the user (2026-10-29), all as recommended
 
-1. **AWR's β:**
-   - **Keep upstream's 1.0 on standardized advantages (recommended).** The full-scale AWR vs BC
-     T-std decides between them anyway.
-   - Or spend ≈ 17 h of the workstation on a quick-scale β check first (`04` §5 suggests one).
-2. **Peak LR:**
-   - **1e-4 for b24c512 (recommended):** the larger net, at `04`'s lower option.
-   - Or 3e-4, as the quick students used.
-3. **The quick-scale sweeps `04` lists, none run so far:**
-   - **Skip them for now (recommended), and use the defaults:**
-     - player scoring A0 (no filter; D14a unset);
-     - the 2015-01 window;
-     - no decision weighting.
-   - Each is one quick student and one T-std on the workstation if wanted later. They change the
-     data or weights, not the code.
-4. **GN or BN in the trunk:** **GN (recommended)**, as every network here uses; `03` §6 item 4
-   decides the students'.
+1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale
+   AWR vs BC T-std decides between them.
+2. **Peak LR:** 1e-4 for b24c512.
+3. **The quick-scale sweeps `04` lists:** skipped for now, with the defaults:
+   - player scoring A0 (no filter; D14a unset);
+   - the 2015-01 → 2025-06 window;
+   - no decision weighting.
+
+   Each is one quick student and one T-std on the workstation if wanted later.
+4. **GN** in the trunk, as every network here uses.
+
+**Hardware:** Hyperstack RTX A6000s, pending draft D62 (`docs/design/d62-draft.md`).
 
 ## Not in this draft
 
