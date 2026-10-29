@@ -32,8 +32,12 @@ research is under way.**
   - Tools: `tools/secure/{hyperstack,bucket,pack}.py`.
   - The box tools are built and tested: `secure.py`, `unpack.py`, `bootstrap_vm.sh`,
     `bench_teacher.py`.
-  - Next: the ≈ $3.4 measurement session (L40, A100 spot and A6000; needs a yes), then the
-    teacher-trainer draft.
+  - **The measurement session ran (2026-10-29, $1.74):** the data path worked end to end on three
+    VMs (shipped, wiped, destroyed, ledgered). The real trainer: A6000 4,995 samples/s (130 h,
+    **$66 per teacher**), L40 5,346 (122 h, $122). D17a points to the A6000; a D50 note is needed
+    (the user).
+  - The teacher-trainer draft is written (`docs/design/teacher-trainer-draft.md`) and awaits the
+    user's choices.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.

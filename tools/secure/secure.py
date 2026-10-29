@@ -359,7 +359,8 @@ def cmd_down(a):
         if v is not None and st.get('ip') and v.get('status') == 'ACTIVE':
             for step, fn in (('pull', pull), ('wipe', wipe)):
                 try:
-                    fn(st)
+                    if fn(st) and step == 'wipe':
+                        st['wiped'] = now()
                     log(a.run, f'{step}: ok')
                 except Exception as e:  # destroying matters more than either
                     log(a.run, f'{step} failed, destroying anyway: {e}')

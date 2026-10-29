@@ -208,7 +208,7 @@ picks an A100 or a 32-vCPU 4090, a dated `08` note records it before any teacher
    with the quick500k subset. `train_offline_phase1.py` already has AWR/BC, AMP and resume.
 3. If (A): you create the bucket and a bucket-scoped key; I upload the ciphertext.
 
-## The first rental: a measurement session (D17a), ≈ $4, waiting for the user's yes
+## The first rental: a measurement session (D17a), ≈ $4 (ran 2026-10-29, the user's yes)
 
 **Boxes:** three Hyperstack VMs in CANADA-1 at once, quoted from the account on 2026-10-29:
 
@@ -238,6 +238,43 @@ path itself (setup and ship times, wipe and destroy in the ledger).
 
 **Reading:** the lowest measured dollars per teacher wins, unless it's spot and the run can't absorb
 preemptions. The result settles D17a, and the `08` note on D50's GPU and vCPU floor follows it.
+
+## The measurement session's result (2026-10-29 07:24–08:13 UTC): the A6000
+
+Three VMs in CANADA-1 on the user's yes, $1.74 in all: L40 0.82 h ($0.82), A100 spot 0.48 h ($0.52),
+A6000 0.79 h ($0.40). The ledger shows each one rented, shipped, wiped and destroyed, and the
+watchdogs stopped. **The data path worked end to end on all three:**
+- setup, including the full test suite: ≈ 10 min;
+- the 9.32 GiB bundle fetched, checked and unpacked: 848–885 s (mostly unpacking 1.85M small files);
+- wipe ≈ 1 min, destroy ≈ 20 s.
+
+| | L40 | A100 80GB (spot) | RTX A6000 |
+|---|---|---|---|
+| $/h | 1.007 | 1.087 | 0.507 |
+| GPU only, b24c512 compiled, batch 1024 / 2048 (samples/s) | 7,215 / 6,614 | 7,291 / 7,589 | 6,217 / 6,233 |
+| **The real trainer** (BC, batch 2048, 4 workers, augmentation), samples/s | **5,346** | not measured¹ | **4,995** |
+| GPU utilization in it | 72% | — | 74% |
+| SL pipeline alone, 2 / 4 / 8 workers (samples/s) | 6.3K / 12.4K / 16.1K | 9.6K / 14.0K / 20.3K | 7.3K / 16.5K / 16.7K |
+| **One teacher** (2.34B presentations) | **122 h, $122** | ≈ 107 h, ≈ $116² | **130 h, $66** |
+
+¹ The trainer part crashed at start-up on all three: it loads `workdir/phase1/baseline.pth`, which
+only the workstation has (fixed in `8ba1d33`). The L40 and A6000 ran it again before going down; the
+A100 had already gone. ² The A100's estimate scales its GPU-only rate by the other two's real/GPU
+ratio (0.80).
+
+**Reading:**
+- **D17a:** the A6000 costs about half the L40 or the A100 per teacher, at nearly the same speed.
+  This network is small for these GPUs, so the faster cards don't pull ahead. It is on demand (no
+  preemptions), at 130 h ≈ 5.4 days per teacher; AWR ∥ BC then the second seed is ≈ 11 days,
+  ≈ $200 for the three. H100s aren't needed.
+- **`03` §4.2's rule** passes everywhere. 28 vCPU feed each GPU: the pipeline alone gives
+  12–17K samples/s with 4 workers against GPU rates of 6–7.6K.
+- **The trainer leaves ≈ 26% of the GPU idle.** Its loop syncs with the GPU every step (the
+  `assert` on the label mask), so the GPU waits while the next batch is prepared. Removing per-step
+  syncs in `train_teacher.py` could bring the A6000 near its GPU-only 6.2K: ≈ 105 h, ≈ $53 per
+  teacher.
+- **D50** puts every role on 4090s, and teachers on "a 4090 with ≥ 48 vCPU, or an H100". Teachers
+  on Hyperstack A6000s (28 vCPU) need a dated `08` note first, for the user to approve.
 
 ## Built so far (2026-10-29)
 
