@@ -11,6 +11,7 @@ encrypted raw/ backup. Boxes never get these credentials; they fetch through pre
     put FILE KEY     upload one file (multipart above 64 MB)
     push DIR PREFIX  upload a directory under PREFIX/, skipping objects already there (manifest last)
     presign KEY      a time-limited GET URL (--minutes, default 120)
+    urls BUNDLE_DIR  presigned URLs for every object of a bundle, as tools/secure/unpack.py reads them
     rm KEY           delete one object
 
 Runs with boto3 from its own venv (~/.venvs/s3, like vastai's ~/.venvs/vast). Hyperstack's object
@@ -156,6 +157,18 @@ def cmd_push(a):
     print(f'{a.prefix}: {len(files)} files in the bucket')
 
 
+def cmd_urls(a):
+    """One line per bundle object, for tools/secure/unpack.py: NAME CIPHER_SHA256 PLAIN_SHA256 URL."""
+    creds = load_creds()
+    s3 = client(creds)
+    m = json.loads((Path(a.bundle_dir) / 'manifest.json').read_text())
+    prefix = f'bundle/{m["bundle_id"][:16]}'
+    for s in m['shards']:
+        url = s3.generate_presigned_url('get_object', Params={'Bucket': creds['bucket'], 'Key': f'{prefix}/{s["name"]}'},
+                                        ExpiresIn=a.minutes * 60)
+        print(s['name'], s['cipher_sha256'], s['plain_sha256'], url)
+
+
 def cmd_presign(a):
     creds = load_creds()
     print(client(creds).generate_presigned_url('get_object', Params={'Bucket': creds['bucket'], 'Key': a.key},
@@ -181,6 +194,9 @@ def main(argv=None):
     s = sub.add_parser('push')
     s.add_argument('dir')
     s.add_argument('prefix')
+    s = sub.add_parser('urls')
+    s.add_argument('bundle_dir')
+    s.add_argument('--minutes', type=int, default=180)
     s = sub.add_parser('presign')
     s.add_argument('key')
     s.add_argument('--minutes', type=int, default=120)
