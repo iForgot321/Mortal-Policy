@@ -18,6 +18,13 @@ research is under way.**
   0.0052 on 4,000 diagnostic sets (CI above 0). `k2b` at p25 (v4): 0.025, 94.2%, +0.012. With the v5
   A/A and frozen hash, D61's checks are met: v5 results count. $81.94 (B0 $9.95 + stage 2 $71.99).
   Nothing is rented.
+- **Next: the SL substrate** (the user, 2026-10-28, G0's option 1: teachers → students → the actor-size
+  curves → π_SL → T1). First piece drafted for review: the secure data path (D23,
+  `docs/design/secure-data-path-draft.md`). The training set is 7.9 GiB encrypted, plaintext only in
+  RAM on Vast Secure Cloud, wiped after each run, with a ledger. b24c512 trains at 1.9K samples/s on
+  the 3060 (≈ 14 days per teacher), so teachers rent: ≈ $65–105 each on a secure 4090 (estimate). Open
+  for the user: a private bucket or direct upload, RAM-only plaintext, Vast Secure Cloud. Next draft:
+  the teacher trainer's heads.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.
