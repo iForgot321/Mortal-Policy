@@ -88,6 +88,10 @@ def trainer(args):
     c.update(state_file=str(run / 'mortal.pth'), best_state_file=str(run / 'best.pth'),
              tensorboard_dir=str(run / 'tb'), batch_size=args.batch, save_every=args.save_every)
     base['test_play']['log_dir'] = str(run / 'test_play')
+    # TestPlayer loads a baseline at start-up even though test play never runs here; the config's
+    # workdir/phase1/baseline.pth is workstation-only, so use a frozen checkpoint every box has
+    for k in ('train', 'test'):
+        base['baseline'][k]['state_file'] = str(ROOT / 'workdir/sp-ablation/nosp-a/nosp-a-final.pth')
     base['resnet'] = {'conv_channels': 512, 'num_blocks': 24}
     d = base['dataset']
     d.update(file_index=f'{args.data}/index-train.pth', masks_file=f'{args.data}/splits/masks.jsonl',
