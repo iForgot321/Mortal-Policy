@@ -36,8 +36,11 @@ research is under way.**
     VMs (shipped, wiped, destroyed, ledgered). The real trainer: A6000 4,995 samples/s (130 h,
     **$66 per teacher**), L40 5,346 (122 h, $122). **D62 (the user, 2026-10-29): the teachers train on
     Hyperstack RTX A6000s**, resolving D17a.
-  - The teacher-trainer draft is written (`docs/design/teacher-trainer-draft.md`) and awaits the
-    user's choices.
+  - **The teacher trainer is built** (`mortal/train_teacher.py`; opponent labels in libriichi; tests
+    pass). The user confirmed the defaults (β 1.0, LR 1e-4, no quick sweeps, GN).
+  - **The heads check is running** (`experiments/teacher-heads-check.md`, pre-registered): a heads-on
+    quick student since 2026-10-30 05:36 UTC (≈ 13.3K samples/s, ends ≈ 12:30 UTC), then T-NI vs
+    No-SP A on family B, automatically.
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.

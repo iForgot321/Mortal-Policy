@@ -46,3 +46,14 @@ Hitting the cap counts as a fail.
     weights;
   - the timing log (`timing.jsonl`): samples/s against No-SP A's 10.5K, and the time spent waiting
     for data. The opponent labels replay three more `PlayerState`s per event.
+
+## Progress
+
+- **Training started 2026-10-30 05:36 UTC** (`workdir/teacher/heads-quick/`, pid 73276). Steady state
+  12.7–14.0K samples/s against No-SP A's 10.5K, with the GPU waiting 37–46% of the time for data:
+  on the workstation's 2 workers, this small net is pipeline-bound, labels included.
+  - The five losses fall from step 500 to 2,500: policy 1.36 → 0.69, placement 1.28 → 1.16,
+    kyoku-Δ 0.032 → 0.031, tenpai 0.41 → 0.19, waits 0.34 → 0.19.
+  - ≈ 6.8 h in all, so ≈ 12:30 UTC.
+- `experiments/teacher_heads_chain.sh` (pid 74720) starts the pre-registered T-NI when the training
+  ends.
