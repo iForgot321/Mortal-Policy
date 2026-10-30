@@ -62,3 +62,9 @@ Hitting the cap counts as a fail.
   validation pass loaded 20 files at once in the main process (≈ 1 GB), and the main process had grown
   from 3.2 to 5.9 GB in 26 min. Fixed: validation loads 4 files at a time (`val_file_batch_size`), and
   the timing log records the main process's RSS. The same pre-registered run restarts from scratch.
+- **Restarted 2026-10-30 07:52 UTC** (pid 1887; chain pid 2092). The main process held at 3.0 GB for
+  10K steps and settled at 3.6 GB after the first validation (54 s for raw and EMA), so no leak;
+  the earlier 5.9 GB came with the memory pressure. ≈ 12.9K samples/s; ends ≈ 14:55 UTC.
+  - First validation (step 10,000; 133,278 heldout_game decisions), raw / EMA: policy NLL
+    0.586 / 0.563, top-1 77.5% / 78.5%, placement 1.142 / 1.129, kyoku-Δ 0.0299 / 0.0295, tenpai
+    0.171 / 0.165, waits 0.178 / 0.176.
