@@ -32,6 +32,7 @@ class FileDatasetsIter(IterableDataset):
         compute_advantage = True,
         obs_fp16 = False,
         value_targets = False,
+        teacher_labels = False,
     ):
         super().__init__()
         self.version = version
@@ -60,17 +61,24 @@ class FileDatasetsIter(IterableDataset):
         # (the kyoku's GRP-Δu in fixed u units, 05 §3.2) and the seat's rank
         # after the kyoku (the next-rank auxiliary) instead of an advantage
         self.value_targets = value_targets
+        # True for the SL teacher (04 §5, mortal/train_teacher.py): each entry also carries
+        # the kyoku's GRP-Δu in fixed u units, the seat's final placement (0-based) and
+        # the opponents' tenpai and waits (3 x 35 bools, GameplayLoader.opponent_labels)
+        self.teacher_labels = teacher_labels
+        assert not (teacher_labels and (value_targets or oracle))
 
     def build_iter(self):
-        if self.compute_advantage or self.value_targets:
+        if self.compute_advantage or self.value_targets or self.teacher_labels:
             self.grp = GRP(**config['grp']['network'])
             grp_state = torch.load(config['grp']['state_file'], weights_only=True, map_location=torch.device('cpu'))
             self.grp.load_state_dict(grp_state['model'])
-            if self.value_targets:
+            if self.value_targets or self.teacher_labels:
                 # fixed units: local statistics that stay at count 0, as in
                 # rl_dataset.fixed_unit_rewards (a Manager can't start in a worker)
                 stats = {'count': Value('i', 0), 'mean': Value('d', 0.0), 'M2': Value('d', 0.0), 'lock': Lock()}
-                self.reward_calc = RewardCalculator(self.grp, self.pts, shared_stats=stats, standardize=False)
+                self.fixed_calc = RewardCalculator(self.grp, self.pts, shared_stats=stats, standardize=False)
+            if self.value_targets:
+                self.reward_calc = self.fixed_calc
             else:
                 self.reward_calc = RewardCalculator(
                     self.grp,
@@ -92,6 +100,7 @@ class FileDatasetsIter(IterableDataset):
             player_names = self.player_names,
             excludes = self.excludes,
             augmented = augmented,
+            opponent_labels = self.teacher_labels,
         )
         self.buffer = []
 
@@ -147,7 +156,18 @@ class FileDatasetsIter(IterableDataset):
 
                 game_size = len(obs)
 
-                if self.value_targets:
+                if self.teacher_labels:
+                    grp_feature = grp.take_feature()
+                    rank_by_player = grp.take_rank_by_player()
+                    kyoku_delta = self.fixed_calc.calc_delta_pt(player_id, grp_feature, rank_by_player) / PTS_PER_U
+                    if self.compute_advantage:
+                        advantage = self.reward_calc.calc_delta_pt(player_id, grp_feature, rank_by_player)
+                    else:
+                        advantage = np.zeros(len(kyoku_delta))
+                    assert len(kyoku_delta) >= at_kyoku[-1] + 1
+                    final_rank = next_ranks(grp_feature, grp.take_final_scores(), player_id)[-1]
+                    opponent_labels = game.take_opponent_labels()
+                elif self.value_targets:
                     grp_feature = grp.take_feature()
                     rank_by_player = grp.take_rank_by_player()
                     advantage = self.reward_calc.calc_delta_pt(player_id, grp_feature, rank_by_player) / PTS_PER_U
@@ -172,6 +192,8 @@ class FileDatasetsIter(IterableDataset):
                     ]
                     if self.value_targets:
                         entry.append(ranks[at_kyoku[i] + 1])
+                    if self.teacher_labels:
+                        entry += [np.float32(kyoku_delta[at_kyoku[i]]), final_rank, opponent_labels[i]]
                     if self.oracle:
                         entry.insert(1, invisible_obs[i])
                     self.buffer.append(entry)

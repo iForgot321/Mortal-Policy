@@ -1,0 +1,74 @@
+# The teacher heads check (docs/design/teacher-trainer-draft.md → "Checked before any rental";
+# 04 §5's guard): a b8c192 v5 BC quick student with the teacher's heads on, trained by
+# mortal/train_teacher.py on exactly No-SP A's data, seed and schedule (sp-nosp-a.toml: quick500k,
+# 1 epoch, no augmentation, Q6/Q8 masks, batch 2048, peak 3e-4). T-NI against No-SP A decides
+# whether the teachers keep the heads attached.
+#
+# Run from mortal/:  MJ_DATA=~/mj-data MORTAL_CFG=../experiments/configs/teacher-heads-quick.toml python train_teacher.py
+
+[control]
+version = 5
+seed = 1
+run_dir = '/home/iforgot/projects/Mortal-Policy/workdir/teacher/heads-quick'
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+batch_size = 2048
+log_every = 500
+save_minutes = 30
+
+[dataset]
+file_index = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/quick500k.pth'
+masks_file = '${MJ_DATA}/splits/masks.jsonl'
+data_root = '${MJ_DATA}'
+val_split = 'heldout_game'
+val_games = 200
+val_every = 10_000
+# as No-SP A: 2 workers (RAM on the workstation)
+file_batch_size = 20
+num_workers = 2
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+
+[resnet]
+conv_channels = 192
+num_blocks = 8
+
+[env]
+pts = [90.0, 50.0, -10.0, -130.0]
+
+[policy]
+objective = 'bc'
+awr_beta = 1.0
+awr_clip = 100
+
+[teacher]
+heads = true
+detach = false
+hidden = 256
+w_placement = 0.5
+w_kyoku_delta = 0.5
+w_aux = 0.2
+huber_delta = 1.0
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.1
+max_grad_norm = 1.0
+ema_decay = 0.999
+
+[optim.scheduler]
+peak = 3e-4
+final = 1e-5
+warm_up_steps = 2000
+max_steps = 158000
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2

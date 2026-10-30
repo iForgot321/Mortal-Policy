@@ -254,6 +254,31 @@ class AuxNet(nn.Module):
     def forward(self, x):
         return self.net(x).split(self.dims, dim=-1)
 
+class TeacherHeads(nn.Module):
+    """The SL teacher's auxiliary heads on phi (04 §5): the seat's final placement (4 logits),
+    the kyoku's GRP-Δu in fixed u units (1), each opponent's tenpai (3 logits) and waits
+    (3 × 34 logits). `detach` trains them on stop-gradient features, 04 §5's guard for when
+    they would hurt the policy."""
+    def __init__(self, hidden=256, detach=False):
+        super().__init__()
+        self.detach = detach
+        def mlp(out):
+            return nn.Sequential(nn.Linear(1024, hidden), nn.Mish(inplace=True), nn.Linear(hidden, out))
+        self.placement = mlp(4)
+        self.kyoku_delta = mlp(1)
+        self.tenpai = mlp(3)
+        self.waits = mlp(3 * 34)
+
+    def forward(self, phi):
+        if self.detach:
+            phi = phi.detach()
+        return {
+            'placement': self.placement(phi),
+            'kyoku_delta': self.kyoku_delta(phi).squeeze(-1),
+            'tenpai': self.tenpai(phi),
+            'waits': self.waits(phi).view(-1, 3, 34),
+        }
+
 class GRP(nn.Module):
     def __init__(self, hidden_size=64, num_layers=2):
         super().__init__()
