@@ -10,7 +10,7 @@ train_offline_phase1.py's loop, plus:
 - no test play (evaluation is the lab's job), so no baseline checkpoint is loaded;
 - the loop's free speed-ups (the bench_loop.py investigation): the label-mask check on the CPU,
   the next batch copied on a side stream while this one trains, AdamW(fused=True);
-- every log_every steps a timing line (data wait, saving, validation, samples/s) in
+- every log_every steps a timing line (data wait, saving, validation, samples/s, the main process's RSS) in
   run_dir/timing.jsonl and TensorBoard.
 
 Paths in the config may use ${MJ_DATA} (the data directory: mjai/, splits/, the box's file indexes).
@@ -153,7 +153,8 @@ def train():
         for m in models:
             m.eval()
         vds = FileDatasetsIter(version=version, file_list=list(val_files), pts=config['env']['pts'],
-                               file_batch_size=ds['file_batch_size'], masks=masks, compute_advantage=False,
+                               # few files at a time: validation runs in the main process, beside the training
+                               file_batch_size=ds.get('val_file_batch_size', 4), masks=masks, compute_advantage=False,
                                obs_fp16=True, teacher_labels=True)
         sums, n, top1 = {}, 0, 0
         for obs, actions, mask, _, kd, rank, opp in DataLoader(vds, batch_size=batch_size, num_workers=0):
@@ -257,7 +258,10 @@ def train():
             n = ctl['log_every']
             means = {k: (v / n).item() for k, v in acc.items()}  # the one sync per interval
             wall = time.time() - t_interval
+            with open('/proc/self/statm') as f:
+                rss_gb = int(f.read().split()[1]) * os.sysconf('SC_PAGE_SIZE') / 2**30
             rec = {'steps': steps, 'presentations': steps * batch_size, 'wall_s': round(wall, 2),
+                   'rss_main_gb': round(rss_gb, 2),
                    'samples_per_s': round(n * batch_size / wall), 'data_wait_s': round(data_wait, 2),
                    'save_s': round(save_time, 2), 'val_s': round(val_time, 2),
                    'lr': scheduler.get_last_lr()[0], **{f'loss_{k}': round(v, 5) for k, v in means.items()}}

@@ -57,3 +57,8 @@ Hitting the cap counts as a fail.
   - ≈ 6.8 h in all, so ≈ 12:30 UTC.
 - `experiments/teacher_heads_chain.sh` (pid 74720) starts the pre-registered T-NI when the training
   ends.
+- **The first attempt died with the workstation** (2026-10-30 ≈ 06:04 UTC, OOM with other
+  applications open, at step ≈ 9,500, before its first 30-min checkpoint): no result existed. The first
+  validation pass loaded 20 files at once in the main process (≈ 1 GB), and the main process had grown
+  from 3.2 to 5.9 GB in 26 min. Fixed: validation loads 4 files at a time (`val_file_batch_size`), and
+  the timing log records the main process's RSS. The same pre-registered run restarts from scratch.
