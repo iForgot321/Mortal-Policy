@@ -152,6 +152,22 @@ On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU 
   Recommended: (b). At most ≈ $10 of a $66 teacher is at stake, and (b) measures the real run, not
   a proxy.
 
+## The runs, live (2026-10-30)
+
+- **The user approved both teachers** (≈ $66 each measured, watchdog cap 150 h ≈ $76) and topped up the
+  Hyperstack credit ($353.41).
+  - The first try at both together was refused ("Not Enough Stock of RTX-A6000", while the stock
+    listing showed 2). `experiments/secure_teacher_queue.sh` retried.
+  - `teacher-awr-s1` rented 19:35 UTC (VM 1133199), `teacher-bc-s1` 19:37 UTC (VM 1133202), each
+    driven by `experiments/secure_teacher.sh`.
+- **Start-up:** setup ≈ 8–11 min (tests included), the data ≈ 14 min. Training started 19:57 (AWR) and
+  20:01 UTC (BC).
+- **AWR on the A6000:** 5,980 samples/s in steps 1,000–2,000 (compile excluded), GPU 100%, data wait
+  7%, main RSS 4.1 GB.
+  - That's 20% above the measurement session's 4,995 with the old loop, and 96% of the GPU-only
+    6,233. The "remaining ≈ 15%" was mostly the old loop and the bench's own checkpoint saves.
+  - At this rate a teacher takes ≈ 109 h (≈ 4.5 days, ≈ $56), so both end ≈ 2026-11-04 09:00 UTC.
+
 ## Choices: decided by the user (2026-10-29), all as recommended
 
 1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale
