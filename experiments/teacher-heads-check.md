@@ -68,3 +68,17 @@ Hitting the cap counts as a fail.
   - First validation (step 10,000; 133,278 heldout_game decisions), raw / EMA: policy NLL
     0.586 / 0.563, top-1 77.5% / 78.5%, placement 1.142 / 1.129, kyoku-Δ 0.0299 / 0.0295, tenpai
     0.171 / 0.165, waits 0.178 / 0.176.
+
+## Result (2026-10-30 15:18 UTC): pass, so the teachers keep the heads attached
+
+- **Training** ended at 14:59 UTC: step 157,868, 323,313,664 presentations (No-SP A: 157,869), ≈ 7.1 h.
+  `final.pth` `ac9cc9166fedbdd4`, read-only. Final validation (133,278 heldout_game decisions),
+  raw / EMA: policy NLL 0.5060 / 0.5049, top-1 80.40% / 80.46%, placement 1.1118 / 1.1116, kyoku-Δ
+  0.02907 / 0.02907, tenpai 0.1502 / 0.1502, waits 0.1670 / 0.1668.
+- **T-NI vs No-SP A** (`20261030-075954-T-NI`, family B, nonces from 1,001,120,000): **pass at 5,000
+  sets**, LLR +5.84 (boundary +2.944).
+  - Δu **+0.0082**, set SD 0.336, so ≈ [−0.001, +0.018].
+  - 20,000 games: average rank 2.495, rank histogram 4,925 / 5,121 / 5,092 / 4,862.
+- **Reading (as pre-registered):** the heads don't hurt the policy, so the teachers train with them
+  attached. The new trainer is also non-inferior to the old one at quick scale. No second run is
+  needed.

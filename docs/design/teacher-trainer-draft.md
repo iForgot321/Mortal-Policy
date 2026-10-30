@@ -95,6 +95,9 @@ funded, from the same trunk, without retraining the teachers' other heads.
 - It also exercises the whole new code path end to end: labels, heads, EMA, validation, resume
   (killed once mid-run).
 
+**Done 2026-10-30: pass** (`experiments/teacher-heads-check.md`): T-NI vs No-SP A +0.0082 at 5,000
+sets. The heads stay attached.
+
 ## The runs (rentals, each needing the user's yes)
 
 On Hyperstack through `secure.py`, on the GPU the measurement session picks (D17a; its result

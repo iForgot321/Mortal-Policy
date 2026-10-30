@@ -38,9 +38,10 @@ research is under way.**
     Hyperstack RTX A6000s**, resolving D17a.
   - **The teacher trainer is built** (`mortal/train_teacher.py`; opponent labels in libriichi; tests
     pass). The user confirmed the defaults (β 1.0, LR 1e-4, no quick sweeps, GN).
-  - **The heads check is running** (`experiments/teacher-heads-check.md`, pre-registered): a heads-on
-    quick student since 2026-10-30 05:36 UTC (≈ 13.3K samples/s, ends ≈ 12:30 UTC), then T-NI vs
-    No-SP A on family B, automatically.
+  - **The heads check passed** (2026-10-30, `experiments/teacher-heads-check.md`): the heads-on quick
+    student vs No-SP A, T-NI pass at 5,000 sets, Δu +0.0082 (`20261030-075954-T-NI`). The teachers
+    keep the heads attached. Next: the teacher runs (AWR s1 ∥ BC s1 on two Hyperstack A6000s; a
+    rental, the user's yes).
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
   user: the actor size (D31) and the start of T1.
