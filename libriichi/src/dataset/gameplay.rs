@@ -42,6 +42,12 @@ pub struct GameplayLoader {
     /// for dataset hygiene and tagging.
     #[pyo3(get)]
     featurize: bool,
+    /// When true, each entry also carries the three opponents' tenpai flags
+    /// and waits (`take_opponent_labels`): training targets for the SL
+    /// teacher's auxiliary heads (`04` §5), read from their replayed
+    /// `PlayerState`s like the oracle path, but without encoding the wall.
+    #[pyo3(get)]
+    opponent_labels: bool,
 
     #[derivative(Debug = "ignore")]
     player_names_set: AHashSet<String>,
@@ -64,6 +70,9 @@ pub struct Gameplay {
     pub shantens: Vec<i8>,
     /// Index into the game's event list of the event each entry decides on.
     pub event_idx: Vec<u32>,
+    /// Shape (3, 35) per entry, opponents in seat order after the POV: column 0
+    /// is tenpai (shanten <= 0), columns 1..=34 the waits.
+    pub opponent_labels: Vec<Array2<bool>>,
 
     // per game
     pub grp: Grp, // actually per kyoku though
@@ -79,7 +88,7 @@ struct LoaderContext<'a> {
     kyoku_idx: usize,
     event_idx: usize,
 
-    // fields below are only used for oracle
+    // fields below are only used for oracle (opponent_states also for opponent labels)
     opponent_states: [PlayerState; 3],
     from_rinshan: bool,
     yama_idx: usize,
@@ -99,6 +108,7 @@ impl GameplayLoader {
         always_include_kan_select = true,
         augmented = false,
         featurize = true,
+        opponent_labels = false,
     ))]
     #[allow(clippy::too_many_arguments)] // Python keyword arguments
     fn new(
@@ -110,6 +120,7 @@ impl GameplayLoader {
         always_include_kan_select: bool,
         augmented: bool,
         featurize: bool,
+        opponent_labels: bool,
     ) -> Self {
         let player_names = player_names.unwrap_or_default();
         let player_names_set = player_names.iter().cloned().collect();
@@ -124,6 +135,7 @@ impl GameplayLoader {
             always_include_kan_select,
             augmented,
             featurize,
+            opponent_labels,
             player_names_set,
             excludes_set,
         }
@@ -162,6 +174,7 @@ impl GameplayLoader {
             always_include_kan_select: self.always_include_kan_select,
             augmented: self.augmented,
             featurize: false,
+            opponent_labels: false,
             player_names_set: AHashSet::new(),
             excludes_set: AHashSet::new(),
         };
@@ -270,6 +283,12 @@ impl Gameplay {
     fn take_event_idx(&mut self) -> Vec<u32> {
         mem::take(&mut self.event_idx)
     }
+    fn take_opponent_labels<'py>(&mut self, py: Python<'py>) -> Vec<Bound<'py, PyArray2<bool>>> {
+        mem::take(&mut self.opponent_labels)
+            .into_iter()
+            .map(|v| PyArray2::from_owned_array(py, v))
+            .collect()
+    }
 
     fn take_grp(&mut self) -> Grp {
         mem::take(&mut self.grp)
@@ -373,7 +392,8 @@ impl Gameplay {
                 }
                 _ => (),
             };
-
+        }
+        if invisibles.is_some() || config.opponent_labels {
             for s in opponent_states {
                 s.update(cur)?;
             }
@@ -493,6 +513,16 @@ impl Gameplay {
         self.at_turns.push(ctx.state.at_turn());
         self.shantens.push(ctx.state.shanten());
         self.event_idx.push(ctx.event_idx as u32);
+        if ctx.config.opponent_labels {
+            let mut labels = Array2::from_elem((3, 35), false);
+            for (mut row, s) in labels.rows_mut().into_iter().zip(&ctx.opponent_states) {
+                row[0] = s.shanten() <= 0;
+                for (t, &w) in s.waits().iter().enumerate() {
+                    row[t + 1] = w;
+                }
+            }
+            self.opponent_labels.push(labels);
+        }
 
         if !ctx.config.featurize {
             return Ok(());
