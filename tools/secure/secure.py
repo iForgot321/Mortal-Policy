@@ -19,6 +19,7 @@ its gpg through SSH stdin and a pipe, never a file.
                      watchdog). Safe to repeat
     status           every run: VM state, hours, cost so far
     ssh RUN          print the ssh command
+    rearm RUN        after a workstation reboot: a new watchdog for the time left to the deadline
 
 State: workdir/secure/runs/RUN/ (state.json, known_hosts, logs, box/). Every box that is rented,
 shipped data, wiped or destroyed is in workdir/secure/ledger.jsonl (append-only): D23's audit trail.
@@ -210,12 +211,7 @@ def cmd_up(a):
     log(a.run, f'rented VM {inst["id"]} ({a.flavor}, ${price:.3f}/h)')
 
     # the watchdog first, so even a failure below can't leave the VM billing
-    wd = subprocess.Popen([sys.executable, __file__, 'down', a.run, '--after', str(int(a.hours * 3600))],
-                          stdout=open(RUNS / a.run / 'watchdog.log', 'a'), stderr=subprocess.STDOUT,
-                          stdin=subprocess.DEVNULL, start_new_session=True)
-    st['watchdog_pid'] = wd.pid
-    save(st)
-    log(a.run, f'watchdog {wd.pid}: down in {a.hours} h')
+    start_watchdog(st, int(a.hours * 3600))
 
     t0 = time.time()
     while True:
@@ -241,6 +237,31 @@ def cmd_up(a):
     # a last stop of the box's own: power off an hour after the watchdog's deadline
     box(st, f'sudo shutdown -h +{int(a.hours * 60) + SHUTDOWN_GRACE_MIN} "mortal-secure deadline" 2>/dev/null')
     log(a.run, f'ready: {shlex.join(ssh_args(st))}')
+
+
+def start_watchdog(st, seconds):
+    wd = subprocess.Popen([sys.executable, __file__, 'down', st['run'], '--after', str(seconds)],
+                          stdout=open(RUNS / st['run'] / 'watchdog.log', 'a'), stderr=subprocess.STDOUT,
+                          stdin=subprocess.DEVNULL, start_new_session=True)
+    st['watchdog_pid'] = wd.pid
+    save(st)
+    log(st['run'], f'watchdog {wd.pid}: down in {seconds / 3600:.2f} h')
+
+
+def cmd_rearm(a):
+    """After a workstation reboot: a new watchdog for the time left to the run's deadline."""
+    st = load(a.run)
+    if st.get('destroyed'):
+        sys.exit(f'run {a.run} is destroyed')
+    wd = st.get('watchdog_pid')
+    if wd:
+        try:
+            os.kill(wd, 0)
+            sys.exit(f'watchdog {wd} is alive')
+        except ProcessLookupError:
+            pass
+    left = datetime.fromisoformat(st['created']).timestamp() + st['deadline_h'] * 3600 - time.time()
+    start_watchdog(st, max(0, int(left)))
 
 
 def cmd_setup(a):
@@ -426,7 +447,7 @@ def main(argv=None):
     s = sub.add_parser('exec')
     s.add_argument('run')
     s.add_argument('command')
-    for name in ('pull', 'wipe', 'ssh'):
+    for name in ('pull', 'wipe', 'ssh', 'rearm'):
         sub.add_parser(name).add_argument('run')
     s = sub.add_parser('down')
     s.add_argument('run')

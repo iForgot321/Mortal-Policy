@@ -1,0 +1,78 @@
+# SL teacher AWR seed 1 (04 §5; docs/design/teacher-trainer-draft.md; D62): b24c512 v5 with the
+# heads attached (the heads check passed, experiments/teacher-heads-check.md), on the whole train
+# window (train_E ∪ train_O, 1,805,376 games) with m↔p augmentation, on a Hyperstack RTX A6000
+# through tools/secure/secure.py (experiments/secure_teacher.sh). ${MJ_DATA} is the box's data
+# directory (secure.py ship). The user's choices (2026-10-29): β 1.0, peak LR 1e-4, no quick sweeps
+# (player scoring A0, the 2015-01 window, no decision weighting), GN.
+#
+# max_steps: 1,187,754,829 decisions (splits.md) × (1 − 1.43% Q6/Q8 masked) × 2 (augmentation)
+# ≈ 2.3416B presentations / 2048 ≈ 1,143,360; the schedule ends at 1,143,000.
+#
+# On the box, from mortal/:  MJ_DATA=<data dir> MORTAL_CFG=../workdir/box/configs/teacher-awr-s1.toml python train_teacher.py
+
+[control]
+version = 5
+seed = 1
+run_dir = '/home/iforgot/projects/Mortal-Policy/workdir/secure-box/teacher-awr-s1'
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+batch_size = 2048
+log_every = 1000
+save_minutes = 30
+
+[dataset]
+file_index = '${MJ_DATA}/index-train.pth'
+masks_file = '${MJ_DATA}/splits/masks.jsonl'
+data_root = '${MJ_DATA}'
+val_split = 'heldout_game'
+val_games = 200
+val_every = 20_000
+# 4 workers: the measurement session's setting (28 vCPU, 58 GB RAM)
+file_batch_size = 20
+num_workers = 4
+num_epochs = 1
+enable_augmentation = true
+augmented_first = false
+
+[resnet]
+conv_channels = 512
+num_blocks = 24
+
+[env]
+pts = [90.0, 50.0, -10.0, -130.0]
+
+[policy]
+objective = 'awr'
+awr_beta = 1.0
+awr_clip = 100
+
+[teacher]
+heads = true
+detach = false
+hidden = 256
+w_placement = 0.5
+w_kyoku_delta = 0.5
+w_aux = 0.2
+huber_delta = 1.0
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.1
+max_grad_norm = 1.0
+ema_decay = 0.999
+
+[optim.scheduler]
+peak = 1e-4
+final = 1e-5
+warm_up_steps = 5000
+max_steps = 1_143_000
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2
