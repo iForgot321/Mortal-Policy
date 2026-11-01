@@ -50,6 +50,13 @@ def train():
     batch_size = ctl['batch_size']
     run_dir = ev(ctl['run_dir'])
     os.makedirs(run_dir, exist_ok=True)
+    # one trainer per run directory: a second one would overwrite the first's checkpoints
+    import fcntl
+    lock = open(os.path.join(run_dir, 'trainer.lock'), 'w')
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit(f'another trainer holds {run_dir}/trainer.lock')
     state_file = os.path.join(run_dir, 'state.pth')
     objective = config['policy']['objective']
     assert objective in ('awr', 'bc'), objective

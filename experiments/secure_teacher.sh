@@ -27,10 +27,22 @@ step() {
 }
 field() { python3 -c "import json; print(json.load(open('$STATE')).get('$1') or '')"; }
 box_has() { $S exec "$RUN" "$1" >/dev/null 2>&1; }
+# 0 = a trainer runs, 1 = none (pgrep's answer, printed by the box), 255 = no answer (SSH or secure.py failed)
+trainer_rc() {
+    local out
+    out=$($S exec "$RUN" "pgrep -f '[t]rain_teacher.py' >/dev/null; echo pgrep-rc=\$?" 2>/dev/null)
+    case $out in
+        *pgrep-rc=0*) echo 0 ;;
+        *pgrep-rc=1*) echo 1 ;;
+        *) echo 255 ;;
+    esac
+}
 start_trainer() {
     local d
     d=$(field data_dir)
-    $S exec "$RUN" "mkdir -p workdir/secure-box && cd mortal && (MJ_DATA=$d MORTAL_CFG=../workdir/box/configs/$CONFIG.toml \
+    # never a second trainer beside a live one (2026-10-31: a failed SSH check started one)
+    $S exec "$RUN" "pgrep -f '[t]rain_teacher.py' >/dev/null && { echo 'a trainer is already running'; exit 0; }; \
+mkdir -p workdir/secure-box && cd mortal && (MJ_DATA=$d MORTAL_CFG=../workdir/box/configs/$CONFIG.toml \
 LD_LIBRARY_PATH=\$(/venv/main/bin/python -c 'import sysconfig; print(sysconfig.get_config_var(\"LIBDIR\"))') \
 setsid nohup /venv/main/bin/python train_teacher.py >> ../workdir/secure-box/$CONFIG.log 2>&1 < /dev/null &)"
 }
@@ -63,11 +75,16 @@ while true; do
         say "ALL DONE"
         exit 0
     fi
-    if ! box_has "pgrep -f '[t]rain_teacher.py' >/dev/null"; then
-        if ! box_has true; then
-            say "no SSH to the box this round"
-            continue
-        fi
+    rc=$(trainer_rc)
+    if [[ $rc == 1 ]]; then
+        sleep 60
+        rc=$(trainer_rc)  # the box must say so twice
+    fi
+    if [[ $rc != 0 && $rc != 1 ]]; then
+        say "no answer from the box this round (rc $rc)"
+        continue
+    fi
+    if [[ $rc == 1 ]]; then
         restarts=$((restarts + 1))
         if ((restarts > 3)); then
             say "the trainer died a 4th time: pulling and downing; see workdir/secure/runs/$RUN/box/$CONFIG.log"
@@ -76,6 +93,9 @@ while true; do
         fi
         say "the trainer is not running: restart $restarts (it resumes from its last checkpoint)"
         start_trainer
+    fi
+    if ! box_has "find workdir/secure-box/$CONFIG/timing.jsonl -mmin -90 | grep -q ."; then
+        say "WARNING: no timing line in 90 min: the trainer may be stalled"
     fi
     ((n % 4 == 0)) && $S pull "$RUN" >/dev/null && say "pulled"
 done
