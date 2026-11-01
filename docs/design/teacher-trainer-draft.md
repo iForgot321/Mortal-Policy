@@ -168,6 +168,26 @@ On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU 
     6,233. The "remaining ≈ 15%" was mostly the old loop and the bench's own checkpoint saves.
   - At this rate a teacher takes ≈ 109 h (≈ 4.5 days, ≈ $56), so both end ≈ 2026-11-04 09:00 UTC.
 
+- **Incident: a second AWR trainer (2026-10-31 01:29 → 2026-11-01 18:40 UTC).**
+  - **What happened:** the driver's check that the trainer was alive failed (a transient SSH error)
+    while its connectivity check passed. It took the live trainer for dead and started a second one
+    beside it.
+  - **Effect:** for 41 h the two shared the GPU at ≈ 2.9K samples/s each and overwrote each other's
+    `state.pth`. AWR reached step 219,000 by 2026-11-01 17:42 UTC, against BC's ≈ 496,000.
+  - **Weights:** no model is corrupted. Each process kept its own weights and saw each presentation
+    at most once.
+  - **Kept:** the original (pid 101982, continuous from step 0). The second was killed with SIGKILL,
+    so it couldn't save over the original. AWR was back at 6,057 samples/s at step 221,000.
+  - **Fixed** (`e14f422`):
+    - the driver restarts only when the box itself answers "none" twice, a minute apart;
+    - starting a trainer is refused beside a live one;
+    - `train_teacher.py` locks its run directory;
+    - a warning when no timing line appears for 90 min.
+  - **For whoever reads AWR's curves:** `timing.jsonl` and TensorBoard hold both trainers' lines
+    interleaved between those times.
+  - **Timeline:** AWR now ends ≈ 2026-11-05 10:30 UTC (≈ 135 h, ≈ $68, inside its 150 h watchdog at
+    2026-11-06 01:35 UTC). BC ends ≈ 2026-11-04 06:00 UTC (≈ 107 h, ≈ $54).
+
 ## Choices: decided by the user (2026-10-29), all as recommended
 
 1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale

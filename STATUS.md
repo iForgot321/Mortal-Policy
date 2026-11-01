@@ -42,8 +42,10 @@ research is under way.**
     student vs No-SP A, T-NI pass at 5,000 sets, Δu +0.0082 (`20261030-075954-T-NI`). The teachers
     keep the heads attached.
   - **The teachers are training** (the user's yes, 2026-10-30): `teacher-awr-s1` (VM 1133199) and
-    `teacher-bc-s1` (VM 1133202) on Hyperstack A6000s since ≈ 20:00 UTC. AWR runs at 5,980
-    samples/s (GPU 100%), so ≈ 109 h each; both end ≈ 2026-11-04 09:00 UTC. Then T-std AWR vs BC on
+    `teacher-bc-s1` (VM 1133202) on Hyperstack A6000s since ≈ 20:00 UTC. At ≈ 6K
+    samples/s (GPU 100%), BC ends ≈ 2026-11-04 06:00 UTC. AWR ran 41 h at half speed beside a
+    second trainer that the driver started by mistake (fixed, `e14f422`), so it ends ≈ 2026-11-05
+    10:30 UTC, inside its 150 h watchdog. Then T-std AWR vs BC on
     the workstation, and the winner's s2 (a yes).
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
