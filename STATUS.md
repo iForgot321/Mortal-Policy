@@ -45,7 +45,10 @@ research is under way.**
     `teacher-bc-s1` (VM 1133202) on Hyperstack A6000s since ≈ 20:00 UTC. At ≈ 6K
     samples/s (GPU 100%), BC ends ≈ 2026-11-04 06:00 UTC. AWR ran 41 h at half speed beside a
     second trainer that the driver started by mistake (fixed, `e14f422`), so it ends ≈ 2026-11-05
-    10:30 UTC, inside its 150 h watchdog. Then T-std AWR vs BC on
+    10:30 UTC, inside its 150 h watchdog.
+  - **BC s1 finished** (2026-11-04 07:25 UTC, $54.72): 2.34B presentations, validation top-1 81.24% raw /
+    81.34% EMA (`workdir/teacher/teacher-bc-s1/final.pth`). AWR s1 at 82.8% on 11-04 15:47 UTC, ends
+    ≈ 11-05 10:15 UTC. Then T-std AWR vs BC on
     the workstation, and the winner's s2 (a yes).
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the

@@ -188,6 +188,19 @@ On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU 
   - **Timeline:** AWR now ends ≈ 2026-11-05 10:30 UTC (≈ 135 h, ≈ $68, inside its 150 h watchdog at
     2026-11-06 01:35 UTC). BC ends ≈ 2026-11-04 06:00 UTC (≈ 107 h, ≈ $54).
 
+- **BC s1 finished** (2026-11-04 07:25 UTC): step 1,142,584, when its data ran out, after 2,340,012,032
+  presentations. The VM was pulled, wiped and destroyed at 07:37 UTC after 108.0 h, **$54.72**.
+  - Final validation (133,278 heldout_game decisions), raw / EMA: policy NLL 0.4770 / 0.4750, top-1
+    81.24% / 81.34%, placement 1.108 / 1.108, kyoku-Δ 0.0287 / 0.0287, tenpai 0.143 / 0.142, waits
+    0.161 / 0.161. The heads-check quick student had 0.506 and 80.40%.
+  - Weights: `workdir/teacher/teacher-bc-s1/final.pth` (read-only), raw at the top level and EMA under
+    `ema_weights`.
+  - A false alarm: at 03:03 UTC the driver warned "no timing line in 90 min", but no interval exceeded
+    1,000 s. The check counts a failed SSH call as a stall, so it is to be fixed once AWR's driver is
+    done (editing the script under a running bash would break it).
+- **AWR s1 on 2026-11-04 15:47 UTC:** step 946,000 (82.8%), 6,043 samples/s, one trainer. It ends
+  ≈ 2026-11-05 10:15 UTC (≈ $68), inside its watchdog (2026-11-06 01:35 UTC).
+
 ## Choices: decided by the user (2026-10-29), all as recommended
 
 1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale
