@@ -7,8 +7,8 @@ them. The second seed is on hold (the user, 2026-11-04); this test runs now.
   `tools/secure/export_ema.py`, read-only.
   - Champion: BC s1, `workdir/teacher/teacher-bc-s1/ema.pth` (`2f200d7c…`; from `final.pth`
     `6762492e…`, step 1,142,584).
-  - Challenger: AWR s1, `workdir/teacher/teacher-awr-s1/ema.pth`, exported the same way when AWR
-    ends (≈ 2026-11-05 10:15 UTC).
+  - Challenger: AWR s1, `workdir/teacher/teacher-awr-s1/ema.pth` (`381ce65f…`; from `final.pth`
+    `bcb2987f…`, step 1,142,584), exported 2026-11-05 10:50 UTC.
 - **Where (the user, 2026-11-04):** a Vast eval box (`tools/fleet/evalbox.py`). The test needs only
   weights, no Tenhou data, so a community host is fine (D23 covers the logs, not the weights). It is
   rented once AWR's weights are in, and downed when the job's rows are pulled.

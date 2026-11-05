@@ -94,8 +94,9 @@ while true; do
         say "the trainer is not running: restart $restarts (it resumes from its last checkpoint)"
         start_trainer
     fi
-    if ! box_has "find workdir/secure-box/$CONFIG/timing.jsonl -mmin -90 | grep -q ."; then
-        say "WARNING: no timing line in 90 min: the trainer may be stalled"
-    fi
+    # only the box's own answer counts: a failed SSH call is not a stall (2026-11-04's false alarm)
+    case $($S exec "$RUN" "find workdir/secure-box/$CONFIG/timing.jsonl -mmin -90 | grep -q . && echo timing-fresh || echo timing-stale" 2>/dev/null) in
+        *timing-stale*) say "WARNING: no timing line in 90 min: the trainer may be stalled" ;;
+    esac
     ((n % 4 == 0)) && $S pull "$RUN" >/dev/null && say "pulled"
 done

@@ -201,6 +201,16 @@ On the A6000 the real trainer reached 4,995 samples/s against 6,233 for the GPU 
 - **AWR s1 on 2026-11-04 15:47 UTC:** step 946,000 (82.8%), 6,043 samples/s, one trainer. It ends
   ≈ 2026-11-05 10:15 UTC (≈ $68), inside its watchdog (2026-11-06 01:35 UTC).
 
+- **AWR s1 finished** (2026-11-05 10:31 UTC): step 1,142,584, 2,340,012,032 presentations, as BC. The VM
+  was destroyed at 10:47 UTC after 135.2 h, **$68.51**. The two teachers cost $123.23 in all.
+  - Final validation, raw / EMA: policy NLL 0.4890 / 0.4863, top-1 80.86% / 80.99%, placement
+    1.110 / 1.110, kyoku-Δ 0.0289 / 0.0289, tenpai 0.147 / 0.146, waits 0.166 / 0.165.
+  - It is below BC's human-move fit (EMA top-1 81.34%), as an objective that leans away from plain
+    imitation would be. Strength is the T-std's question (`experiments/teacher-ab-tstd.md`).
+  - Weights: `workdir/teacher/teacher-awr-s1/final.pth` (`bcb2987f…`); EMA
+    `workdir/teacher/teacher-awr-s1/ema.pth` (`381ce65f…`).
+  - The driver's stall warning now counts only the box's own answer.
+
 ## Choices: decided by the user (2026-10-29), all as recommended
 
 1. **AWR's β:** upstream's 1.0 on standardized advantages. No quick-scale β check: the full-scale
