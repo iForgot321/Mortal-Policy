@@ -39,3 +39,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261027-004806-measure | exploratory | fleet soak tracking: soak-a p50 vs k2b full | measure | A [44200, +10000) | 10000 | -0.0036 | [-0.0103, +0.0030] |  | measured | +0.0069 | -0.35 | yes | 8eed01f6+dirty |
 | 20261028-004949-measure | exploratory | fleet soak tracking: soak-a full vs k2b full | measure | A [44200, +10000) | 10000 | +0.0016 | [-0.0050, +0.0082] |  | measured | -0.0001 | +0.15 | yes | 87cc1082+dirty |
 | 20261030-075954-T-NI | exploratory | teacher heads check (04 §5's guard): heads-on quick student vs No-SP A | T-NI | B [1001120000, +60000) | 5000 | +0.0082 |  | +5.84 | pass | -0.0055 | +0.87 | yes | 48afa9b4+dirty |
+| 20261105-105720-T-std | exploratory | teacher objective (04 §5): AWR s1 vs BC s1, EMA weights | T-std | B [1001180000, +100000) | 6500 | -0.0007 |  | -3.27 | fail | -0.0088 | -0.23 | yes | 29c50642+dirty |

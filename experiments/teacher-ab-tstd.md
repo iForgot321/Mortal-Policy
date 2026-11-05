@@ -29,3 +29,16 @@ them. The second seed is on hold (the user, 2026-11-04); this test runs now.
     way (`07` §4).
   - **Either way, reported, exploratory:** mean Δu with its 95% CI, sets played, average rank, and
     the panel.
+
+## Result (2026-11-05 11:40 UTC): fail, so BC is the teacher objective
+
+- **The test:** `20261105-105720-T-std` (job `20261105-105714-926`), on Vast instance 59250408 (Ryzen 9
+  7945HX, $0.502/h), 10:57–11:40 UTC, ≈ $0.43. Family B nonces from 1,001,180,000.
+- **Fail at 6,500 sets,** LLR −3.27 (boundary −2.944). Δu (AWR − BC) **−0.0007**, set SD 0.337, so
+  ≈ [−0.009, +0.008]: the two objectives are even, within ≈ 0.009 u either way.
+- **Exploratory:** 26,000 games, AWR's average rank 2.491, rank histogram 6,732 / 6,447 / 6,139 / 6,682.
+  AWR took more firsts and more fourths than an even split; a more variable style, perhaps, but
+  that's a reading of one histogram, not a result.
+- **Reading (as pre-registered):** BC is the teacher objective, so the second seed is BC s2 when the
+  user releases it (on hold, 2026-11-04). AWR's kyoku-level advantage, mostly luck, didn't buy
+  measurable strength over plain imitation at this scale.

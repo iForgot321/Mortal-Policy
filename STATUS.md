@@ -48,9 +48,9 @@ research is under way.**
     10:30 UTC, inside its 150 h watchdog.
   - **BC s1 finished** (2026-11-04 07:25 UTC, $54.72): 2.34B presentations, validation top-1 81.24% raw /
     81.34% EMA (`workdir/teacher/teacher-bc-s1/final.pth`). **AWR s1 finished** (2026-11-05 10:31 UTC,
-    $68.51): validation top-1 80.99% EMA. Both VMs are destroyed; the teachers cost $123.23. The AWR vs BC
-    T-std (EMA weights, a Vast eval box; the user) is pre-registered (`experiments/teacher-ab-tstd.md`).
-    The second seed is on hold (the user). Then T-std AWR vs BC on
+    $68.51): validation top-1 80.99% EMA. Both VMs are destroyed; the teachers cost $123.23. **The AWR vs
+    BC T-std fails** (2026-11-05, `20261105-105720-T-std`): Δu −0.0007 ≈ [−0.009, +0.008] at 6,500 sets,
+    so **BC is the teacher objective** (D17 resolved). The second seed (BC s2) is on hold (the user). Then T-std AWR vs BC on
     the workstation, and the winner's s2 (a yes).
 - **G0's Select conditions are met** (`00` Gate G0): the arm (P1 + K2) passed T-std against its
   initialization on the retry's one seed (D59), L2 confirmed, the fleet soak passed. Left for the
