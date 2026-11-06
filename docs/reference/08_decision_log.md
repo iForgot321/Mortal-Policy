@@ -674,6 +674,18 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Not decided here:** the students' distillation and the teacher-output cache (`04` §6) get their own measurement or note with that draft.
 - **Reopen if:** the A6000 is unavailable for more than a day when a teacher run is due; its price moves by more than 30%; the teacher network changes size (`04` §5's optional b40c512 needs its own measurement); or a training-loop change moves the per-GPU ranking.
 
+**D63 (2026-11-05): the teacher ensemble is BC s1 + AWR s1 (EMA weights); no second seed is trained.** Amends `04` §5 ("a second seed of whichever wins T-std"; "the winning pair (2 seeds) forms the teacher ensemble"), `04` §6's π_ensemble and `00`'s Phase 1 teacher line. Decided by the user.
+- **Why:**
+  - **The objectives are even.** AWR s1 vs BC s1 (EMA weights) failed T-std at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008] (`experiments/teacher-ab-tstd.md`, D17 → BC).
+  - **Two equally strong teachers with different objectives** usually make a better ensemble than two seeds of one: their errors correlate less.
+  - **It saves a teacher run:** ≈ $55 and ≈ 4.5 days on an A6000 (D62).
+- **What it means:**
+  - π_ensemble = the mean of BC s1's and AWR s1's EMA-weight probabilities (and of their auxiliary-head outputs).
+  - **The best single teacher** (D40: the one reference for student qualification and L1) is **BC s1**. It is D17's winner, and AWR wasn't shown better.
+  - **τ_human** stays the BC teacher (`07` §4).
+  - The weights: `workdir/teacher/teacher-bc-s1/ema.pth` (`2f200d7c…`) and `workdir/teacher/teacher-awr-s1/ema.pth` (`381ce65f…`), read-only.
+- **Reopen if:** students distilled from this ensemble fail T-NI against BC s1 while a single-teacher student passes, or a later teacher run is needed anyway.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |

@@ -152,7 +152,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 ### Phase 1: SL substrate and early research (weeks 4–9)
 
 **SL substrate** (weeks 4–7; `04` §5–6):
-- Teachers: AWR and BC at b24c512, plus a second seed of the winner.
+- Teachers: AWR and BC at b24c512; the ensemble is the two of them (D63, no second seed).
 - Student candidates: the two smallest nets that pass T-NI against the best single teacher.
 - riichi.dev smoke deploy of the best student. This is the **incumbent** (L1).
 

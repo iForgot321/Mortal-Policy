@@ -87,9 +87,9 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 **Train both objectives at full scale.** Each teacher run costs under $100 (`03` §4.2), so the budget (D21) allows all of these:
 - **AWR** (Mortal-Policy's Phase 1 with GRP advantages under the u pts);
 - **BC** (uniform weights);
-- **a second seed of whichever wins T-std** between them.
+- ~~a second seed of whichever wins T-std between them~~ (D63: not trained).
 
-The winning pair (2 seeds) forms the **teacher ensemble** used for distillation (§6). The BC teacher is always kept as the **human prior τ_human** for the piKL dial (`07` §4), because an AWR policy isn't a pure human model.
+**The teacher ensemble is BC s1 + AWR s1** (D63, 2026-11-05): their T-std was even (D17 → BC), so the two objectives are ensembled instead of two seeds of one. The **best single teacher** (D40) is BC s1. The BC teacher is always kept as the **human prior τ_human** for the piKL dial (`07` §4), because an AWR policy isn't a pure human model.
 
 **Optional larger teacher:** b40c512, about 70M params. Try it only if featurization can feed it (`03` §4.2) and if a T-std of student-from-b40 vs student-from-b24 is affordable.
 
@@ -141,7 +141,7 @@ The winning pair (2 seeds) forms the **teacher ensemble** used for distillation 
 
 **Loss:**
 - KL(π_ensemble ‖ π_student) at T = 1 over all training states, plus 0.1 × hard-label cross-entropy.
-  - π_ensemble is the average of the 2-seed teacher ensemble's probabilities (§5). Distilling from an ensemble usually beats distilling from a single teacher.
+  - π_ensemble is the average of the two teachers' probabilities, BC s1 and AWR s1 (§5, D63). Distilling from an ensemble usually beats distilling from a single teacher.
 - Plus MSE toward the teacher's placement, kyoku-Δ and auxiliary outputs, so the student carries every head needed for critic warm-start and the belief sampler.
 - **Ensemble teacher outputs are cached per shard** (D40). This avoids two teacher forward passes per state per epoch. Count the caching pass in the budget.
 
