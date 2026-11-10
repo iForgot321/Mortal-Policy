@@ -23,9 +23,14 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     again**, C: at 23 GB free; ≈ 15:00 UTC for the three runs. After a reboot, restart the chain: it
     skips finished measures, and an interrupted one starts over on the same block with no registry row.
   - **No lab or training job on the workstation until it ends** (RAM).
-- **Check 2, drafted, not run:** BC s1 (EMA) vs No-SP A, T-std (`experiments/teacher-vs-quick.md`).
-  The eval box needs the user's yes (≈ $0.50) and can't overlap the chain (the lab lease), so it
-  comes after it. The same test runs on the workstation for free, slower.
+- **Check 2, approved, waiting for the chain:** BC s1 (EMA) vs No-SP A, T-std
+  (`experiments/teacher-vs-quick.md`; reading fixed 2026-11-10). **The user approved the eval box**
+  (2026-11-10, "Rent the 50 cent box"; quoted $0.542/h). The box's lab lease would stop the chain's
+  next measure, so `experiments/teacher_vs_quick_chain.sh` (detached; log
+  `workdir/fleet/runs/eval/teacher-vs-quick.log`) waits for the chain to end with ALL DONE, rents at
+  ≤ $0.75/h, queues the test, and pulls and destroys the box when the queue drains (6 h ceiling,
+  ≈ $3.3). **While the box is up, no lab job on the workstation** (the lease refuses it), and keep
+  the tree committed: `up` and `submit` refuse a dirty tree outside `lab/registry/`.
 - **Check 3, the user's call:** whether ranked riichi.dev play starts before π_SL. It reverses the
   2026-10-12 decision ("no pilot goes on the board first") and `07` §1's smoke deploy, so it needs
   an `08` entry first. Not decided; `origin/main` is 133 commits behind, and a deployed version's
@@ -53,7 +58,7 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     not run (no Rust change).
 
 **Next:** the chain ends ≈ 15:00 UTC (≈ 5.5 GB of logs to come);
-read its result into `experiments/k2b-opponents.md`; then check 2 by the venue the user picks.
+read its result into `experiments/k2b-opponents.md` (after the box is up and synced, so its rows carry a clean commit); check 2 on the box ≈ 15:00–17:00 UTC, then its result into `experiments/teacher-vs-quick.md`.
 
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
 
