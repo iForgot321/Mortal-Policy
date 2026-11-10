@@ -31,8 +31,29 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
   an `08` entry first. Not decided; `origin/main` is 133 commits behind, and a deployed version's
   source must be public before it plays.
 
-**Next:** read the chain's result into `experiments/k2b-opponents.md`; then check 2 by the venue
-the user picks.
+- **Disk (the user, 2026-11-10): C: was down to 2.2 GB free** of 931 GB. The WSL disk file was 245 GB
+  of it (Linux used 242 GB); Windows itself holds ≈ 684 GB. That is why the chain is paused.
+  - **Removed at the user's word (verified, Linux 242 → 210 GB used):** the pip, npm and cargo
+    `target/` caches (the next Rust build is a full rebuild); `data/raw` (12 GB, the v1-era
+    2020–2024 logs and their zips; `data/stats` kept); the local encrypted bundle's 65 `.gpg` files
+    (9.3 GB). Before that, every bundle file was matched with the bucket copy by size and multipart
+    MD5, and with the manifest by sha256. `manifest.json` stays, since `secure.py ship` reads it;
+    the key is in `~/.config/mortal-secure/`. A new `bucket.py push` would need `pack.py` to
+    rebuild the files.
+  - **Not removed:** the Playwright browsers in `~/.cache` (1.1 GB; installed browsers the MCP
+    server uses, not a download cache), the `mahjax` conda env (5.7 GB), the lab game logs (89 GB,
+    the user's decision).
+  - **The space isn't back on C: yet:** that needs `sudo fstrim -av`, `wsl --shutdown` and a
+    compact of the disk file, which ends the paused run. C: had 23 GB free at 09:10 UTC from the
+    user's own cleanup on Windows.
+  - **Guard added:** `lab/diskguard.py` (6 tests; `pytest tests/` 181 pass, 5 skipped). A lab run
+    refuses to start, before reserving nonces, unless C: and the lab's filesystem keep 10 GB free
+    after its estimated logs; a running one waits before a chunk under 5 GB (`LAB_MIN_FREE_GB`).
+    The chain's remaining two measures pick it up; the paused first one predates it. Cargo checks
+    not run (no Rust change).
+
+**Next:** resume the chain at the user's word (`kill -CONT 83710 83705`; ≈ 5.5 GB of logs to come);
+read its result into `experiments/k2b-opponents.md`; then check 2 by the venue the user picks.
 
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
 

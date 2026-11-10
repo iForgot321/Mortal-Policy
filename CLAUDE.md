@@ -20,6 +20,7 @@ Guidance for Claude Code (and humans) working in this repository.
    ls ~/mj-data/splits/SPLITS.sha256                 # dataset frozen?
    find libriichi/src -name '*.rs' -newer mortal/libriichi.so | head   # output = stale .so
    nvidia-smi; free -g; ps aux | grep -E 'python|train' | grep -v grep # anything running?
+   df -h / /mnt/c                                    # C: holds the WSL disk file; the lab won't start under ~10 GB free
    vastai show instances                             # live cloud boxes bill by the hour
    ps -eo pid,etime,args | awk '/[f]leet.py (watch|down)/'   # every live run needs its watcher (docs/design/handoff-*.md)
    ```
@@ -31,6 +32,7 @@ Guidance for Claude Code (and humans) working in this repository.
 
 - **RTX 3060 12 GB, 16 cores, ~15 GB RAM, WSL2.** Not the 4090 fleet the plan budgets for (D50); that is cloud (D21).
 - **RAM is the binding constraint.** Never run an arena/lab job concurrently with training: the OOM killer takes a dataloader worker and silently wedges the trainer. Featurized samples are ~137 KB each (fp32); keep worker buffers small, or use `dataset.obs_fp16` with AMP.
+- **Disk: the Linux disk is a file on C: (931 GB, shared with Windows), and `df /` doesn't show C:'s limit.** The file grows with writes and never shrinks by itself: space freed in Linux returns to Windows only after `sudo fstrim -av`, `wsl --shutdown` and a compact (`diskpart` → `compact vdisk`). If C: fills, Linux gets write errors. Lab game logs are the main growth (≈ 3.3 GB per 20K-set measure, 17–18 GB per 100K sets). `lab/diskguard.py` refuses to start a lab run that would leave C: under 10 GB, and a running one waits under 5 GB (`LAB_MIN_FREE_GB`). Other writers (training, fleet pulls, `python -m search`) aren't guarded: check `df -h /mnt/c` first.
 - Conda env `mortal` (Python 3.12, torch 2.6 cu124). **The base conda Python is 3.13**, so always build with `PYO3_PYTHON` set (below) or the `.so` won't import.
 
 ## Layout

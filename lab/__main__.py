@@ -24,7 +24,7 @@ import sys
 import numpy as np
 
 from . import RUNS_DIR, REGISTRY_DIR, load_config, utility
-from . import gsprt, registry
+from . import diskguard, gsprt, registry
 
 
 def _engines(args, cfg):
@@ -73,6 +73,8 @@ def _play(args, cfg, run_id, family, nonce_start, key, n_sets, test=None):
             if test is not None:
                 want = min(want, max(test.sets_until_next_look(), 1))
             start = nonce_start + len(scores)
+            if log_dir is not None:
+                diskguard.wait_for_space()
             seeds, seats, ranks, finals = play_sets(chal, champ, key, start, want, log_dir)
             games.add(seeds, seats, ranks, finals)
             _, x = gsprt.set_scores(seeds, seats, ranks, util)
@@ -120,6 +122,8 @@ def cmd_run(args):
     cfg = load_config()
     spec = gsprt.specs_from_config(cfg)[args.test]
     sched = gsprt.schedule_from_config(cfg, args.sigma_set)
+    # a sequential test's length is unknown: room for its minimum now, then the guard's wait per chunk
+    diskguard.check_start(sched.min_sets, logs=not args.no_logs)
     run_id = registry.new_run_id(args.test)
     start, key = registry.allocate_nonces(args.family, spec.cap, run_id, f'{args.test} verdict')
     print(f'{run_id}: {args.test} on family {args.family} nonces [{start}, +{spec.cap})'
@@ -145,6 +149,7 @@ def _secondary(cfg, games):
 
 def _fixed(args, test_name, family, purpose, block=None):
     cfg = load_config()
+    diskguard.check_start(args.sets, logs=not args.no_logs)  # before any nonce is reserved
     run_id = registry.new_run_id(test_name)
     start, key = registry.allocate_nonces(family, args.sets, run_id, purpose, block=block)
     print(f'{run_id}: {test_name} on family {family} nonces [{start}, +{args.sets})', flush=True)
