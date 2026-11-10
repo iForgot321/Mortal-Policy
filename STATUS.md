@@ -18,16 +18,14 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
   - `k2b` calls ≈ 1.3–1.7 pp more than pilot A at both tables. Mixed tables (P-MIX etc.) remain
     unmeasured; the arena can't seat them.
   - Paused 05:43–09:11 UTC for the full disk (below). ≈ 6 h of play; the disk guard never fired.
-- **Check 2, running on the eval box:** BC s1 (EMA) vs No-SP A, T-std
-  (`experiments/teacher-vs-quick.md`; reading fixed 2026-11-10 as proposed). **The user approved the
-  eval box** (2026-11-10, "Rent the 50 cent box"). `experiments/teacher_vs_quick_chain.sh` (detached,
-  pid 166236; log `workdir/fleet/runs/eval/teacher-vs-quick.log`) waited for check 1, then rented
-  **instance 60082444** (Ryzen 9 7950X3D, NL, **$0.542/h**, from 14:49 UTC; contract to 12-15) and
-  queued job `20261110-145729-915`. **The T-std runs since 14:57:55 UTC** (`20261110-145755-T-std`,
-  family B from 1,001,280,000). The driver pulls and destroys the box once the queue drains (polls
-  every 10 min; forced down at 6 h, ≈ $3.3). **While the box is up: no lab job on the workstation**
-  (the lease refuses it), and no change to `lab/registry/` here (the pull requires the local ledger
-  to be a prefix of the box's).
+- **Check 2, done: the teacher beats a quick student** (2026-11-10 15:22 UTC,
+  `experiments/teacher-vs-quick.md`, reading fixed before the run). BC s1 (EMA) vs No-SP A, T-std
+  **pass at the 5,000-set minimum**, Δu **+0.0219 [+0.012, +0.031]**, LLR +7.20
+  (`20261110-145755-T-std`; exploratory). So the distillation's premise holds; renting the run
+  (≈ $65) is still the user's call. On a Vast eval box the user approved ("Rent the 50 cent box"):
+  instance 60082444, $0.542/h, up 14:49–15:22 UTC, ≈ $0.30. Rented by
+  `experiments/teacher_vs_quick_chain.sh` once check 1 had ended (the lab lease). **Pulled and
+  destroyed; the lease is released; nothing is rented.**
 - **Check 3, the user's call:** whether ranked riichi.dev play starts before π_SL. It reverses the
   2026-10-12 decision ("no pilot goes on the board first") and `07` §1's smoke deploy, so it needs
   an `08` entry first. Not decided; `origin/main` is 133 commits behind, and a deployed version's
@@ -54,8 +52,10 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     The chain's remaining two measures pick it up; the paused first one predates it. Cargo checks
     not run (no Rust change).
 
-**Next:** the T-std's result into `experiments/teacher-vs-quick.md` once the driver has pulled and
-downed the box (≈ 16:00–17:00 UTC); check 3 (ranked play before π_SL) waits for the user.
+**Next (the user's call):** check 3, ranked riichi.dev play before π_SL (an `08` entry first); the
+distillation run (`docs/design/distillation-draft.md`, ≈ 128 h, ≈ $65), whose premise check 2
+supports; the audit's other proposals (a seeded shuffle before the worker split, a hard-label
+control student). Compacting the WSL disk file (`STATUS` → Disk) can happen now: nothing is running.
 
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
 

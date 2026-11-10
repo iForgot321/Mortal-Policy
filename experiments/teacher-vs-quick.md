@@ -37,6 +37,22 @@ that in play, before the run is rented.
   - **Either way, reported, exploratory:** mean Δu with its 95% CI, sets played, average rank and the
     panel. A pass at the minimum leaves the size within ≈ ±0.009.
 
-## Result
+## Result (2026-11-10 15:22 UTC): pass, so the distillation's premise holds
 
-(not run)
+- **The test:** `20261110-145755-T-std` (job `20261110-145729-915`), on Vast instance 60082444 (Ryzen 9
+  7950X3D, NL, $0.542/h), 14:57–15:22 UTC. The box was up 14:49–15:22 UTC, so ≈ $0.30. Family B
+  nonces from 1,001,280,000.
+- **Pass at the 5,000-set minimum,** LLR +7.20 (boundary +2.944). Δu (BC s1 − No-SP A) **+0.0219**,
+  set SD 0.342, 95% CI (bootstrap over sets) **[+0.012, +0.031]**.
+- **Reading, as fixed:** the teacher beats a quick student by more than the lab's δ in play, not only
+  in top-1 (+0.9 pp). The distillation run's premise holds; renting it is still the user's call.
+- **Exploratory:**
+  - 20,000 games: BC s1's average rank 2.480, rank histogram 4,964 / 5,145 / 5,213 / 4,678.
+  - Panel (`workdir/lab/20261110-145755-T-std/panel.json`, built afterwards with `python -m lab
+    panel`, since `run` doesn't build one): win 21.9%, deal-in 12.8%, call 30.3%, riichi 17.8%, dama
+    share of wins 14.6%.
+  - Against the b8c192 models at the `k2b` tables (riichi 19.4–20.1%, dama 11.8–12.6%), BC s1
+    riichis less and wins more by dama. Those tables have other opponents, so that's a loose
+    comparison, not a result.
+  - For scale: +0.022 is about the size of `k2b`'s RL gain over pilot A (+0.0195). Different pairs
+    and observations, so not a comparison either.

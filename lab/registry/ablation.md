@@ -43,3 +43,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261109-221907-measure | exploratory | k2b opponent check: k2b full vs 3x shanten-greedy | measure | A [54200, +20000) | 20000 | +0.4214 | [+0.4174, +0.4253] |  | measured | -0.5709 | +42.16 | yes | 94b0c7cb+dirty |
 | 20261110-030053-measure | exploratory | k2b opponent check: pilot A vs 3x shanten-greedy (the pair's baseline) | measure | A [54200, +20000) | 20000 | +0.4130 | [+0.4091, +0.4170] |  | measured | -0.5573 | +41.36 | yes | 94b0c7cb+dirty |
 | 20261110-041102-measure | exploratory | k2b opponent check: k2b full vs 3x pilot B | measure | A [1000, +20000) | 20000 | +0.0193 | [+0.0145, +0.0240] |  | measured | -0.0264 | +1.91 | yes | 94b0c7cb+dirty |
+| 20261110-145755-T-std | exploratory | teacher vs quick student: BC s1 (EMA) vs No-SP A | T-std | B [1001280000, +100000) | 5000 | +0.0219 |  | +7.20 | pass | -0.0198 | +2.34 | yes | 94b0c7cb+dirty |
