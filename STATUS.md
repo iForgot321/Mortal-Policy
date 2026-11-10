@@ -3,6 +3,34 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
+## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
+
+Nothing was trained, rented or measured in the lab; no code changed. State at the start: clean tree,
+nothing rented, `.so` current, splits frozen.
+
+**Verified:** `pytest tests/` 175 pass, 5 skipped; `cargo test` passes; `cargo fmt` clean; clippy at 27
+errors (CLAUDE.md says 28). The AWR teacher's final weights come from one uninterrupted trainer (the
+duplicate's only resume is its own start at step 57,015).
+
+**Findings from the logs and code (evidence in the session's report; each is a proposal, not a decision):**
+- `k2b`'s gain is measured only against pilot A, the opponent it trained against; no registry row
+  plays it against pilot B, shanten-greedy or a mixed table (`02` §4.2's panel was not run at G0).
+- `k2b` sat at the anchor's equilibrium from its first tenth (coefficient fixed at 0.0759, KL easing
+  0.025 → 0.019); its second half bought +0.0025, the soak +0.0016 (not distinguishable from 0).
+- The K1 critic explains 1.2–1.8% of the return's variance (6–10% in the last kyoku) and its loss never
+  fell; the SL kyoku-Δ head reaches ≈ 10% from public information alone.
+- BC s1 (42.7M parameters, 2.34B presentations) is +0.9 pp top-1 over the b8c192 heads-quick student
+  (81.34% vs 80.46%); no lab row compares a teacher with a quick student.
+- `train_teacher.py` splits the date-sorted file list between workers, so every batch is one ≈ 2.6-year
+  era, and the last ≈ 9.5K steps had no 2022-11 → 2025-06 games (that worker ran out first; the loss
+  steps 0.469 → 0.477 there). The 200 validation games include 47 from 2009–2014, outside the train window.
+- Checkpoints written on Vast learner boxes are loaded on the workstation with `weights_only=False`
+  (`lab/arena.py`, `mortal/kl_anchor.py`, `mortal/player.py`).
+
+**Next (the user's call):** `k2b` full vs pilot B and vs shanten-greedy (workstation); BC s1 vs No-SP A
+(eval box); whether ranked riichi.dev play starts before π_SL; a seeded shuffle before the worker split
+and a hard-label control student before the distillation run.
+
 ## Current position (2026-10-28 14:45 UTC)
 
 **Phase 0 is exited** (D55, the user, 2026-10-11; the bar was met 2026-10-05). **Phase 1 early
