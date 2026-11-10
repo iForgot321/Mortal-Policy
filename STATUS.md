@@ -18,6 +18,10 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     `experiments/k2b_opponents_paired.py` → `workdir/lab/k2b-opponents-paired.json`.
   - Verified before the start: a 100-set smoke run on a dev key (not a result) played `k2b` against
     the rule-based bot cleanly, ≈ 10K sets/h. **No result yet.**
+  - **Paused by the user at 05:43 UTC** (`kill -STOP` on the chain 83705 and its measure 83710, at
+    5,500 of the first run's 20,000 sets). Resume with `kill -CONT 83710 83705`. The stopped measure
+    keeps ≈ 2 GB of RAM and its GPU memory. A reboot loses it: restart the chain then (it skips
+    finished measures; the interrupted one starts over on the same block, with no registry row).
   - **No lab or training job on the workstation until it ends** (RAM).
 - **Check 2, drafted, not run:** BC s1 (EMA) vs No-SP A, T-std (`experiments/teacher-vs-quick.md`).
   The eval box needs the user's yes (≈ $0.50) and can't overlap the chain (the lab lease), so it
