@@ -7,37 +7,34 @@ Update at the end of every session: what changed, verified vs only attempted, ne
 
 State at the start: clean tree, nothing rented, `.so` current, splits frozen, nothing running.
 
-- **Check 1, running on the workstation:** the `k2b` opponent check, pre-registered in
-  `experiments/k2b-opponents.md` (`dfa65a8`) before any run. Three 20K-set family-A measures, one
-  at a time: `k2b` full vs 3× shanten-greedy, pilot A vs 3× shanten-greedy (new block `floor`,
-  nonces [54200, +20000)), `k2b` full vs 3× pilot B (block `aa-prime`, the A/A′ run's deals). Each
-  table is read as a pair on the same deals, `k2b` − pilot A; the pilot A vs pilot B half is the
-  existing `20261005-124255-measure`. The pilot A floor run is an addition to the audit's two.
-  - Started 2026-11-10 05:19 UTC: `experiments/k2b_opponents_chain.sh` (detached, pid 83705), log
-    `workdir/lab/k2b-opponents.log`. ≈ 2 h + 2 h + 3.5 h, so ≈ 13:00 UTC. It ends with
-    `experiments/k2b_opponents_paired.py` → `workdir/lab/k2b-opponents-paired.json`.
-  - Verified before the start: a 100-set smoke run on a dev key (not a result) played `k2b` against
-    the rule-based bot cleanly, ≈ 10K sets/h. **No result yet.**
-  - **Paused by the user 05:43–09:11 UTC** for the full disk (below; `kill -STOP` / `kill -CONT` on
-    the chain 83705 and its measure 83710, at 5,500 of the first run's 20,000 sets). **Running
-    again**, C: at 23 GB free; ≈ 15:00 UTC for the three runs. After a reboot, restart the chain: it
-    skips finished measures, and an interrupted one starts over on the same block with no registry row.
-  - **No lab or training job on the workstation until it ends** (RAM).
-- **Check 2, approved, waiting for the chain:** BC s1 (EMA) vs No-SP A, T-std
-  (`experiments/teacher-vs-quick.md`; reading fixed 2026-11-10). **The user approved the eval box**
-  (2026-11-10, "Rent the 50 cent box"; quoted $0.542/h). The box's lab lease would stop the chain's
-  next measure, so `experiments/teacher_vs_quick_chain.sh` (detached; log
-  `workdir/fleet/runs/eval/teacher-vs-quick.log`) waits for the chain to end with ALL DONE, rents at
-  ≤ $0.75/h, queues the test, and pulls and destroys the box when the queue drains (6 h ceiling,
-  ≈ $3.3). **While the box is up, no lab job on the workstation** (the lease refuses it), and keep
-  the tree committed: `up` and `submit` refuse a dirty tree outside `lab/registry/`.
+- **Check 1, done: `k2b`'s gain carries to both tables** (2026-11-10 14:48 UTC,
+  `experiments/k2b-opponents.md`, pre-registered in `dfa65a8`; exploratory, family A). Each table is
+  read as a pair on the same deals, `k2b` full − pilot A:
+  - 3× shanten-greedy: **+0.0084 [+0.0048, +0.0119]**, ≈ 0.4× the +0.0195 against pilot A
+    (`20261109-221907-measure`, `20261110-030053-measure`; new block `floor`, nonces [54200, +20000)).
+  - 3× pilot B: **+0.0177 [+0.0120, +0.0235]**, ≈ 0.9× (`20261110-041102-measure` against the A/A′
+    run `20261005-124255-measure`, block `aa-prime`). The A/A′ run predates D51: 28 of its sets hold
+    a triple ron, worst case ±0.0031 on D.
+  - `k2b` calls ≈ 1.3–1.7 pp more than pilot A at both tables. Mixed tables (P-MIX etc.) remain
+    unmeasured; the arena can't seat them.
+  - Paused 05:43–09:11 UTC for the full disk (below). ≈ 6 h of play; the disk guard never fired.
+- **Check 2, running on the eval box:** BC s1 (EMA) vs No-SP A, T-std
+  (`experiments/teacher-vs-quick.md`; reading fixed 2026-11-10 as proposed). **The user approved the
+  eval box** (2026-11-10, "Rent the 50 cent box"). `experiments/teacher_vs_quick_chain.sh` (detached,
+  pid 166236; log `workdir/fleet/runs/eval/teacher-vs-quick.log`) waited for check 1, then rented
+  **instance 60082444** (Ryzen 9 7950X3D, NL, **$0.542/h**, from 14:49 UTC; contract to 12-15) and
+  queued job `20261110-145729-915`. **The T-std runs since 14:57:55 UTC** (`20261110-145755-T-std`,
+  family B from 1,001,280,000). The driver pulls and destroys the box once the queue drains (polls
+  every 10 min; forced down at 6 h, ≈ $3.3). **While the box is up: no lab job on the workstation**
+  (the lease refuses it), and no change to `lab/registry/` here (the pull requires the local ledger
+  to be a prefix of the box's).
 - **Check 3, the user's call:** whether ranked riichi.dev play starts before π_SL. It reverses the
   2026-10-12 decision ("no pilot goes on the board first") and `07` §1's smoke deploy, so it needs
   an `08` entry first. Not decided; `origin/main` is 133 commits behind, and a deployed version's
   source must be public before it plays.
 
 - **Disk (the user, 2026-11-10): C: was down to 2.2 GB free** of 931 GB. The WSL disk file was 245 GB
-  of it (Linux used 242 GB); Windows itself holds ≈ 684 GB. That is why the chain is paused.
+  of it (Linux used 242 GB); Windows itself holds ≈ 684 GB. The chain was paused for it.
   - **Removed at the user's word (verified, Linux 242 → 210 GB used):** the pip, npm and cargo
     `target/` caches (the next Rust build is a full rebuild); `data/raw` (12 GB, the v1-era
     2020–2024 logs and their zips; `data/stats` kept); the local encrypted bundle's 65 `.gpg` files
@@ -49,16 +46,16 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     server uses, not a download cache), the `mahjax` conda env (5.7 GB), the lab game logs (89 GB,
     the user's decision).
   - **The space isn't back on C: yet:** that needs `sudo fstrim -av`, `wsl --shutdown` and a
-    compact of the disk file, which ends the paused run. C: had 23 GB free at 09:10 UTC from the
-    user's own cleanup on Windows.
+    compact of the disk file (`wsl --shutdown` ends every Linux process, so not while a driver
+    runs). C: had 23 GB free at 09:10 UTC from the user's own cleanup on Windows.
   - **Guard added:** `lab/diskguard.py` (6 tests; `pytest tests/` 181 pass, 5 skipped). A lab run
     refuses to start, before reserving nonces, unless C: and the lab's filesystem keep 10 GB free
     after its estimated logs; a running one waits before a chunk under 5 GB (`LAB_MIN_FREE_GB`).
     The chain's remaining two measures pick it up; the paused first one predates it. Cargo checks
     not run (no Rust change).
 
-**Next:** the chain ends ≈ 15:00 UTC (≈ 5.5 GB of logs to come);
-read its result into `experiments/k2b-opponents.md` (after the box is up and synced, so its rows carry a clean commit); check 2 on the box ≈ 15:00–17:00 UTC, then its result into `experiments/teacher-vs-quick.md`.
+**Next:** the T-std's result into `experiments/teacher-vs-quick.md` once the driver has pulled and
+downed the box (≈ 16:00–17:00 UTC); check 3 (ranked play before π_SL) waits for the user.
 
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
 

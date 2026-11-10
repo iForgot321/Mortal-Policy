@@ -63,6 +63,41 @@ Nothing follows automatically. G0's Select conditions were met on the 1v3 test a
 written; what a missing or negative carry-over means for T1 (the opponent pool, the panel before
 the next gate) is the user's call.
 
-## Results
+## Results (2026-11-10 14:48 UTC): the gain carries to both tables
 
-(none yet)
+`workdir/lab/k2b-opponents-paired.json`. Exploratory; family A; AMP; 20,000 sets per run.
+
+| Table | `k2b` full | pilot A | **D = `k2b` − pilot A** (95% CI) | Share of +0.0195 | Runs (`k2b`, pilot A) |
+|---|---|---|---|---|---|
+| 3× shanten-greedy | +0.4214 | +0.4130 | **+0.0084 [+0.0048, +0.0119]** | 43% | `20261109-221907-measure`, `20261110-030053-measure` |
+| 3× pilot B | +0.0193 | +0.0015 | **+0.0177 [+0.0120, +0.0235]** | 91% | `20261110-041102-measure`, `20261005-124255-measure` |
+| 3× pilot A (reference) | | | +0.0195 [+0.0174, +0.0216] | 100% | `20261025-060641-T-confirm` (100K, family C) |
+
+- **Reading, as pre-registered:** both CIs lie entirely above 0, so `k2b`'s gain over pilot A carries
+  to both tables.
+  - **Against pilot B** it is about the size of the gain against pilot A; the CIs overlap. Pilot B is
+    a twin of pilot A (same recipe, seed 2), so this says the gain isn't tied to pilot A's
+    particular weights. It doesn't say much about opponents of another kind.
+  - **Against the floor** it is smaller, ≈ 0.4×. My reading, not a result: both models win most
+    sets there (average rank 1.93 vs 1.94, ≈ 40% firsts), so there is less to separate them.
+- **Paired set scores:** correlation 0.59 at the floor table and 0.22 at the pilot B table; SD of D
+  0.257 and 0.417.
+- **Exploratory panel** (`k2b` vs pilot A at the same table):
+
+  | Table | Average rank | Win % | Deal-in % | Call % | Riichi % |
+  |---|---|---|---|---|---|
+  | 3× shanten-greedy | 1.929 vs 1.943 | 28.7 vs 28.3 | 5.95 vs 6.02 | 31.5 vs 29.8 | 19.4 vs 19.4 |
+  | 3× pilot B | 2.474 vs 2.498 | 22.0 vs 21.8 | 12.7 vs 13.1 | 29.6 vs 28.3 | 20.1 vs 20.0 |
+
+  `k2b` calls ≈ 1.3–1.7 pp more than pilot A at both tables and deals in a little less.
+- **Caveats:**
+  - **The pilot B baseline predates D51.** Its logs hold 44 triple-ron kyoku in 28 of the 20,000
+    sets (the new run: 0, since a triple ron is now an abortive draw). A set score spans at most 2.2,
+    so the worst case moves D by ±0.0031 (28 × 2.2 / 20,000), and the lower bound stays above 0.
+  - **The first run's registry row records commit `94b0c7cb`,** the state when it ended. It started at
+    `dfa65a8`; in between only docs and `lab/diskguard.py` changed, which the running process hadn't
+    loaded. It was paused 05:43–09:11 UTC (SIGSTOP); a set's games depend only on its seed.
+  - **Not covered:** mixed tables (P-MIX, P-STY, P-RES; the 1v3 arena seats three identical
+    opponents) and the panel's weighted score; no family-C confirmation.
+- **Cost:** ≈ 6 h of workstation play, the 3.5 h pause aside (1.2 h + 1.2 h at the floor table,
+  ≈ 17K sets/h; 3.6 h at the pilot B table, ≈ 5.5K sets/h); no cloud spend.
