@@ -18,10 +18,10 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     `experiments/k2b_opponents_paired.py` → `workdir/lab/k2b-opponents-paired.json`.
   - Verified before the start: a 100-set smoke run on a dev key (not a result) played `k2b` against
     the rule-based bot cleanly, ≈ 10K sets/h. **No result yet.**
-  - **Paused by the user at 05:43 UTC** (`kill -STOP` on the chain 83705 and its measure 83710, at
-    5,500 of the first run's 20,000 sets). Resume with `kill -CONT 83710 83705`. The stopped measure
-    keeps ≈ 2 GB of RAM and its GPU memory. A reboot loses it: restart the chain then (it skips
-    finished measures; the interrupted one starts over on the same block, with no registry row).
+  - **Paused by the user 05:43–09:11 UTC** for the full disk (below; `kill -STOP` / `kill -CONT` on
+    the chain 83705 and its measure 83710, at 5,500 of the first run's 20,000 sets). **Running
+    again**, C: at 23 GB free; ≈ 15:00 UTC for the three runs. After a reboot, restart the chain: it
+    skips finished measures, and an interrupted one starts over on the same block with no registry row.
   - **No lab or training job on the workstation until it ends** (RAM).
 - **Check 2, drafted, not run:** BC s1 (EMA) vs No-SP A, T-std (`experiments/teacher-vs-quick.md`).
   The eval box needs the user's yes (≈ $0.50) and can't overlap the chain (the lab lease), so it
@@ -52,7 +52,7 @@ State at the start: clean tree, nothing rented, `.so` current, splits frozen, no
     The chain's remaining two measures pick it up; the paused first one predates it. Cargo checks
     not run (no Rust change).
 
-**Next:** resume the chain at the user's word (`kill -CONT 83710 83705`; ≈ 5.5 GB of logs to come);
+**Next:** the chain ends ≈ 15:00 UTC (≈ 5.5 GB of logs to come);
 read its result into `experiments/k2b-opponents.md`; then check 2 by the venue the user picks.
 
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
