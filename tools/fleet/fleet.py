@@ -900,7 +900,7 @@ def snapshot(run, label):
     out = remote(run, learner, f'''mkdir -p {BOX_DIR}/snapshots
 [ -f {snap} ] || {{ cp {state_file} {snap}.tmp && mv {snap}.tmp {snap}; }}
 sha256sum {snap} | cut -d' ' -f1
-{BOX_PY} -c "import torch; print(torch.load('{snap}', weights_only=False, map_location='cpu')['steps'])"
+{BOX_PY} -c "import torch; print(torch.load('{snap}', weights_only=True, map_location='cpu')['steps'])"
 ''', timeout=300).stdout.split()
     sha, steps = out[-2], int(out[-1])
     local = run.dir / 'snapshots' / f'{label}.pth'

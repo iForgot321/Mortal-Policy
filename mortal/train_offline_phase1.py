@@ -26,6 +26,7 @@ def train():
     from dataloader import FileDatasetsIter, worker_init_fn, load_masks
     from lr_scheduler import LinearWarmUpCosineAnnealingLR
     from model import Brain, CategoricalPolicy
+    from checkpoint import load_checkpoint
     from libriichi.consts import obs_shape
     from config import config
     from copy import deepcopy
@@ -121,7 +122,7 @@ def train():
         'lock': manager.Lock()
             }
     if path.exists(state_file):
-        state = torch.load(state_file, weights_only=False, map_location=device)
+        state = load_checkpoint(state_file, map_location=device)
         timestamp = datetime.fromtimestamp(state['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
         logging.info(f'loaded: {timestamp}')
         mortal.load_state_dict(state['mortal'])

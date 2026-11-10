@@ -14,6 +14,7 @@ R = '/home/iforgot/projects/Mortal-Policy'
 sys.path[:0] = [f'{R}/mortal']
 os.environ.setdefault('MORTAL_CFG', f'{R}/experiments/configs/cql-qs-a.toml')
 import torch
+from checkpoint import load_checkpoint
 from libriichi.dataset import GameplayLoader
 from model import Brain, DQN
 
@@ -29,7 +30,7 @@ a = ap.parse_args()
 torch.set_num_threads(2)
 
 def load(path):
-    state = torch.load(path, map_location='cpu', weights_only=False)
+    state = load_checkpoint(path)
     brain = Brain(version=4, conv_channels=192, num_blocks=8, Norm='GN').eval()
     dqn = DQN(version=4).eval()
     brain.load_state_dict(state['mortal'])

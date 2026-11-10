@@ -41,6 +41,7 @@ def train():
     from dataloader import FileDatasetsIter, worker_init_fn, load_masks
     from lr_scheduler import LinearWarmUpCosineAnnealingLR
     from model import Brain, CategoricalPolicy, TeacherHeads
+    from checkpoint import load_checkpoint
     from teacher import TeacherDataset, teacher_loss, Ema
 
     ctl, ds, tcfg, opt_cfg = config['control'], config['dataset'], config['teacher'], config['optim']
@@ -96,7 +97,7 @@ def train():
                     'M2': manager.Value('d', 0.0), 'lock': manager.Lock()}
     steps, cursor, start_batches = 0, {}, {}
     if os.path.exists(state_file):
-        st = torch.load(state_file, weights_only=False, map_location=device)
+        st = load_checkpoint(state_file, map_location=device)
         for m, k in ((mortal, 'mortal'), (policy, 'policy_net'), (heads, 'heads')):
             if m is not None:
                 m.load_state_dict(st[k])

@@ -17,6 +17,7 @@ R = '/home/iforgot/projects/Mortal-Policy'
 sys.path[:0] = [f'{R}/mortal']
 os.environ.setdefault('MORTAL_CFG', f'{R}/experiments/configs/cql-qs-a.toml')
 import torch
+from checkpoint import load_checkpoint
 from config import config
 from dataloader import FileDatasetsIter
 from model import Brain, DQN
@@ -35,7 +36,7 @@ torch.backends.cuda.matmul.allow_tf32 = False
 
 
 def load(path):
-    state = torch.load(path, map_location='cpu', weights_only=False)
+    state = load_checkpoint(path)
     brain = Brain(version=4, conv_channels=192, num_blocks=8, Norm='GN').eval().to(dev)
     dqn = DQN(version=4).eval().to(dev)
     brain.load_state_dict(state['mortal'])

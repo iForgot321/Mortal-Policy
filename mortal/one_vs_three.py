@@ -5,6 +5,7 @@ import torch
 import secrets
 import os
 from model import Brain,CategoricalPolicy
+from checkpoint import load_checkpoint
 from engine import MortalEngine
 from libriichi.arena import OneVsThree
 from config import config
@@ -24,9 +25,7 @@ def main():
         os.environ['AKOCHAN_DIR'] = cfg['akochan']['dir']
         os.environ['AKOCHAN_TACTICS'] = cfg['akochan']['tactics']
     else:
-        # weights_only=False: trainer-saved checkpoints carry numpy scalars that
-        # torch>=2.6 safe-load rejects; we only ever load our own checkpoints
-        state = torch.load(cfg['champion']['state_file'], weights_only=False, map_location=torch.device('cpu'))
+        state = load_checkpoint(cfg['champion']['state_file'])
         cham_cfg = state['config']
         version = cham_cfg['control'].get('version', 1)
         conv_channels = cham_cfg['resnet']['conv_channels']
@@ -49,7 +48,7 @@ def main():
             name = cfg['champion']['name'],
         )
 
-    state = torch.load(cfg['challenger']['state_file'], weights_only=False, map_location=torch.device('cpu'))
+    state = load_checkpoint(cfg['challenger']['state_file'])
     chal_cfg = state['config']
     version = chal_cfg['control'].get('version', 1)
     conv_channels = chal_cfg['resnet']['conv_channels']

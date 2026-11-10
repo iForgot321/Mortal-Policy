@@ -97,8 +97,9 @@ def main():
 
     critic = None
     if args.critic:
+        from checkpoint import load_checkpoint
         from critic import Critic, gae_targets
-        state = torch.load(args.critic, weights_only=False, map_location='cpu')
+        state = load_checkpoint(args.critic)
         ccfg = state['config']['critic']
         critic = Critic(conv_channels=ccfg['conv_channels'], num_blocks=ccfg['num_blocks'], version=4)
         critic.load_state_dict(state['critic'])

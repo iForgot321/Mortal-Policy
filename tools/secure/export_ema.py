@@ -10,9 +10,12 @@ import sys
 
 import torch
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'mortal'))
+from checkpoint import load_checkpoint  # noqa: E402
+
 
 def main(src, dst):
-    st = torch.load(src, weights_only=False, map_location='cpu')
+    st = load_checkpoint(src)
     ema = st['ema_weights']
     with open(src, 'rb') as f:
         src_sha = hashlib.sha256(f.read()).hexdigest()

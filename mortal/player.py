@@ -6,6 +6,7 @@ import secrets
 import logging
 from os import path
 from model import Brain, DQN,CategoricalPolicy
+from checkpoint import load_checkpoint
 from engine import MortalEngine, ValueEngine
 from libriichi.stat import Stat
 from libriichi.arena import OneVsThree
@@ -26,9 +27,7 @@ def load_frozen(baseline_cfg):
     ('policy_net') or a value one ('current_dqn', arm V)."""
     device = torch.device(baseline_cfg['device'])
 
-    # weights_only=False: trainer-saved checkpoints carry numpy scalars that
-    # torch>=2.6 safe-load rejects; we only ever load our own checkpoints
-    state = torch.load(baseline_cfg['state_file'], weights_only=False, map_location=torch.device('cpu'))
+    state = load_checkpoint(baseline_cfg['state_file'])
     cfg = state['config']
     version = cfg['control'].get('version', 1)
     conv_channels = cfg['resnet']['conv_channels']

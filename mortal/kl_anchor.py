@@ -38,6 +38,7 @@ Config (`[policy.kl_anchor]`), two coefficient rules:
 """
 import torch
 
+from checkpoint import load_checkpoint
 from model import Brain, CategoricalPolicy
 
 MODES = ('fixed', 'adaptive')
@@ -45,7 +46,7 @@ MODES = ('fixed', 'adaptive')
 
 def load_policy(state_file, device):
     """A policy checkpoint's (brain, policy), frozen and in eval mode."""
-    state = torch.load(state_file, weights_only=False, map_location='cpu')
+    state = load_checkpoint(state_file)
     cfg = state['config']
     brain = Brain(version=cfg['control'].get('version', 1), num_blocks=cfg['resnet']['num_blocks'],
                   conv_channels=cfg['resnet']['conv_channels'], Norm=cfg['resnet'].get('norm', 'GN'))

@@ -23,7 +23,7 @@ check_and_freeze() {  # <name>
         log "FAIL: pilot $1 log shows an error"; exit 1
     fi
     local steps
-    steps=$("$PY" -c "import torch; print(torch.load('$dir/mortal.pth', weights_only=False, map_location='cpu')['steps'])")
+    steps=$("$PY" -c "import torch; print(torch.load('$dir/mortal.pth', weights_only=True, map_location='cpu')['steps'])")
     if (( steps < MIN_STEPS )); then
         log "FAIL: pilot $1 stopped at $steps steps (< $MIN_STEPS)"; exit 1
     fi

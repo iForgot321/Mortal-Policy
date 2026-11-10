@@ -65,12 +65,12 @@ def load_engine(spec, device='cuda:0', name=None, enable_amp=True,
         raise ValueError(f'unknown builtin engine {spec}; known: {BUILTINS}')
 
     import torch
+    from checkpoint import load_checkpoint
     from engine import MortalEngine
     from model import Brain, CategoricalPolicy, DQN
 
-    # weights_only=False: trainer checkpoints carry numpy scalars; we only
-    # ever load our own checkpoints
-    state = torch.load(spec, weights_only=False, map_location=torch.device('cpu'))
+    # as data only: snapshots come back from rented learner boxes (mortal/checkpoint.py)
+    state = load_checkpoint(spec)
     cfg = state['config']
     version = cfg['control'].get('version', 1)
     # every upstream script builds Brain with GN; record otherwise in the config

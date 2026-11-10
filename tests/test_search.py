@@ -262,7 +262,7 @@ def test_hand_model_follows_the_blueprint_version(greedy_games, tmp_path):
     saved = tmp_path / 'handmodel.pth'
     torch.save({'model': hm.HandModel(brain).state_dict(), 'resnet': resnet, 'version': brain.version}, saved)
     assert hm.load(str(saved), 'cpu').brain.version == 5
-    state = torch.load(saved, weights_only=False)
+    state = torch.load(saved, weights_only=True)
     del state['version']
     torch.save(state, saved)
     assert hm.load(str(saved), 'cpu').brain.version == 4

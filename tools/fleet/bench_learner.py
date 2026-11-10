@@ -81,11 +81,12 @@ ANCHOR = {'mode': 'adaptive', 'coef': 0.1, 'target': 0.02, 'target_growth': 0.0,
 
 def load_nets(version, device):
     import torch
+    from checkpoint import load_checkpoint
     from model import Brain, CategoricalPolicy
 
     # pilot A's weights for every version: the shapes are equal, and for timing v5 that's enough
     # (the SP ablation's timing device); the drain's logs don't depend on the version either
-    state = torch.load(PILOT, weights_only=False, map_location='cpu')
+    state = load_checkpoint(PILOT)
     brain = Brain(version=version, num_blocks=8, conv_channels=192, Norm='GN')
     policy = CategoricalPolicy()
     brain.load_state_dict(state['mortal'])

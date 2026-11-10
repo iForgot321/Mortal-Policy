@@ -52,11 +52,12 @@ def git_commit():
 def engines(device):
     """The trainee and the baseline exactly as TrainPlayer builds them, both from pilot A."""
     import torch
+    from checkpoint import load_checkpoint
     from engine import MortalEngine
     from model import Brain, CategoricalPolicy
 
     def nets():
-        state = torch.load(PILOT_A, weights_only=False, map_location='cpu')
+        state = load_checkpoint(PILOT_A)
         cfg = state['config']
         brain = Brain(version=cfg['control'].get('version', 1), conv_channels=cfg['resnet']['conv_channels'],
                       num_blocks=cfg['resnet']['num_blocks'], Norm='GN').eval()
@@ -328,6 +329,7 @@ def cmd_evaluate(a):
     import numpy as np
     import toml
     import torch
+    from checkpoint import load_checkpoint
     from critic import Critic, calibration, explained_variance, gae_targets
     from rl_dataset import OrderedDatasetsIter
     cfg = toml.load(P1)
@@ -336,7 +338,7 @@ def cmd_evaluate(a):
     torch.manual_seed(SEED)
     critics['untrained'] = Critic(conv_channels=cfg['critic']['conv_channels'], num_blocks=cfg['critic']['num_blocks'])
     for lr in LRS:
-        state = torch.load(out / f'lr-{lr}' / 'mortal.pth', weights_only=False, map_location='cpu')
+        state = load_checkpoint(out / f'lr-{lr}' / 'mortal.pth')
         c = Critic(conv_channels=cfg['critic']['conv_channels'], num_blocks=cfg['critic']['num_blocks'])
         c.load_state_dict(state['critic'])
         critics[lr] = c

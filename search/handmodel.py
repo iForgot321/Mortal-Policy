@@ -182,8 +182,9 @@ class HandExamples(IterableDataset):
 
 
 def load_brain(init, device):
+    from checkpoint import load_checkpoint
     from model import Brain
-    state = torch.load(init, weights_only=False, map_location='cpu')
+    state = load_checkpoint(init)
     cfg = state['config']['resnet']
     # the blueprint's observation version: the hand model reads the same observation
     brain = Brain(version=state['config']['control'].get('version', 4), conv_channels=cfg['conv_channels'],
@@ -262,8 +263,9 @@ def train(args):
 
 
 def load(path, device='cuda:0'):
+    from checkpoint import load_checkpoint
     from model import Brain
-    state = torch.load(path, weights_only=False, map_location='cpu')
+    state = load_checkpoint(path)
     cfg = state['resnet']
     # models saved before 2026-10-25 carry no version: they are v4
     brain = Brain(version=state.get('version', 4), conv_channels=cfg['conv_channels'], num_blocks=cfg['num_blocks'],
