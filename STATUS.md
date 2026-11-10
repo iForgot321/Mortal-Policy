@@ -3,6 +3,33 @@
 Running log of where the project is against `docs/reference/00_ROADMAP.md`. Newest first.
 Update at the end of every session: what changed, verified vs only attempted, next step.
 
+## 2026-11-09 (later) — the audit's three checks (the user brought them back)
+
+State at the start: clean tree, nothing rented, `.so` current, splits frozen, nothing running.
+
+- **Check 1, running on the workstation:** the `k2b` opponent check, pre-registered in
+  `experiments/k2b-opponents.md` (`dfa65a8`) before any run. Three 20K-set family-A measures, one
+  at a time: `k2b` full vs 3× shanten-greedy, pilot A vs 3× shanten-greedy (new block `floor`,
+  nonces [54200, +20000)), `k2b` full vs 3× pilot B (block `aa-prime`, the A/A′ run's deals). Each
+  table is read as a pair on the same deals, `k2b` − pilot A; the pilot A vs pilot B half is the
+  existing `20261005-124255-measure`. The pilot A floor run is an addition to the audit's two.
+  - Started 2026-11-10 05:19 UTC: `experiments/k2b_opponents_chain.sh` (detached, pid 83705), log
+    `workdir/lab/k2b-opponents.log`. ≈ 2 h + 2 h + 3.5 h, so ≈ 13:00 UTC. It ends with
+    `experiments/k2b_opponents_paired.py` → `workdir/lab/k2b-opponents-paired.json`.
+  - Verified before the start: a 100-set smoke run on a dev key (not a result) played `k2b` against
+    the rule-based bot cleanly, ≈ 10K sets/h. **No result yet.**
+  - **No lab or training job on the workstation until it ends** (RAM).
+- **Check 2, drafted, not run:** BC s1 (EMA) vs No-SP A, T-std (`experiments/teacher-vs-quick.md`).
+  The eval box needs the user's yes (≈ $0.50) and can't overlap the chain (the lab lease), so it
+  comes after it. The same test runs on the workstation for free, slower.
+- **Check 3, the user's call:** whether ranked riichi.dev play starts before π_SL. It reverses the
+  2026-10-12 decision ("no pilot goes on the board first") and `07` §1's smoke deploy, so it needs
+  an `08` entry first. Not decided; `origin/main` is 133 commits behind, and a deployed version's
+  source must be public before it plays.
+
+**Next:** read the chain's result into `experiments/k2b-opponents.md`; then check 2 by the venue
+the user picks.
+
 ## 2026-11-09 — repository audit (read-only session; findings not yet reviewed by the user)
 
 Nothing was trained, rented or measured in the lab; no code changed. State at the start: clean tree,
