@@ -22,6 +22,8 @@ save_minutes = 30
 file_index = '/home/iforgot/projects/Mortal-Policy/workdir/pilot/quick500k.pth'
 masks_file = '${MJ_DATA}/splits/masks.jsonl'
 data_root = '${MJ_DATA}'
+# the order this run trained in (train_teacher.py's only order then): one era per worker
+file_order = 'sorted'
 val_split = 'heldout_game'
 val_games = 200
 val_every = 10_000

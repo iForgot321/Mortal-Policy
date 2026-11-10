@@ -4,9 +4,13 @@ with [teacher] heads = true, the auxiliary heads (placement, kyoku-Δ, opponent 
 train_offline_phase1.py's loop, plus:
 - the heads and 04 §5's weighted loss (mortal/teacher.py);
 - EMA weights (04 §5: 0.999), saved beside the raw ones;
-- a fixed validation set from heldout_game, every val_every steps, for the raw and the EMA weights;
+- a fixed validation set from heldout_game, every val_every steps, for the raw and the EMA weights
+  ([dataset] val_start = 'YYYY-MM-DD' keeps it inside the train window; heldout_time is scored on the
+  workstation, tools/eval/validate.py);
 - checkpoints every save_minutes (and on SIGTERM), atomically, under control.run_dir;
 - a resume that doesn't re-see data (TeacherDataset's file-batch cursor);
+- the file list shuffled by the seed before the loader's workers split it ([dataset] file_order,
+  default 'shuffled'; 'sorted' is the teachers' order, one era per worker);
 - no test play (evaluation is the lab's job), so no baseline checkpoint is loaded;
 - the loop's free speed-ups (the bench_loop.py investigation): the label-mask check on the CPU,
   the next batch copied on a side stream while this one trains, AdamW(fused=True);
@@ -38,11 +42,11 @@ def train():
     from torch.utils.tensorboard import SummaryWriter
     from multiprocessing import Manager
     from config import config
-    from dataloader import FileDatasetsIter, worker_init_fn, load_masks
+    from dataloader import worker_init_fn, load_masks
     from lr_scheduler import LinearWarmUpCosineAnnealingLR
     from model import Brain, CategoricalPolicy, TeacherHeads
     from checkpoint import load_checkpoint
-    from teacher import TeacherDataset, teacher_loss, Ema
+    from teacher import TeacherDataset, teacher_loss, Ema, validation_files, validate as run_validation
 
     ctl, ds, tcfg, opt_cfg = config['control'], config['dataset'], config['teacher'], config['optim']
     ev = os.path.expandvars
@@ -64,6 +68,7 @@ def train():
     awr_beta, awr_clip = config['policy']['awr_beta'], config['policy']['awr_clip']
     use_heads = tcfg['heads']
     max_steps = opt_cfg['scheduler']['max_steps']
+    file_order = ds.get('file_order', 'shuffled')
 
     random.seed(seed)
     np.random.seed(seed)
@@ -108,6 +113,10 @@ def train():
         for k in ('count', 'mean', 'M2'):
             shared_stats[k].value = st['shared_stats'][k]
         steps = st['steps']
+        # the cursor counts file batches of one order (states from before the key are 'sorted')
+        if (saved_order := st.get('file_order', 'sorted')) != file_order:
+            raise SystemExit(f"{state_file} was trained in file order '{saved_order}', the config says "
+                             f"'{file_order}': set [dataset] file_order = '{saved_order}' to resume it")
         start_batches = {int(w): b for w, b in st['cursor'].items()}
         cursor = {w: b - 1 for w, b in start_batches.items()}  # the last file batch trained on
         logging.info(f'resumed at step {steps:,}; file-batch cursor {cursor}')
@@ -121,6 +130,7 @@ def train():
             'mortal': mortal.state_dict(), 'policy_net': policy.state_dict(),
             'heads': heads.state_dict() if heads is not None else None,
             'steps': steps, 'presentations': steps * batch_size, 'config': config, 'timestamp': time.time(),
+            'file_order': file_order,
             'shared_stats': {k: shared_stats[k].value for k in ('count', 'mean', 'M2')},
         }
         if final:
@@ -138,48 +148,29 @@ def train():
 
     masks = load_masks(ev(ds['masks_file'])) if ds.get('masks_file') else {}
     file_list = sorted(torch.load(ev(ds['file_index']), weights_only=True)['file_list'])
-    logging.info(f'{len(file_list):,} training files; {len(masks):,} masked games')
+    logging.info(f'{len(file_list):,} training files (file order: {file_order}); {len(masks):,} masked games')
     dataset = TeacherDataset(
         version=version, file_list=file_list, pts=config['env']['pts'], shared_stats=shared_stats,
         file_batch_size=ds['file_batch_size'], num_epochs=ds['num_epochs'],
         enable_augmentation=ds['enable_augmentation'], augmented_first=ds['augmented_first'],
         masks=masks, compute_advantage=objective == 'awr', obs_fp16=True, teacher_labels=True,
-        seed=seed, start_batches=start_batches,
+        seed=seed, start_batches=start_batches, file_order=file_order,
     )
     loader = iter(DataLoader(dataset=dataset, batch_size=batch_size, drop_last=True,
                              num_workers=ds['num_workers'], pin_memory=True,
                              worker_init_fn=worker_init_fn, persistent_workers=True))
 
-    # a fixed validation set: every k-th heldout_game log
-    data_root = ev(ds['data_root'])
-    val_all = [os.path.join(data_root, 'mjai', l.strip())
-               for l in open(os.path.join(data_root, 'splits', ds['val_split'] + '.txt')) if l.strip()]
-    val_files = sorted(val_all)[:: max(1, len(val_all) // ds['val_games'])][:ds['val_games']]
+    # a fixed validation set: every k-th log of the split, from val_start on if it is set
+    val_files = validation_files(ev(ds['data_root']), ds['val_split'], ds['val_games'], start=ds.get('val_start'))
+    val_days = sorted(os.path.basename(f)[:8] for f in val_files)
+    logging.info(f'{len(val_files)} validation logs from {ds["val_split"]}, {val_days[0]} to {val_days[-1]}')
 
-    @torch.no_grad()
     def validate():
-        for m in models:
-            m.eval()
-        vds = FileDatasetsIter(version=version, file_list=list(val_files), pts=config['env']['pts'],
-                               # few files at a time: validation runs in the main process, beside the training
-                               file_batch_size=ds.get('val_file_batch_size', 4), masks=masks, compute_advantage=False,
-                               obs_fp16=True, teacher_labels=True)
-        sums, n, top1 = {}, 0, 0
-        for obs, actions, mask, _, kd, rank, opp in DataLoader(vds, batch_size=batch_size, num_workers=0):
-            obs, actions, mask = obs.to(device).float(), actions.to(device), mask.to(device)
-            kd, rank, opp = kd.to(device), rank.to(device), opp.to(device)
-            with torch.autocast(device.type, enabled=enable_amp):
-                phi = mortal(obs)
-                logits = policy.logits(phi, mask).float()
-                out = heads(phi) if heads is not None else None
-            _, parts = teacher_loss(logits, actions, torch.ones_like(kd), out, kd, rank, opp, tcfg)
-            for k, v in parts.items():
-                sums[k] = sums.get(k, 0.0) + v.item() * len(actions)
-            top1 += (logits.argmax(-1) == actions).sum().item()
-            n += len(actions)
-        for m in models:
-            m.train()
-        return {**{k: v / n for k, v in sums.items()}, 'top1': top1 / n, 'samples': n}
+        return run_validation(mortal, policy, heads, val_files, version=version, pts=config['env']['pts'],
+                              masks=masks, loss_cfg=tcfg, device=device, batch_size=batch_size,
+                              enable_amp=enable_amp,
+                              # few files at a time: validation runs in the main process, beside the training
+                              file_batch_size=ds.get('val_file_batch_size', 4))
 
     writer = SummaryWriter(os.path.join(run_dir, 'tb'))
     timing_log = open(os.path.join(run_dir, 'timing.jsonl'), 'a')
