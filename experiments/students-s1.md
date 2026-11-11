@@ -61,7 +61,8 @@ curves (two seeds per size, D65), on the recipe D64's pilot selects; that is its
 pre-registration and rental. **If none qualifies:** diagnosis first (longer distillation, a larger
 student); nothing goes to RL.
 
-The T-NIs run on a Vast eval box (weights only), which needs the user's yes when the students exist.
+The T-NIs run on a Vast eval box (weights only). The user approved it in advance (2026-11-11): it is
+rented once the students' files are pulled, and downed when its queue drains.
 
 ## The control's readings (D66), exploratory
 

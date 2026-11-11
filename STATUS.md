@@ -81,12 +81,12 @@ The teachers' training states (the only source of their EMA) are in
 
 ## Waiting on the user
 
-1. **When the students exist (≈ 11-17):** an eval box for their T-NIs against BC s1 and the
-   control's readings (≈ $5–15, `experiments/students-s1.md`). A rental: it needs a yes then.
-2. **Whether AWR vs BC runs again on the real EMA weights** (≈ $0.50). Recommended: no; BC s1 vs No-SP
-   A on the EMA weights is already in the qualification queue.
-3. **D64's draft** (`docs/design/t1-preconditions-draft.md`): run the critic check now (≈ 6–8 h on
-   the workstation)? The pilot's base, size and candidates (≈ $175).
+1. **D64's pilot** (`docs/design/t1-preconditions-draft.md`): its base, size and candidates (≈ $175),
+   after the critic check's reading.
+2. *(Approved 2026-11-11, recorded so it isn't asked again:)* the eval box for the students'
+   qualification when they exist (`experiments/students-s1.md`); the critic check (running); no rerun
+   of AWR vs BC on the EMA weights (the user: skip).
+3. *(spare)*
 4. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
    deploy, so it needs an `08` entry first. `origin/main` is far behind; a deployed version's source
    must be public before it plays.

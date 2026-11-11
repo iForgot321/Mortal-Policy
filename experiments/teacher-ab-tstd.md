@@ -56,5 +56,5 @@ them. The second seed is on hold (the user, 2026-11-04); this test runs now.
   both (BC +0.10 pp top-1, AWR +0.13 pp), by about the same amount.
 - **The real EMA weights** are rebuilt from each run's last `state.pth`:
   `workdir/teacher/teacher-{bc,awr}-s1/ema-from-state.pth`.
-- **Open (the user):** whether D17's reading (BC) and D63 stand on this row, or the test runs again
-  on the real EMA weights (an eval box, ≈ $0.50).
+- **Decided (the user, 2026-11-11): no rerun.** D17's reading (BC) and D63 stand on this row; D67
+  takes BC s1's real EMA weights as the best single teacher.
