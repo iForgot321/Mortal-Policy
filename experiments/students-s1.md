@@ -83,6 +83,25 @@ On the same eval box, after the T-NIs:
 
 ## Results
 
+### The golden-set reference (2026-11-11, workstation, before any student exists)
+
+`tools/eval/golden_agreement.py` on the full golden set (120,000 decisions, 20,000 per category; AMP;
+`workdir/eval/golden-teachers.json`), top-1:
+
+| Category | BC s1 (EMA, the reference) | AWR s1 (EMA) | Heads-quick (b8c192, 500K games, raw) | Heads-quick − BC s1 |
+|---|---|---|---|---|
+| routine | 85.50% | 84.97% | 84.39% | −1.11 pp |
+| riichi_dama | 84.20% | 83.58% | 81.68% | −2.52 pp |
+| call_pass | 94.88% | 94.67% | 94.24% | −0.64 pp |
+| push_fold | 80.27% | 79.70% | 78.59% | −1.68 pp |
+| oorasu | 78.29% | 77.45% | 76.37% | −1.92 pp |
+| early | 78.11% | 77.82% | 77.29% | −0.82 pp |
+| all | 83.54% | 83.03% | 82.09% | −1.45 pp |
+
+So a student qualifies on the golden set only with top-1 ≥ BC s1's − 1 pp in each row: 84.50%,
+83.20%, 93.88%, 79.27%, 77.29% and 77.11%. A b8c192 trained directly on 500K games misses four of the
+six; riichi-vs-dama is where the size and data show most.
+
 ### The smoke run (2026-11-11 08:40–09:16 UTC, the workstation): passes
 
 `workdir/students-smoke/run/` (train.log, timing.jsonl). 1,500 steps, 3.07M presentations, 36 min.
