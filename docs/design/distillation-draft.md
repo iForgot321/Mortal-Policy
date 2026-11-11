@@ -10,6 +10,10 @@ control (D66); the file list shuffled before the workers split it; validation in
 window, with heldout_time scored on the workstation; D31's curves with two RL seeds per size (D65),
 after D64's pilot. The premise holds: BC s1 beats No-SP A by +0.0219 (`experiments/teacher-vs-quick.md`).
 
+**Found 2026-11-10: the teachers' `ema.pth` files hold the raw weights** (a save bug, fixed:
+`experiments/teacher-ema-export.md`). The real EMA weights are `ema-from-state.pth` in each teacher's
+directory. Wherever this draft says "EMA weights", which file that means is decision 4 below.
+
 ## What `04` §6 asks for
 
 - **Candidates:** b8c192, b12c256, b16c256 (`03` §4.1: 3.6M / 6.8M / 8.5M parameters, 82 / 189 / 242M
@@ -165,6 +169,12 @@ One Hyperstack RTX A6000 (D62) through `tools/secure/`:
 2. **Presentations:** 2.34B (recommended) or 1.17B.
 3. **All three candidates in the one run (recommended).** `04` §6's "two smallest that qualify"
    needs to know which ones do, and each extra student costs only its own small share of the stream.
+
+4. **The teachers' weights (D63a).** The real EMA weights (`ema-from-state.pth`: the better
+   human-move fit, +0.10 to +0.13 pp top-1, but never played in the lab), or the raw weights
+   (`ema.pth` as exported: what both teacher T-stds measured). Recommended: the real EMA weights, as
+   D63 intended, with the teacher-vs-quick T-std run again on BC s1's (≈ $0.30) so the reference the
+   students qualify against has a lab row.
 
 Settled 2026-11-10 (the user): the control rides in the same run (D66); the shuffled file order and
 the in-window validation are the trainer's settings for it.

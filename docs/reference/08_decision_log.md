@@ -685,6 +685,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - **τ_human** stays the BC teacher (`07` §4).
   - The weights: `workdir/teacher/teacher-bc-s1/ema.pth` (`2f200d7c…`) and `workdir/teacher/teacher-awr-s1/ema.pth` (`381ce65f…`), read-only.
 - **Reopen if:** students distilled from this ensemble fail T-NI against BC s1 while a single-teacher student passes, or a later teacher run is needed anyway.
+- **Found 2026-11-10 (not a new decision):** the two `ema.pth` files named above hold the **raw** weights. `train_teacher.py` saved the raw weights a second time as `ema_weights`, and the export copied them (`experiments/teacher-ema-export.md`; fixed). So the T-std this entry rests on, and the teacher-vs-quick T-std, compared raw weights. The real EMA weights are rebuilt from each run's last `state.pth`: `workdir/teacher/teacher-bc-s1/ema-from-state.pth` (`59d94636…`) and `workdir/teacher/teacher-awr-s1/ema-from-state.pth` (`75e55855…`). Which weights the ensemble and the best single teacher are is open (D63a, below).
 
 **D64 (2026-11-10): T1 and D31's curves don't start on K2's fixed anchor; a critic check and an anchor-release pilot come first.** Amends `00`'s G0 row ("Start T1") and Phase 2's T1, and `05` §5.1 (K2's anchor) and §6 (T1: "Released at G0"). Decided by the user ("settle all 7": the proposals of the 2026-11-09 audit, `STATUS-archive.md`).
 - **Why:**
@@ -750,6 +751,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D16:** the student net size (`03` §4.1 + `04` §6). By D31's curves, two RL seeds per size (D65), on the recipe D64's pilot selects.
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
+- **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are: the real EMA weights (`ema-from-state.pth`; the better human-move fit, never played in the lab), or the raw weights (`ema.pth` as exported; what both teacher T-stds measured). And whether those two T-stds run again on the EMA weights (`experiments/teacher-ema-export.md`).
 - **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.
 - **D18:** the Gate G0 outcome: the selected engine (D29) and actor size (D31), and the branch taken.
 - **D30a/b:** the T2 and T3 release decisions.

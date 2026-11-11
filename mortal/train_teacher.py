@@ -35,7 +35,7 @@ def train():
     from itertools import chain
     import numpy as np
     import torch
-    from torch import nn, optim
+    from torch import optim
     from torch.amp import GradScaler
     from torch.nn.utils import clip_grad_norm_
     from torch.utils.data import DataLoader
@@ -46,7 +46,8 @@ def train():
     from lr_scheduler import LinearWarmUpCosineAnnealingLR
     from model import Brain, CategoricalPolicy, TeacherHeads
     from checkpoint import load_checkpoint
-    from teacher import TeacherDataset, teacher_loss, Ema, validation_files, validate as run_validation
+    from teacher import (TeacherDataset, teacher_loss, Ema, ema_weights, param_groups, validation_files,
+                         validate as run_validation)
 
     ctl, ds, tcfg, opt_cfg = config['control'], config['dataset'], config['teacher'], config['optim']
     ev = os.path.expandvars
@@ -85,11 +86,7 @@ def train():
                  f'objective {objective}, params {sum(p.numel() for m in models for p in m.parameters()):,}')
 
     # weight decay on conv and linear weights only (04 §5)
-    decay, no_decay = [], []
-    for m in models:
-        for mod in m.modules():
-            for name, p in mod.named_parameters(recurse=False):
-                (decay if isinstance(mod, (nn.Linear, nn.Conv1d)) and name == 'weight' else no_decay).append(p)
+    decay, no_decay = param_groups(models)
     params = decay + no_decay
     optimizer = optim.AdamW([{'params': decay, 'weight_decay': opt_cfg['weight_decay']}, {'params': no_decay}],
                             lr=1, weight_decay=0, betas=opt_cfg['betas'], eps=opt_cfg['eps'], fused=device.type == 'cuda')
@@ -134,10 +131,8 @@ def train():
             'shared_stats': {k: shared_stats[k].value for k in ('count', 'mean', 'M2')},
         }
         if final:
-            ema.swap()
-            st['ema_weights'] = {'mortal': mortal.state_dict(), 'policy_net': policy.state_dict(),
-                                 'heads': heads.state_dict() if heads is not None else None}
-            ema.swap()
+            # copies: state_dict() is the live tensors, which hold the raw weights again when saved
+            st['ema_weights'] = ema_weights(ema, {'mortal': mortal, 'policy_net': policy, 'heads': heads})
         else:
             st.update(optimizer=optimizer.state_dict(), scheduler=scheduler.state_dict(), scaler=scaler.state_dict(),
                       ema=ema.state_dict(), cursor={str(w): b + 1 for w, b in cursor.items()})

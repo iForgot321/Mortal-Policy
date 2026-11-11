@@ -56,3 +56,15 @@ that in play, before the run is rented.
     comparison, not a result.
   - For scale: +0.022 is about the size of `k2b`'s RL gain over pilot A (+0.0195). Different pairs
     and observations, so not a comparison either.
+
+## Correction (2026-11-10): BC s1's raw weights played, not its EMA weights
+
+- **What happened:** `workdir/teacher/teacher-bc-s1/ema.pth` (`2f200d7c…`) is bit-identical to the
+  run's raw weights: `train_teacher.py` wrote the raw weights into `final.pth`'s `ema_weights`, and
+  the export copied them (`experiments/teacher-ema-export.md`).
+- **So the +0.0219 is BC s1's raw weights against No-SP A** (itself raw weights). The registry row's
+  hashes are right for the files that played; its description ("EMA") is not.
+- **The reading stands for the raw weights:** the teacher beats a quick student in play. The real EMA
+  weights (`ema-from-state.pth`, +0.10 pp validation top-1 over the raw ones) haven't played.
+- **Open (the user):** which weights the distillation's teachers are, and whether this test runs
+  again on them (an eval box, ≈ $0.30).

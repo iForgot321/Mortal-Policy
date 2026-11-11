@@ -42,3 +42,19 @@ them. The second seed is on hold (the user, 2026-11-04); this test runs now.
 - **Reading (as pre-registered):** BC is the teacher objective, so the second seed is BC s2 when the
   user releases it (on hold, 2026-11-04). AWR's kyoku-level advantage, mostly luck, didn't buy
   measurable strength over plain imitation at this scale.
+
+## Correction (2026-11-10): the weights that played were the raw weights
+
+- **What happened:** `tools/secure/export_ema.py` copied `final.pth`'s `ema_weights`, and
+  `train_teacher.py` had written the raw weights there a second time (`experiments/teacher-ema-export.md`).
+  Both `ema.pth` files are bit-identical to their run's raw weights.
+- **So this test compared AWR s1's raw weights with BC s1's raw weights.** The registry row and its
+  hashes are right for the files that played; its description ("EMA weights") is not. The
+  pre-registered engines, the EMA weights, did not play.
+- **What the result shows as measured:** the two objectives' raw weights are even (Δu −0.0007).
+- **Not measured:** the EMA weights against each other. On validation the EMA is the better fit for
+  both (BC +0.10 pp top-1, AWR +0.13 pp), by about the same amount.
+- **The real EMA weights** are rebuilt from each run's last `state.pth`:
+  `workdir/teacher/teacher-{bc,awr}-s1/ema-from-state.pth`.
+- **Open (the user):** whether D17's reading (BC) and D63 stand on this row, or the test runs again
+  on the real EMA weights (an eval box, ≈ $0.50).

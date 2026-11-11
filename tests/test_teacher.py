@@ -132,6 +132,25 @@ def test_validation_files_window_and_exclusions(mods, tmp_path):
     assert len(picked(5)) == 5
 
 
+def test_ema_weights_are_copies_taken_under_the_swap(mods):
+    _, teacher = mods
+    net = torch.nn.Linear(2, 2)
+    decay, no_decay = teacher.param_groups([net])
+    assert [p is q for p, q in zip(decay + no_decay, (net.weight, net.bias))] == [True, True]
+    ema = teacher.Ema(decay + no_decay, decay=0.5)
+    start = {k: v.clone() for k, v in net.state_dict().items()}
+    with torch.no_grad():
+        for p in net.parameters():
+            p.add_(1.0)
+    ema.update()
+    raw = net.state_dict()  # the live tensors, as a checkpoint dict holds them
+    saved = teacher.ema_weights(ema, {'net': net, 'heads': None})
+    assert saved['heads'] is None
+    for k in start:
+        assert torch.allclose(saved['net'][k], start[k] + 0.5)  # the average, not the raw weights
+        assert torch.allclose(raw[k], start[k] + 1.0)           # and the raw weights are back in place
+
+
 @needs_data
 def test_resume_cursor_yields_exactly_the_unseen_batches(mods):
     _, teacher = mods
@@ -192,5 +211,18 @@ def test_train_stop_resume_finish_on_cpu(tmp_path):
     assert 'resumed at step 15' in log
     final = load_checkpoint(tmp_path / 'run' / 'final.pth')
     assert final['steps'] == 30 and final['heads'] is not None and 'ema_weights' in final
+    # the EMA weights are the EMA: not the raw weights again, and what state.pth's shadow rebuilds
+    assert not all(torch.equal(final['mortal'][k], final['ema_weights']['mortal'][k]) for k in final['mortal'])
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'secure'))
+    import export_ema
+    export_ema.main(str(tmp_path / 'run' / 'state.pth'), str(tmp_path / 'ema.pth'))
+    exported = load_checkpoint(tmp_path / 'ema.pth')
+    for name in ('mortal', 'policy_net', 'heads'):
+        for k, v in final['ema_weights'][name].items():
+            assert torch.equal(exported[name][k], v), (name, k)
+    final['ema_weights'] = {n: final[n] for n in ('mortal', 'policy_net', 'heads')}  # the old bug's file
+    torch.save(final, tmp_path / 'old-final.pth')
+    with pytest.raises(SystemExit, match='equal its raw weights'):
+        export_ema.main(str(tmp_path / 'old-final.pth'), str(tmp_path / 'ema2.pth'))
     timing = [json.loads(l) for l in open(tmp_path / 'run' / 'timing.jsonl')]
     assert timing[-1]['steps'] == 30 and {'data_wait_s', 'save_s', 'val_s', 'samples_per_s'} <= set(timing[-1])

@@ -5,6 +5,7 @@ import os
 import random
 import torch
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import DataLoader, get_worker_info
 from dataloader import FileDatasetsIter
 from libriichi.dataset import GameplayLoader
@@ -140,6 +141,29 @@ def validate(mortal, policy, heads, files, *, version, pts, masks, loss_cfg, dev
     for m, t in zip(models, training):
         m.train(t)
     return {**{k: v / n for k, v in sums.items()}, 'top1': top1 / n, 'samples': n}
+
+def param_groups(models):
+    """(decay, no_decay) parameters of `models`, in a fixed order: conv and linear weights get the
+    weight decay (04 §5), the rest none. The trainer's EMA follows decay + no_decay, so whatever
+    reads a saved EMA shadow (tools/secure/export_ema.py) must build its list here too."""
+    decay, no_decay = [], []
+    for m in models:
+        for mod in m.modules():
+            for name, p in mod.named_parameters(recurse=False):
+                (decay if isinstance(mod, (nn.Linear, nn.Conv1d)) and name == 'weight' else no_decay).append(p)
+    return decay, no_decay
+
+def ema_weights(ema, modules):
+    """The EMA weights of `modules` ({name: module or None}) as state dicts, copied while the EMA is
+    swapped in. `state_dict()` hands out the live tensors, and the swap back overwrites them in
+    place: without the copy both entries of a checkpoint end up holding the raw weights, as the
+    teachers' final.pth did until 2026-11-10."""
+    ema.swap()
+    try:
+        return {k: None if m is None else {n: t.detach().clone() for n, t in m.state_dict().items()}
+                for k, m in modules.items()}
+    finally:
+        ema.swap()
 
 class Ema:
     """An exponential moving average of parameters (04 §5: 0.999), kept in fp32 on their device."""
