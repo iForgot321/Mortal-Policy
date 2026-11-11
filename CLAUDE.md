@@ -11,7 +11,7 @@ Guidance for Claude Code (and humans) working in this repository.
 
 ## Start of every session
 
-1. **Read `STATUS.md`**: what's done, in progress and next. Update it at the end of the session (date, what changed, verified vs attempted, next step).
+1. **Read `STATUS.md`**: what's done, in progress and next. Update it at the end of the session (date, what changed, verified vs attempted, next step). Keep it short enough to read in one go (≈ 150 lines): today's position, the frozen artifacts, what waits on the user and the last session. Older session entries move, verbatim, to `STATUS-archive.md`, which is searched, not read.
 2. **Check the state** before changing anything:
 
    ```bash
@@ -45,6 +45,7 @@ Guidance for Claude Code (and humans) working in this repository.
 | `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
 | `tools/data/` | **Data pipeline** (`04a`): `download.py` → `convert.py` → `index.py` → `coverage.py` → `splits.py` → … ; `params.toml` is part of the dataset identity |
 | `tools/fleet/` | **Rented GPU boxes** (`03`): Vast.ai CLI how-to (`README.md`), `fleet.py` (a run's learner + actors over SSH tunnels, D48), `setup_box.sh`, the benchmark driver `box_bench.sh`, benchmarks. Results in `experiments/fleet-host-benchmarks.md` |
+| `tools/eval/` | **Workstation-only scoring on Tenhou logs:** `validate.py` (a checkpoint's human-move NLL and top-1 on a fixed sample of `heldout_game` or `heldout_time`) |
 | `tests/` | Python tests (`pytest tests/`) |
 | `experiments/` | One markdown note per experiment; `experiments/configs/` holds the exact training configs (`MORTAL_CFG=...`) |
 | `~/mj-data/` (outside the repo) | Tenhou data: `raw/` (immutable snapshot), `mjai/`, `db/`, `meta/`, `splits/`, `names/`, `reports/` |
@@ -93,6 +94,8 @@ Commit only when asked. Small, single-purpose commits.
 - Set scores are summed in integer hundredths of u, so an A/A set is exactly 0 (in floats, 0.9 + 0.5 − 0.1 − 1.3 ≠ 0).
 - `train_online.py`: the PPO ratio uses an `Old_mortal` snapshot, not stored behaviour log-probs; online mode exits after `test_play` (known hang) and `main()` respawns it.
 - `optim.max_grad_norm = 0` means no clipping.
+- **Load checkpoints with `checkpoint.load_checkpoint`** (`mortal/checkpoint.py`), never `torch.load(..., weights_only=False)`: snapshots come back from rented boxes, and a pickle can run code on the workstation. `tests/test_checkpoint.py` fails on an unrestricted load anywhere in the code.
+- `module.state_dict()` returns the live tensors, not copies. Clone them before any in-place swap or further training step, or the saved dict follows the parameters (the teachers' `ema.pth` hold raw weights for this reason; `teacher.ema_weights`).
 - `dataloader.py` shuffles individual decisions; every decision in a kyoku gets the kyoku's advantage (no ordered trajectories or critic yet, D37).
 - `Tile::augment` swaps manzu↔pinzu only, deliberately (ryuuiisou).
 - `GameplayLoader.validate_gz_log_files` replays all seats without featurizing (~3K games/s) and checks label legality. Full loading featurizes and is ~1000× slower.
