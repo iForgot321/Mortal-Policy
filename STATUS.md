@@ -9,10 +9,7 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; the trainer started 10:28 UTC. Steady 4,583 samples/s, so ≈ 142 h (≈ $72, ends
 ≈ 2026-11-17 08:30 UTC); the watchdog (PID 434156) downs it at 177 h (≈ $89.7, ≈ 11-18 15:03 UTC).
-Driver PID 436577
-438201
-438202
-438204 (`experiments/secure_teacher.sh --attach`), log `workdir/secure/runs/students-s1.session.log`.
+Driver PID 436577 (`experiments/secure_teacher.sh --attach`), log `workdir/secure/runs/students-s1.session.log`.
 - **After a reboot or `wsl --shutdown`:** `TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
 - **Getting here took two fixes:** the first VM (1154669) failed box setup on a test that set a
   workstation-only config (destroyed after 11 min, ≈ $0.09); on the second, the driver's
