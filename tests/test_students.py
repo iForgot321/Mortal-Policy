@@ -26,7 +26,12 @@ needs_data = pytest.mark.skipif(len(files()) < 6 or not os.path.exists(GRP), rea
 
 @pytest.fixture(scope='module')
 def mods():
-    os.environ.setdefault('MORTAL_CFG', os.path.join(ROOT, 'experiments', 'configs', 'teacher-heads-quick.toml'))
+    # on a rented box, setup_box.sh's copy with the workstation root rewritten to the checkout: the first
+    # module to import `config` fixes it for the whole pytest process (2026-11-11: this line without the
+    # box copy failed tests/test_value.py on a box, whose workstation GRP path doesn't exist)
+    box_cfg = os.path.join(ROOT, 'workdir', 'box', 'configs', 'teacher-heads-quick.toml')
+    os.environ.setdefault('MORTAL_CFG', box_cfg if os.path.exists(box_cfg)
+                          else os.path.join(ROOT, 'experiments', 'configs', 'teacher-heads-quick.toml'))
     sys.path.insert(0, os.path.join(ROOT, 'mortal'))
     import distill
     import model
