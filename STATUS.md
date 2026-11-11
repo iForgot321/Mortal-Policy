@@ -6,11 +6,15 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 
 ## Current position (2026-11-11)
 
-**Live: the student distillation `students-s1`** on Hyperstack (VM 1154669, RTX A6000, $0.507/h),
-rented 2026-11-11 09:19 UTC. Expected ≈ 137 h (≈ $70, ends ≈ 2026-11-17 02:00 UTC); the watchdog
-downs it at 177 h (≈ $89.7, the $90 stop). Driver `experiments/secure_teacher.sh` (log
-`workdir/secure/runs/students-s1.session.log`). **After a reboot or `wsl --shutdown`:**
-`TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
+**The student distillation `students-s1` is waiting for an RTX A6000 on Hyperstack.** The first VM
+(1154669, 09:19 UTC) failed box setup on a test-config bug (fixed in the tests) and was destroyed
+after 11 min (≈ $0.09); the relaunch at 09:31 found no A6000 stock. `experiments/secure_retry.sh`
+(detached) tries every 10 min for up to 72 h, then the driver `experiments/secure_teacher.sh` runs it:
+≈ 137 h (≈ $70), watchdog 177 h (≈ $89.7, the $90 stop). Log: `workdir/secure/runs/students-s1.session.log`.
+- **After a reboot, still waiting:** `TRAINER=train_students.py INPUTS="workdir/teacher/teacher-bc-s1/ema-from-state.pth workdir/teacher/teacher-awr-s1/ema-from-state.pth" MIN_RATE=3850 setsid -f bash experiments/secure_retry.sh students-s1 students-s1 n3-RTX-A6000x1 177 >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
+- **After a reboot, once rented:** `TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
+- **Keep the tracked tree clean until the box has synced:** `secure.py setup` refuses a dirty tree, and
+  the driver then downs the VM.
 
 Phase 0 is exited (D55). In Phase 1 the SL substrate is being built: teachers done, students
 training. The early research has met G0's Select conditions; T1 waits on D64.
