@@ -121,6 +121,12 @@ One Hyperstack RTX A6000 (D62) through `tools/secure/`:
 
 ## New code (before any rental)
 
+**Built 2026-11-11** (`experiments/students-s1.md` has the run's pre-registration): `mortal/train_students.py`
+and `mortal/distill.py` (`distill_loss` and the ensemble there, not in `teacher.py`), `tests/test_students.py`,
+`tools/eval/golden_agreement.py`, `experiments/configs/students-s1.toml` and `students-smoke.toml`; the
+driver takes `TRAINER`, `INPUTS` and `MIN_RATE`. The teachers' weights ship with `secure.py setup --input`
+rather than through `frozen.sha256`, which every Vast box would also receive (≈ 340 MB each).
+
 1. **`mortal/train_students.py`:**
    - the stream from `TeacherDataset` (no labels), with the two frozen, compiled teachers;
    - N students, each with its own optimizer, scheduler, scaler and EMA, all in one checkpoint file;

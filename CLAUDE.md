@@ -40,12 +40,12 @@ Guidance for Claude Code (and humans) working in this repository.
 | Path | What's there |
 |---|---|
 | `libriichi/` (Rust, PyO3) | Rules engine, mjai, obs encoding (`state/obs_repr.rs`; v4 = 1012×34, v5 = v4 with the single-player rows zeroed), dataset loader (`dataset/gameplay.rs`), duplicate arena (`arena/`), agents (`agent/`, incl. our `shanten_greedy.rs`) |
-| `mortal/` (Python, flat imports, run from here) | `model.py`, `train_offline_phase1.py` (AWR/BC), `train_online.py` (PPO), `train_grp.py`, `dataloader.py`, `reward_calculator.py`, `server.py`/`client.py`, `engine.py`, `one_vs_three.py` |
+| `mortal/` (Python, flat imports, run from here) | `model.py`, `train_offline_phase1.py` (AWR/BC), `train_teacher.py` (the SL teachers), `train_students.py` + `distill.py` (the students, from the teachers online), `train_online.py` (PPO), `train_grp.py`, `dataloader.py`, `reward_calculator.py`, `server.py`/`client.py`, `engine.py`, `one_vs_three.py` |
 | `lab/` | **Evaluation lab** (`02`): GSPRT, calibration simulator, nonce ledger, registry. `python -m lab --help` from the repo root |
 | `lab/registry/` | `runs.jsonl` (every lab run), `nonces.jsonl` (seed ledger), `ablation.md` (generated). Append-only, tracked in git |
 | `tools/data/` | **Data pipeline** (`04a`): `download.py` → `convert.py` → `index.py` → `coverage.py` → `splits.py` → … ; `params.toml` is part of the dataset identity |
 | `tools/fleet/` | **Rented GPU boxes** (`03`): Vast.ai CLI how-to (`README.md`), `fleet.py` (a run's learner + actors over SSH tunnels, D48), `setup_box.sh`, the benchmark driver `box_bench.sh`, benchmarks. Results in `experiments/fleet-host-benchmarks.md` |
-| `tools/eval/` | **Workstation-only scoring on Tenhou logs:** `validate.py` (a checkpoint's human-move NLL and top-1 on a fixed sample of `heldout_game` or `heldout_time`) |
+| `tools/eval/` | **Workstation-only scoring on Tenhou logs:** `validate.py` (a checkpoint's human-move NLL and top-1 on a fixed sample of `heldout_game` or `heldout_time`), `golden_agreement.py` (top-1/top-3/log-likelihood per category on the frozen golden set) |
 | `tests/` | Python tests (`pytest tests/`) |
 | `experiments/` | One markdown note per experiment; `experiments/configs/` holds the exact training configs (`MORTAL_CFG=...`) |
 | `~/mj-data/` (outside the repo) | Tenhou data: `raw/` (immutable snapshot), `mjai/`, `db/`, `meta/`, `splits/`, `names/`, `reports/` |

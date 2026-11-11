@@ -1,0 +1,105 @@
+# The student distillation, `students-s1` (04 §6, D66, D67): pre-registered 2026-11-11
+
+Written before the students exist. The run, its launch rules and the qualification below are fixed;
+the results are added under them and nothing above "Results" changes once the run starts.
+
+## The run
+
+- **Config:** `experiments/configs/students-s1.toml`; trainer `mortal/train_students.py` (losses in
+  `mortal/distill.py`, tests in `tests/test_students.py`).
+- **Teachers (frozen, D67):** the real EMA weights of BC s1 (`workdir/teacher/teacher-bc-s1/ema-from-state.pth`,
+  `59d94636…`) and AWR s1 (`…/teacher-awr-s1/ema-from-state.pth`, `75e55855…`). π_ens is the mean of
+  their masked softmax probabilities at T = 1; the trainer refuses files that don't match the hashes.
+- **Students:** b8c192, b12c256, b16c256 (KL to π_ens + 0.1 × the human move's CE + the heads toward
+  the ensemble's), and the control `control-b8c192` (D66: the teachers' loss on the true labels, no
+  teacher term). The control and the distilled b8c192 start from the same initialization.
+- **Data:** the teachers' train window (`train_E ∪ train_O`, 1,805,376 games), one epoch × m↔p
+  augmentation, 2.34B presentations at batch 2048, the file list shuffled by seed 1 before the
+  loader's 4 workers split it.
+- **Optimizer, per student:** AdamW (weight decay 0.1 on conv and linear weights), peak LR 3e-4 after
+  5,000 warm-up steps, cosine to 1e-5, gradient clip 1.0, AMP, EMA 0.999.
+- **Validation every 20,000 steps:** 200 heldout_game logs from 2015 on. Per student, raw and EMA: the
+  human move's NLL and top-1, each head against the labels, KL to π_ens, argmax agreement with π_ens.
+- **Where:** one Hyperstack RTX A6000 (D62) through `tools/secure/` and
+  `experiments/secure_teacher.sh` with `TRAINER=train_students.py`. Outputs per student:
+  `ema-<name>.pth` and `raw-<name>.pth`, lab-ready and read-only.
+
+## The smoke run (workstation), before the rental
+
+`experiments/configs/students-smoke.toml`: the same trainer, teachers, students and batch, on 3,000
+train files for 1,500 steps, 2 loader workers, 20 validation logs.
+
+**It passes if all hold:**
+1. it runs to its end and writes every student's files; its validation pass completes;
+2. every student's training loss falls: the mean of its last 300 steps is below that of steps 100–400;
+3. GPU memory peaks below 10 GB;
+4. the control's share of the GPU time is at most 15% (D66's reopen condition).
+
+**Projection for the A6000:** the 3060's samples/s (median of the logged lines after the first 3) ×
+3.12, the teachers' measured A6000 / 3060 ratio (6,050 / 1,938 samples/s). The run is launched if the
+projection finishes 1,142,600 steps in at most 165 h. Otherwise the result goes to the user.
+
+## Launch (approved, D67)
+
+- `secure.py up` quotes the A6000. The watchdog's deadline is the $90 stop at that price
+  (`floor(90 / price)` hours, ≈ 176 h at $0.509/h).
+- `MIN_RATE = 3850` samples/s: below it, 2.34B presentations don't fit in 170 h. The driver checks
+  the median after the trainer's first 3 timing lines; a slower box is pulled and downed (≈ $1).
+- The teachers' weights ship with `--input`; the trainer checks their hashes on the box.
+
+## Qualification (04 §6, D31, D40, D67): fixed now
+
+For each candidate's EMA weights (`ema-b8c192.pth`, `ema-b12c256.pth`, `ema-b16c256.pth`):
+
+1. **T-NI against BC s1** (its real EMA weights, `ema-from-state.pth`): δ = 0.01, family B, the
+   calibrated GSPRT of `lab/lab.toml`, cap 60,000 sets. Hitting the cap counts as a fail.
+2. **Golden-set top-1 within 1 pp of BC s1 in every category** (`tools/eval/golden_agreement.py`,
+   the six categories of `04` §4, BC s1's EMA weights as the reference), on the workstation.
+
+**A candidate qualifies if it passes both.** The two smallest qualifying candidates go to D31's RL
+curves (two seeds per size, D65), on the recipe D64's pilot selects; that is its own
+pre-registration and rental. **If none qualifies:** diagnosis first (longer distillation, a larger
+student); nothing goes to RL.
+
+The T-NIs run on a Vast eval box (weights only), which needs the user's yes when the students exist.
+
+## The control's readings (D66), exploratory
+
+On the same eval box, after the T-NIs:
+
+1. **Distilled b8c192 against the control** (EMA weights both), T-std, family B: does distillation
+   add strength at b8c192? Pass: yes, by the lab's δ. Fail or cap: not measurably.
+2. **The control against No-SP A**, a 20,000-set fixed-N measure, family A: what the full data adds
+   to a b8c192 trained without a teacher (No-SP A: the same shape on 500K games).
+3. **BC s1's EMA weights against No-SP A**, T-std, family B: the reference's own lab row. The
+   earlier one (`20261110-145755-T-std`) played BC s1's raw weights.
+
+## Reported, not judged
+
+- Every student's final validation, in-window and on heldout_time (`tools/eval/validate.py`), beside
+  the teachers' (`experiments/validation-samples.md`).
+- Golden-set top-1, top-3 and log-likelihood per category for every student and both teachers.
+- The run's cost, hours, samples/s and each part's share of the GPU time.
+
+## Results
+
+### The smoke run (2026-11-11 08:40–09:16 UTC, the workstation): passes
+
+`workdir/students-smoke/run/` (train.log, timing.jsonl). 1,500 steps, 3.07M presentations, 36 min.
+
+| Criterion | Measured | |
+|---|---|---|
+| 1. Runs to its end, writes every student's files, validation completes | `final.pth`, `ema-`/`raw-` for all 4; validation at steps 1,000 and 1,500 | pass |
+| 2. Every training loss falls (last 300 steps vs steps 101–400) | KL to π_ens: b8c192 0.503 → 0.149, b12c256 0.447 → 0.130, b16c256 0.434 → 0.128; the control's CE 1.109 → 0.679 | pass |
+| 3. GPU memory below 10 GB | 4.2 GB peak | pass |
+| 4. The control's share of the GPU time ≤ 15% | 7.8% (teachers 50.7%, b8c192 7.8%, b12c256 14.7%, b16c256 19.0%) | pass |
+
+- **Rate:** 1,525 samples/s on the 3060 (median after the first 3 lines; data wait 0.0%, GPU-bound),
+  the draft's estimate with the control (1,531). **Projection: × 3.12 = 4,758 samples/s, 136.6 h** for
+  1,142,600 steps: inside the 165 h limit, so the run launches.
+- **Validation at step 1,500** (20 logs, EMA weights, exploratory): top-1 b8c192 73.7%, b12c256 74.9%,
+  b16c256 74.9%, control 72.5%; the ensemble 81.6%. KL to π_ens 0.246 / 0.214 / 0.216 / 0.291. After
+  1,500 of 1.14M steps this says only that the pipeline learns.
+- RAM: the main process 3.0 GB and each of the 2 workers ≈ 3.5 GB (PSS); 2 GB stayed available.
+- `tools/eval/golden_agreement.py --limit 30`: all 280 decisions matched the golden set's labels and
+  masks.

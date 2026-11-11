@@ -383,7 +383,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Scoring scope:** fit on `train` only, cross-fitted within it.
 - **Golden set:** its population comes only from pre-`heldout_time` games, and is frozen before any of its outcomes are read.
 - **SL budget:** counted in **sample presentations** (decisions × augmentation × epochs), measured.
-- **Ensemble targets:** cached per shard.
+- **Ensemble targets:** cached per shard. **Amended by D67** (2026-11-11): computed online, in the one stream that trains every student.
 - **One teacher reference:** the **best single teacher**, used for both student selection and L1.
 
 **D41 (2026-10-01): Schedule prerequisites and recipe-claim controls** (REVIEW_V2 #9, #10).
@@ -726,6 +726,19 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Cost:** the stream's loader carries the labels again, as the teachers' did (12–17K samples/s on the A6000, above what the stream needs), and one more b8c192 trains. ≈ +7% by the 3060's timings (the b8c192's share of the students' step): ≈ 9 h and ≈ $5. The smoke run measures it.
 - **Reopen if:** the smoke run puts the control above 15% of the stream's time.
 
+**D67 (2026-11-11): the distillation (`04` §6) runs as drafted, on the teachers' real EMA weights, with the ensemble's targets computed online.** Resolves D63a. Amends D40's "ensemble targets: cached per shard" and `04` §6's caching line. Decided by the user (the draft's four questions, 2026-11-11: each took the recommended option).
+- **The teachers:** BC s1 and AWR s1, their real EMA weights, rebuilt from each run's last training state (`experiments/teacher-ema-export.md`):
+  - `workdir/teacher/teacher-bc-s1/ema-from-state.pth` (`59d94636…`), the **best single teacher** (D40, D63) for student qualification and L1;
+  - `workdir/teacher/teacher-awr-s1/ema-from-state.pth` (`75e55855…`).
+  - The `ema.pth` files hold the raw weights. They stay frozen for the registry rows that cite them, and aren't used again.
+- **Targets online, in one stream:** each batch goes through both teachers once, then every student trains on it (`docs/design/distillation-draft.md`). With one stream and one epoch, every state passes the teachers exactly once either way, so a cache saves no compute and costs ≈ 0.7 TB of secure-tier storage.
+- **The run:**
+  - 2.34B presentations (1 epoch × m↔p augmentation, as the teachers);
+  - the three candidates (b8c192, b12c256, b16c256) and D66's hard-label b8c192 control;
+  - one Hyperstack RTX A6000 (D62).
+- **The rental is approved** once the student trainer's smoke run passes on the workstation, with a stop at $90 (the watchdog's deadline). The quote is ≈ 137 h, ≈ $70.
+- **Reopen if:** the students are to be distilled again from the same teachers (a cache would pay then), or the smoke run projects past the $90 stop.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -751,7 +764,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D16:** the student net size (`03` §4.1 + `04` §6). By D31's curves, two RL seeds per size (D65), on the recipe D64's pilot selects.
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
-- **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are: the real EMA weights (`ema-from-state.pth`; the better human-move fit, never played in the lab), or the raw weights (`ema.pth` as exported; what both teacher T-stds measured). And whether those two T-stds run again on the EMA weights (`experiments/teacher-ema-export.md`).
+- **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are. **Resolved by D67** (2026-11-11): the real EMA weights (`ema-from-state.pth`).
 - **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.
 - **D18:** the Gate G0 outcome: the selected engine (D29) and actor size (D31), and the branch taken.
 - **D30a/b:** the T2 and T3 release decisions.

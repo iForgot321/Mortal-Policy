@@ -11,9 +11,19 @@
 #   - the watchdog (secure.py up --hours) destroys the VM at the deadline whatever happens here.
 #   setsid -f bash experiments/secure_teacher.sh RUN CONFIG [FLAVOR] [HOURS] >> workdir/secure/runs/RUN.session.log 2>&1 < /dev/null
 #   setsid -f bash experiments/secure_teacher.sh RUN CONFIG --attach >> workdir/secure/runs/RUN.session.log 2>&1 < /dev/null
+# Environment (each optional):
+#   TRAINER=train_students.py   the trainer in mortal/ (default train_teacher.py; both write final.pth last)
+#   INPUTS="a b"                repo-relative files the box needs beside the frozen inputs (secure.py setup --input)
+#   MIN_RATE=3850               samples/s: once the trainer has logged past its warm-up, a slower median
+#                               means the run can't finish inside the watchdog, so the VM is pulled and downed
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 RUN=$1 CONFIG=$2
+TRAINER=${TRAINER:-train_teacher.py}
+PAT="[${TRAINER:0:1}]${TRAINER:1}"  # pgrep -f never matches its own command line
+INPUT_ARGS=()
+for f in ${INPUTS:-}; do INPUT_ARGS+=(--input "$f"); done
+MIN_RATE=${MIN_RATE:-}
 S="python3 tools/secure/secure.py"
 STATE=workdir/secure/runs/$RUN/state.json
 
@@ -30,7 +40,7 @@ box_has() { $S exec "$RUN" "$1" >/dev/null 2>&1; }
 # 0 = a trainer runs, 1 = none (pgrep's answer, printed by the box), 255 = no answer (SSH or secure.py failed)
 trainer_rc() {
     local out
-    out=$($S exec "$RUN" "pgrep -f '[t]rain_teacher.py' >/dev/null; echo pgrep-rc=\$?" 2>/dev/null)
+    out=$($S exec "$RUN" "pgrep -f '$PAT' >/dev/null; echo pgrep-rc=\$?" 2>/dev/null)
     case $out in
         *pgrep-rc=0*) echo 0 ;;
         *pgrep-rc=1*) echo 1 ;;
@@ -41,10 +51,10 @@ start_trainer() {
     local d
     d=$(field data_dir)
     # never a second trainer beside a live one (2026-10-31: a failed SSH check started one)
-    $S exec "$RUN" "pgrep -f '[t]rain_teacher.py' >/dev/null && { echo 'a trainer is already running'; exit 0; }; \
+    $S exec "$RUN" "pgrep -f '$PAT' >/dev/null && { echo 'a trainer is already running'; exit 0; }; \
 mkdir -p workdir/secure-box && cd mortal && (MJ_DATA=$d MORTAL_CFG=../workdir/box/configs/$CONFIG.toml \
 LD_LIBRARY_PATH=\$(/venv/main/bin/python -c 'import sysconfig; print(sysconfig.get_config_var(\"LIBDIR\"))') \
-setsid nohup /venv/main/bin/python train_teacher.py >> ../workdir/secure-box/$CONFIG.log 2>&1 < /dev/null &)"
+setsid nohup /venv/main/bin/python $TRAINER >> ../workdir/secure-box/$CONFIG.log 2>&1 < /dev/null &)"
 }
 
 if [[ ${3:-} == --attach ]]; then
@@ -56,10 +66,17 @@ else
         [[ -f $STATE ]] && $S down "$RUN"
         exit 1
     }
-    step setup $S setup "$RUN" || { $S down "$RUN"; exit 1; }
+    step setup $S setup "$RUN" "${INPUT_ARGS[@]}" || { $S down "$RUN"; exit 1; }
     step ship $S ship "$RUN" || { $S down "$RUN"; exit 1; }
     step start start_trainer || { $S down "$RUN"; exit 1; }
 fi
+
+# the median samples/s of the timing lines after the first 3 (compile, warm-up), once 3 more exist
+rate_now() {
+    $S exec "$RUN" "/venv/main/bin/python -c \"import json, statistics as s; r = [json.loads(l).get('samples_per_s') for l in open('workdir/secure-box/$CONFIG/timing.jsonl')]; r = [x for x in r if x][3:]; print('rate=%d' % s.median(r) if len(r) >= 3 else 'rate=none')\"" 2>/dev/null \
+        | sed -n 's/^rate=//p'
+}
+rate_ok=${MIN_RATE:+no}
 
 restarts=0 n=0
 while true; do
@@ -93,6 +110,18 @@ while true; do
         fi
         say "the trainer is not running: restart $restarts (it resumes from its last checkpoint)"
         start_trainer
+    fi
+    if [[ $rate_ok == no ]]; then
+        r=$(rate_now)
+        if [[ $r =~ ^[0-9]+$ ]]; then
+            if ((r < MIN_RATE)); then
+                say "the trainer runs at $r samples/s, below MIN_RATE $MIN_RATE: it can't finish inside the watchdog; pulling and downing"
+                $S down "$RUN"
+                exit 1
+            fi
+            say "rate check passed: $r samples/s (MIN_RATE $MIN_RATE)"
+            rate_ok=yes
+        fi
     fi
     # only the box's own answer counts: a failed SSH call is not a stall (2026-11-04's false alarm)
     case $($S exec "$RUN" "find workdir/secure-box/$CONFIG/timing.jsonl -mmin -90 | grep -q . && echo timing-fresh || echo timing-stale" 2>/dev/null) in

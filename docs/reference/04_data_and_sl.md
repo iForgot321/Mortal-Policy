@@ -89,7 +89,7 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 - **BC** (uniform weights);
 - ~~a second seed of whichever wins T-std between them~~ (D63: not trained).
 
-**The teacher ensemble is BC s1 + AWR s1** (D63, 2026-11-05): their T-std was even (D17 → BC), so the two objectives are ensembled instead of two seeds of one. The **best single teacher** (D40) is BC s1. The BC teacher is always kept as the **human prior τ_human** for the piKL dial (`07` §4), because an AWR policy isn't a pure human model.
+**The teacher ensemble is BC s1 + AWR s1** (D63, 2026-11-05; their real EMA weights, D67): their T-std was even (D17 → BC), so the two objectives are ensembled instead of two seeds of one. The **best single teacher** (D40) is BC s1. The BC teacher is always kept as the **human prior τ_human** for the piKL dial (`07` §4), because an AWR policy isn't a pure human model.
 
 **Optional larger teacher:** b40c512, about 70M params. Try it only if featurization can feed it (`03` §4.2) and if a T-std of student-from-b40 vs student-from-b24 is affordable.
 
@@ -143,7 +143,7 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 - KL(π_ensemble ‖ π_student) at T = 1 over all training states, plus 0.1 × hard-label cross-entropy.
   - π_ensemble is the average of the two teachers' probabilities, BC s1 and AWR s1 (§5, D63). Distilling from an ensemble usually beats distilling from a single teacher.
 - Plus MSE toward the teacher's placement, kyoku-Δ and auxiliary outputs, so the student carries every head needed for critic warm-start and the belief sampler.
-- **Ensemble teacher outputs are cached per shard** (D40). This avoids two teacher forward passes per state per epoch. Count the caching pass in the budget.
+- **Ensemble teacher outputs are computed online** (D67, amending D40's cache): one stream runs each batch through both teachers once and trains every student on it, so each state passes the teachers once either way. The teachers are BC s1's and AWR s1's real EMA weights (`ema-from-state.pth`).
 
 **Qualification** (D31, D40): student candidates must pass both:
 - **T-NI against the best single teacher** (δ = 0.01). This single reference is used both here and for L1;

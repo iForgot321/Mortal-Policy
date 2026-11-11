@@ -8,7 +8,7 @@ its gpg through SSH stdin and a pipe, never a file.
     keypair          make ~/.ssh/hyperstack_ed25519 and import it into CANADA-1 (once)
     up RUN           rent one VM (--flavor, default n3-L40x1) with SSH open to this workstation's
                      IPv4 only; start the watchdog (--hours) and the box's own shutdown an hour later
-    setup RUN        sync the repo (a clean commit) and the frozen inputs, then
+    setup RUN        sync the repo (a clean commit), the frozen inputs and any --input files, then
                      tools/secure/bootstrap_vm.sh: Python 3.12 + torch 2.6 cu124, tools/fleet/setup_box.sh
     ship RUN         unpack a bundle (--bundle, default the newest) into the box's data directory
                      (tools/secure/unpack.py) and write its file indexes
@@ -278,8 +278,15 @@ def cmd_setup(a):
                              if line.strip()) if (REPO / p).exists()]
     subprocess.run(['rsync', '-azR', '-e', shlex.join(ssh_args(st)[:-1]), *frozen, f'{USER}@{st["ip"]}:{BOX_ROOT}/'],
                    cwd=REPO, check=True)
-    log(a.run, f'synced {subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout.strip()} '
-               f'and {len(frozen)} frozen inputs')
+    extra = [os.path.relpath(Path(p).resolve(), REPO) for p in a.input or []]
+    for p in extra:
+        if p.startswith('..') or not (REPO / p).is_file():
+            sys.exit(f'--input {p}: not a file in the repo')
+    if extra:
+        subprocess.run(['rsync', '-azR', '-e', shlex.join(ssh_args(st)[:-1]), *extra, f'{USER}@{st["ip"]}:{BOX_ROOT}/'],
+                       cwd=REPO, check=True)
+    log(a.run, f'synced {subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout.strip()}, '
+               f'{len(frozen)} frozen inputs and {len(extra)} more')
     box(st, f'sudo bash {BOX_ROOT}/tools/secure/bootstrap_vm.sh root')
     t0 = time.time()
     box(st, f'cd {BOX_ROOT} && bash tools/secure/bootstrap_vm.sh user {"--skip-tests" if a.skip_tests else ""}')
@@ -440,6 +447,7 @@ def main(argv=None):
     s = sub.add_parser('setup')
     s.add_argument('run')
     s.add_argument('--skip-tests', action='store_true')
+    s.add_argument('--input', action='append', help="a repo file the run needs beside the frozen inputs (e.g. its teachers' weights); repeatable")
     s = sub.add_parser('ship')
     s.add_argument('run')
     s.add_argument('--bundle', help='a bundle directory (default: the newest in workdir/secure/bundle)')
