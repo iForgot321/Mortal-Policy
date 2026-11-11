@@ -16,8 +16,13 @@ after 11 min (≈ $0.09); the relaunch at 09:31 found no A6000 stock. `experimen
 - **Keep the tracked tree clean until the box has synced:** `secure.py setup` refuses a dirty tree, and
   the driver then downs the VM.
 
+**Running on the workstation: D64's critic check** (`experiments/critic-ceiling.md`, started
+2026-11-11 10:00 UTC, ≈ 6–8 h; output `workdir/critic-ceiling/`, log `workdir/critic-ceiling.out`).
+Nothing else trains on the workstation meanwhile (RAM). If it dies, rerun the same command; it
+starts from scratch.
+
 Phase 0 is exited (D55). In Phase 1 the SL substrate is being built: teachers done, students
-training. The early research has met G0's Select conditions; T1 waits on D64.
+waiting for a box. The early research has met G0's Select conditions; T1 waits on D64.
 
 | Rung | State |
 |---|---|
