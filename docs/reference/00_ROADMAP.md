@@ -162,7 +162,7 @@ These counts are tracked separately as generated games, consumed samples and cha
    - P1 + package K1 ×2;
    - V value-based ×2;
    - H hybrid ×1, started once V has a champion.
-2. **Actor-size learning curves** (D31): the two student candidates on the leading arm at 6 and 12 box-days.
+2. **Actor-size learning curves** (D31): the two student candidates on the leading arm at 6 and 12 box-days, two RL seeds each (D65), on the recipe D64's pilot selects.
 3. **Fleet soak** (D39): ≥ 48 h end-to-end at T1 scale, with the leading arm.
 4. **Search pilot** (D32), riichi vs dama:
    - policy only, oracle search, belief search;
@@ -173,7 +173,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 
 | Outcome | Decision |
 |---|---|
-| An arm passes T-std against its initialization on both seeds, the fleet soak passes, and L2 confirms | **Select** that arm (head-to-head T-std at matched compute decides between passing arms; ties go to the cheaper and more search-compatible arm). Select the actor size per D31. Start T1. |
+| An arm passes T-std against its initialization on both seeds, the fleet soak passes, and L2 confirms | **Select** that arm (head-to-head T-std at matched compute decides between passing arms; ties go to the cheaper and more search-compatible arm). Select the actor size per D31. Start T1 once D64's critic check and anchor-release pilot are done. |
 | Arms pass, but the soak fails | Optimize (`03` §6) before T1; dates move (D39) |
 | No arm passes, with healthy curves | Diagnose (`05` §8). One bounded retry of the best arm with package K2, ≤ $0.6K from the reserve: one seed, a second only if the first is inconclusive and the user agrees, with an early check at p25 (D59). |
 | The retry fails | Re-scope: the SL incumbent plus inference search becomes the main path. Phase 2 money moves to Phase 3 (D33a), conditional on the pilot. |
@@ -183,7 +183,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 ### Phase 2: Select and scale (weeks 10–18)
 
 **T1 (weeks 10–12)**
-- Scale the selected engine on the selected actor.
+- Scale the selected engine on the selected actor. K2's fixed anchor isn't scaled: `k2b` stopped improving at it (D64). T1 runs the anchor-release mechanism D64's pilot selects, with the critic its check settles.
 - **Final-student check:** the engine applied to the final student must pass T-std against that student (D41).
 - Discovery packages K2 and K3 run within their box-day caps (`05` §5.1).
 

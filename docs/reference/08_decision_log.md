@@ -686,6 +686,45 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The weights: `workdir/teacher/teacher-bc-s1/ema.pth` (`2f200d7c…`) and `workdir/teacher/teacher-awr-s1/ema.pth` (`381ce65f…`), read-only.
 - **Reopen if:** students distilled from this ensemble fail T-NI against BC s1 while a single-teacher student passes, or a later teacher run is needed anyway.
 
+**D64 (2026-11-10): T1 and D31's curves don't start on K2's fixed anchor; a critic check and an anchor-release pilot come first.** Amends `00`'s G0 row ("Start T1") and Phase 2's T1, and `05` §5.1 (K2's anchor) and §6 (T1: "Released at G0"). Decided by the user ("settle all 7": the proposals of the 2026-11-09 audit, `STATUS-archive.md`).
+- **Why:**
+  - **`k2b` reached the anchor's equilibrium early and stopped improving.**
+    - Its coefficient sat at 0.0759 from the run's first tenth. The KL eased from 0.025 to 0.019, and agreement with pilot A rose from 94.1% to 95.3% as the LR decayed (the learner's TensorBoard).
+    - `full` vs `p50`, half the budget (≈ $130): +0.0025 [+0.0004, +0.0046] (`experiments/k2-retry.md`).
+    - The soak's 47.8 h more from `full` ($125): +0.0016 [−0.0050, +0.0082] (`experiments/fleet-soak.md`).
+  - **The gain is real, but K2 as run can't compound.** +0.0195 confirmed against pilot A, and +0.0177 at a table of pilot B (`experiments/k2b-opponents.md`). Its target is 0.02 nats, held constant, to the frozen initialization.
+  - **The critic adds little.**
+    - Explained variance 1.2–1.8% (6–10% in the game's last kyoku), a loss that never fell (0.0417 → 0.0424), and a within/across-kyoku advantage variance of 0.11–0.13.
+    - The SL kyoku-Δ head explains ≈ 10% of a kyoku's Δ from public information (validation Huber 0.0287 against ≈ 0.032 for a constant).
+- **What it means:**
+  - K2 with a constant target is the **reference recipe** (L2's evidence), not T1's.
+  - **Before T1 or D31's curves start, both:**
+    1. **A critic check** on the workstation ($0): what a critic can explain of a kyoku's Δ on fixed self-play games, against K1's online critic and the public head. It decides what T1's critic is, or that the critic isn't the lever.
+    2. **An anchor-release pilot.** The candidates are a rising target (`target_growth`, already in `mortal/kl_anchor.py`) and re-anchoring to each new champion. A candidate passes if it beats the fixed anchor's continuation at equal box-hours, at the training table and at a held-out one.
+  - Each is pre-registered before it runs; the drafts are in `docs/design/t1-preconditions-draft.md`. The pilot is a rental and needs the user's yes.
+  - G0's Select conditions stay met (D59, L2). What moves is T1's start.
+- **Reopen if:** the pilot finds no mechanism that beats the fixed anchor. The roadmap's fallback (the SL incumbent plus search) is then weighed again, with the search pilot's failed belief stage in view (`experiments/search-pilot.md`), and the question goes to the user.
+
+**D65 (2026-11-10): D31's curves run two RL seeds per student size.** Amends D31's method, `00`'s Phase 1 item 2 and `04` §6's selection. Decided by the user (as D64).
+- **Why:** one run per size can't separate the size from the run.
+  - The only same-recipe pair so far, P1's two seeds, ended 0.008 apart (−0.0209 and −0.0131; each ± 0.005, and from different pilots).
+  - `k2b`'s whole gain is 0.0195, and a size effect is expected to be smaller than that.
+- **Method (D31, amended):**
+  - Each of the two students runs twice, with different `control.seed`s, on the recipe D64's pilot selects: 4 runs of 12 box-days. The 6-box-day reading comes from each run's half-budget snapshot.
+  - A size's figure is the mean of its two runs' Δu per dollar. The spread is the larger of the two within-size differences.
+  - The larger net is picked only if its lead at 12 box-days is more than the spread. D31's crossover rule is read on the means, under the same condition. Otherwise the smaller net.
+- **Cost:** ≈ 48 box-days against ≈ 24: ≈ $630 at the planning price ($13.2 per box-day), ≈ $690 at what `k2b` billed ($14.4). A rental with its own pre-registration and the user's yes. With D64's pilot it may pass the early-research cap ($2.2K, `00`); the quote says where the cap stands (D24).
+- **Reopen if:** the first size's two seeds agree within the lab's noise (≈ ±0.004 at 20K sets). The other size's second seed can then be dropped by a new entry.
+
+**D66 (2026-11-10): the distillation stream carries a fourth student, a hard-label b8c192 control.** Amends `04` §6 (candidates). Decided by the user (as D64).
+- **What:** a b8c192 on the students' data, batches, optimizer and schedule, trained by the teachers' loss on the true labels (the human action; the final placement, the kyoku's Δ and the opponents' tenpai and waits). No teacher term.
+- **Why:**
+  - BC s1 beats a quick student by +0.0219 (`experiments/teacher-vs-quick.md`), with 11× the parameters and 7× the presentations. The control separates size from data.
+  - No test so far compares a distilled student with one trained directly at the same size. Without it, the teachers' targets can't be shown to add anything.
+- **Readings** (pre-registered with the distillation's qualification, before the students exist): the distilled b8c192 against the control, T-std; the control against No-SP A, a fixed-N measure. The control isn't a candidate for π_SL unless a new entry says so.
+- **Cost:** the stream's loader carries the labels again, as the teachers' did (12–17K samples/s on the A6000, above what the stream needs), and one more b8c192 trains. ≈ +7% by the 3060's timings (the b8c192's share of the students' step): ≈ 9 h and ≈ $5. The smoke run measures it.
+- **Reopen if:** the smoke run puts the control above 15% of the stream's time.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -708,7 +747,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D14a:** the winning player-scoring arm (A0–A5), from the `04a` §6.3 sweep.
 - **D14b:** the held-out-by-time window, if the coverage audit (`04a` §5) moves it from 2025-07-01 → 2026-01-23.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
-- **D16:** the student net size (`03` §4.1 + `04` §6).
+- **D16:** the student net size (`03` §4.1 + `04` §6). By D31's curves, two RL seeds per size (D65), on the recipe D64's pilot selects.
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
 - **D17b:** whether the CPU-only actor tier is adopted (`03` §3.5). The test is deferred (D47) until its reopen condition holds.

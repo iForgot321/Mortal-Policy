@@ -137,6 +137,7 @@ The upstream loader shuffles individual decisions and gives each one its kyoku's
   - Train the critic until its binned calibration (10 bins) is monotone and its explained variance has plateaued.
   - The student's kyoku-Δ head can initialize the observation pathway; it uses the same units.
 - **Diagnostic:** the ratio of within-kyoku to across-kyoku advantage variance should rise above ~0.
+- **Measured in `k2b` (D64):** explained variance 1.2–1.8% (6–10% in the game's last kyoku), a flat loss, a variance ratio of 0.11–0.13. The SL kyoku-Δ head explains ≈ 10% of a kyoku's Δ from public information alone, so this critic is probably far from what its inputs allow. D64's critic check measures that on fixed games before T1.
 
 ## 5. Discovery and confirmation (D35)
 
@@ -153,6 +154,7 @@ Each package is a bounded comparison of a coherent set of changes. Its box-day c
 **KL anchor (part of K2):**
 - Reverse KL(π_θ ‖ π_SL), exact over the legal mask, computed on a frozen copy on the learner.
 - Target 0.02 nats/decision at the start. Anchor **decay** is part of the schedule; LuckyJ reached its flexible style without human data (`01` §6).
+- **A constant target doesn't compound (D64).** `k2b` held 0.02 nats to its frozen initialization for the whole run: the coefficient settled in the first tenth, the second half of the budget bought +0.0025, and the soak's 48 h more bought nothing measurable. T1 doesn't scale that recipe. An anchor-release pilot picks between a rising target (`target_growth`) and re-anchoring to each new champion (`docs/design/t1-preconditions-draft.md`).
 
 ### 5.2 Confirmation (needed before a result counts toward a rung)
 
@@ -182,7 +184,7 @@ c = 1[π/b > 1−ε] · 1[y_a − mean_legal(y) > −l_th]    if A < 0
 
 | Tranche | Weeks | Fleet | Release rule |
 |---|---|---|---|
-| **T1** | 10–12 | Eval, learner, 3 actors | Released at G0 |
+| **T1** | 10–12 | Eval, learner, 3 actors | Released at G0, once D64's critic check and anchor-release pilot are done |
 | **T2** | 13–15 | Eval, learner, **dedicated candidate learner**, 4 actors | End-of-T1 champion beats start-of-T1 champion (T-std), no severe population-panel regression, **and** the search pilot's belief stage has reported (D32) |
 | **T3** | 16–18 | Same as T2 | Same rule, applied to T2 |
 

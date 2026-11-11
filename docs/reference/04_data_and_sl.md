@@ -137,7 +137,7 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 
 ## 6. Student distillation
 
-**Candidates:** b8c192, b12c256, b16c256 (see `03` §4.1 for speeds).
+**Candidates:** b8c192, b12c256, b16c256 (see `03` §4.1 for speeds). The same stream also trains a **hard-label b8c192 control** (D66): the teachers' loss on the true labels, with no teacher term. It shows what the teachers' targets add at student size; it isn't a candidate.
 
 **Loss:**
 - KL(π_ensemble ‖ π_student) at T = 1 over all training states, plus 0.1 × hard-label cross-entropy.
@@ -149,9 +149,9 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 - **T-NI against the best single teacher** (δ = 0.01). This single reference is used both here and for L1;
 - golden-set top-1 agreement within 1 pp of that teacher in every category.
 
-**Selection is by RL learning curves, not by distillation alone.** The **two smallest** qualifying candidates go through RL on the leading engine arm, at 6 and 12 box-days (`05` §2).
-- Choose by Δu per dollar at 12 box-days.
-- If the larger net trails at 6 but leads at 12 (a crossover), choose the larger.
+**Selection is by RL learning curves, not by distillation alone.** The **two smallest** qualifying candidates go through RL on the leading engine arm, at 6 and 12 box-days (`05` §2), **two RL seeds each** (D65), on the recipe D64's pilot selects.
+- Choose by Δu per dollar at 12 box-days, on the mean of each size's two seeds. The larger net wins only if its lead is more than the seed spread (D65).
+- If the larger net trails at 6 but leads at 12 (a crossover), choose the larger, under the same condition.
 - Distillation non-inferiority shows a student reproduces the teacher. It doesn't show the student can learn stronger strategies.
 
 The chosen student becomes **π_SL**: the RL initialization, the KL anchor, the permanent pool opponent and the deployed incumbent. The teachers stay available for offline work (belief labels, search evaluation, relabelling).
