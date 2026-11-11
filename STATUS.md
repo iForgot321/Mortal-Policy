@@ -4,10 +4,16 @@ Where the project is against `docs/reference/00_ROADMAP.md`. Read it whole at th
 and update it at the end: what changed, verified vs only attempted, the next step. Keep it near 150
 lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, don't read it through.
 
-## Current position (2026-11-10)
+## Current position (2026-11-11)
 
-**Nothing is rented and nothing is running.** Phase 0 is exited (D55). In Phase 1 the SL substrate is
-half built, and the early research has met G0's Select conditions; T1 waits on D64.
+**Live: the student distillation `students-s1`** on Hyperstack (VM 1154669, RTX A6000, $0.507/h),
+rented 2026-11-11 09:19 UTC. Expected ≈ 137 h (≈ $70, ends ≈ 2026-11-17 02:00 UTC); the watchdog
+downs it at 177 h (≈ $89.7, the $90 stop). Driver `experiments/secure_teacher.sh` (log
+`workdir/secure/runs/students-s1.session.log`). **After a reboot or `wsl --shutdown`:**
+`TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
+
+Phase 0 is exited (D55). In Phase 1 the SL substrate is being built: teachers done, students
+training. The early research has met G0's Select conditions; T1 waits on D64.
 
 | Rung | State |
 |---|---|
@@ -23,11 +29,11 @@ half built, and the early research has met G0's Select conditions; T1 waits on D
   weights: BC s1 81.34%, AWR s1 80.99%.
   - AWR vs BC is even at T-std, so BC (D17). The ensemble is the two (D63).
   - BC s1 beats the quick student No-SP A: T-std pass, +0.0219 [+0.012, +0.031].
-  - **Both T-stds played the raw weights, not the EMA weights** (a save bug, fixed this session;
-    `experiments/teacher-ema-export.md`). D63a is open.
-- **Next:** the distillation run (`docs/design/distillation-draft.md`): three students and a
-  hard-label control (D66) in one stream, ≈ 137 h, ≈ $70. A rental: it waits for a yes.
-  `mortal/train_students.py` isn't written yet.
+  - **Both T-stds played the raw weights, not the EMA weights** (a save bug, fixed 2026-11-10;
+    `experiments/teacher-ema-export.md`). D67: the teachers are the real EMA weights from now on.
+- **Students (running):** b8c192, b12c256, b16c256 and the hard-label control, distilled online from
+  both teachers in one stream, 2.34B presentations (D66, D67; `experiments/students-s1.md` has the
+  pre-registered qualification). The workstation smoke run passed (1,525 samples/s → ≈ 137 h).
 
 **RL (`05`)**
 - P0, both P1 seeds and V lost to their initializations; the diagnosis found unanchored drift
@@ -71,19 +77,18 @@ The teachers' training states (the only source of their EMA) are in
 
 ## Waiting on the user
 
-1. **The distillation run** (≈ $70) and its draft's decisions: online targets or a cache, 2.34B or
-   1.17B presentations, and **which teacher weights** (D63a: the real EMA, recommended, or the raw
-   weights the lab has measured).
-2. **Whether the two teacher T-stds run again on the real EMA weights** (an eval box, ≈ $0.80 for
-   both). They decide nothing new unless the EMA weights are the teachers.
+1. **When the students exist (≈ 11-17):** an eval box for their T-NIs against BC s1 and the
+   control's readings (≈ $5–15, `experiments/students-s1.md`). A rental: it needs a yes then.
+2. **Whether AWR vs BC runs again on the real EMA weights** (≈ $0.50). Recommended: no; BC s1 vs No-SP
+   A on the EMA weights is already in the qualification queue.
 3. **D64's draft** (`docs/design/t1-preconditions-draft.md`): run the critic check now (≈ 6–8 h on
    the workstation)? The pilot's base, size and candidates (≈ $175).
 4. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
    deploy, so it needs an `08` entry first. `origin/main` is far behind; a deployed version's source
    must be public before it plays.
-5. **The disk:** C: has ≈ 31 GB free. The space freed in Linux on 2026-11-10 returns to Windows only
-   after `sudo fstrim -av`, `wsl --shutdown` and a compact of the disk file (CLAUDE.md → Machine).
-   Nothing is running, so it can happen now.
+5. **The disk:** C: has ≈ 31 GB free. Compacting needs `wsl --shutdown`, which kills the run's
+   driver and watchdog (the box trains on; its own shutdown is the backstop). If you compact before
+   the run ends, re-attach right after with the command at the top.
 
 ## Last session: 2026-11-10, the audit's seven changes (the user: "settle all 7")
 
