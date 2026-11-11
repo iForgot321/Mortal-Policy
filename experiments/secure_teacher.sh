@@ -21,6 +21,10 @@ cd "$(dirname "$0")/.." || exit 2
 RUN=$1 CONFIG=$2
 TRAINER=${TRAINER:-train_teacher.py}
 PAT="[${TRAINER:0:1}]${TRAINER:1}"  # pgrep -f never matches its own command line
+# the trainer's name as the box's shell will rebuild it ("t''rain_teacher.py"): start_trainer's remote
+# command line must not contain the name itself, or its own guard's pgrep finds that line and reports
+# a trainer that isn't there (2026-11-11: students-s1 never started)
+QUOTED="${TRAINER:0:1}''${TRAINER:1}"
 INPUT_ARGS=()
 for f in ${INPUTS:-}; do INPUT_ARGS+=(--input "$f"); done
 MIN_RATE=${MIN_RATE:-}
@@ -54,12 +58,20 @@ start_trainer() {
     $S exec "$RUN" "pgrep -f '$PAT' >/dev/null && { echo 'a trainer is already running'; exit 0; }; \
 mkdir -p workdir/secure-box && cd mortal && (MJ_DATA=$d MORTAL_CFG=../workdir/box/configs/$CONFIG.toml \
 LD_LIBRARY_PATH=\$(/venv/main/bin/python -c 'import sysconfig; print(sysconfig.get_config_var(\"LIBDIR\"))') \
-setsid nohup /venv/main/bin/python $TRAINER >> ../workdir/secure-box/$CONFIG.log 2>&1 < /dev/null &)"
+setsid nohup /venv/main/bin/python $QUOTED >> ../workdir/secure-box/$CONFIG.log 2>&1 < /dev/null &)"
 }
 
 if [[ ${3:-} == --attach ]]; then
     say "attaching to $RUN"
     $S rearm "$RUN"
+    # a trainer that isn't running starts now, not at the first 30-min check; the box must say so twice
+    if [[ $(trainer_rc) == 1 ]]; then
+        sleep 60
+        if [[ $(trainer_rc) == 1 ]]; then
+            say "no trainer on the box: starting it (it resumes from its last checkpoint, if any)"
+            start_trainer
+        fi
+    fi
 else
     FLAVOR=${3:-n3-RTX-A6000x1} HOURS=${4:-150}
     step up $S up "$RUN" --flavor "$FLAVOR" --hours "$HOURS" --yes || {
