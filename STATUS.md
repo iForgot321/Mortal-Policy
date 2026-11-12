@@ -96,9 +96,6 @@ The teachers' training states (the only source of their EMA) are in
 4. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
    deploy, so it needs an `08` entry first. `origin/main` is far behind; a deployed version's source
    must be public before it plays.
-5. **The disk:** C: has ≈ 31 GB free. Compacting needs `wsl --shutdown`, which kills the run's
-   driver and watchdog (the box trains on; its own shutdown is the backstop). If you compact before
-   the run ends, re-attach right after with the command at the top.
 
 ## Last session: 2026-11-10, the audit's seven changes (the user: "settle all 7")
 
