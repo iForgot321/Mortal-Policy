@@ -257,12 +257,19 @@ def frozen_inputs():
 
 def inputs(cfg, role, init=None):
     """Repo-relative files a box needs besides the code: the frozen checkpoints, the GRP and the
-    baseline checkpoints, plus, for the learner, the run's initial checkpoint."""
+    baseline checkpoints, plus, for the learner, the KL anchor's own file (when the run anchors
+    to a policy other than its baseline, `policy.kl_anchor.state_file`) and the run's initial
+    checkpoint."""
     paths = {cfg['grp']['state_file'], cfg['baseline']['train']['state_file'],
              cfg['baseline']['test']['state_file']}
     rel = sorted({os.path.relpath(p, WS_ROOT) for p in paths} | frozen_inputs())
-    if role == 'learner' and init:
-        rel.append(init)
+    if role == 'learner':
+        anchor = cfg.get('policy', {}).get('kl_anchor', {})
+        if anchor.get('enabled') and anchor.get('state_file'):
+            rel.append(os.path.relpath(anchor['state_file'], WS_ROOT))
+        if init:
+            rel.append(init)
+        rel = list(dict.fromkeys(rel))  # the anchor or the init may be a frozen input already
     for p in rel:
         if p.startswith('..') or not (REPO / p).is_file():
             raise FleetError(f'input {p} is not a file under the repo')

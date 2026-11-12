@@ -51,7 +51,30 @@ def test_inputs_are_the_frozen_checkpoints_plus_the_learner_init():
     assert {'workdir/grp-v2/grp-v2-frozen.pth', 'workdir/pilot/qs-a/pilot-qs-a-final.pth',
             'workdir/pilot/qs-b/pilot-qs-b-final.pth'} <= set(actor)  # P0's GRP and baselines among them
     init = 'workdir/pilot/qs-a/pilot-qs-a-final.pth'
+    assert fleet.inputs(cfg, 'learner', init) == actor  # already among the frozen inputs: once
+    init = 'tools/fleet/frozen.sha256'  # any other file under the repo
     assert fleet.inputs(cfg, 'learner', init) == actor + [init]
+
+
+def test_the_learner_gets_the_anchor_file_when_the_run_names_one():
+    """A run that anchors to a policy other than its baseline (experiments/anchor-release.md):
+    the learner needs that file, the actors don't."""
+    _, cfg = fleet.load_config(P0)
+    frozen = sorted(fleet.frozen_inputs())
+    other = 'tools/fleet/README.md'  # stands for a checkpoint that isn't a frozen input
+    cfg['policy']['kl_anchor'] = {'enabled': True, 'state_file': f'{fleet.WS_ROOT}/{other}'}
+    assert fleet.inputs(cfg, 'actor') == frozen
+    assert fleet.inputs(cfg, 'learner') == frozen + [other]
+    assert fleet.inputs(cfg, 'learner', 'tools/fleet/frozen.sha256') == frozen + [other, 'tools/fleet/frozen.sha256']
+    # the anchor's default (the baseline) and a disabled anchor add nothing
+    cfg['policy']['kl_anchor'] = {'enabled': True}
+    assert fleet.inputs(cfg, 'learner') == frozen
+    cfg['policy']['kl_anchor'] = {'enabled': False, 'state_file': f'{fleet.WS_ROOT}/{other}'}
+    assert fleet.inputs(cfg, 'learner') == frozen
+    # a file that isn't there fails before anything is rented
+    cfg['policy']['kl_anchor'] = {'enabled': True, 'state_file': f'{fleet.WS_ROOT}/workdir/no-such.pth'}
+    with pytest.raises(fleet.FleetError, match='not a file under the repo'):
+        fleet.inputs(cfg, 'learner')
 
 
 def test_offers_rank_by_dollars_per_hanchan():
