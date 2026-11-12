@@ -4,7 +4,16 @@ Where the project is against `docs/reference/00_ROADMAP.md`. Read it whole at th
 and update it at the end: what changed, verified vs only attempted, the next step. Keep it near 150
 lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, don't read it through.
 
-## Current position (2026-11-11)
+## Current position (2026-11-12)
+
+**Live: D64's anchor-release pilot, candidate A (`release-a`)** on Vast, rented 2026-11-12 18:43 UTC
+(`experiments/anchor-release.md`): learner 60391930 (machine 54271), actors 60391934 and 60391935,
+$1.76/h, ≈ $84 for its 144 box-hours. `full` ≈ 2026-11-14 19:00 UTC, then its watcher downs it;
+watchdog deadline 2026-11-14 22:43 UTC; stop $95. Launch log `workdir/fleet/release-a-launch.out`.
+- **After a reboot or a WSL restart:** `bash experiments/release_launch.sh a --resume` (the watcher
+  and the watchdog, each only if missing).
+- **Candidate B (`release-b`)** launches at up to $2.10/h (the user, 2026-11-12: ≈ $100, ≈ $185 for
+  both, stop $105). Launch log `workdir/fleet/release-b-launch.out`; resume as A, with `b`.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step

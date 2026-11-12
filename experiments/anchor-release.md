@@ -161,3 +161,17 @@ plumbing (32-game drains, the controller every 5 steps), from the staged inits.
     t = 80), and the coefficient was first cut in the window where the KL fell below target / 1.5
     (t = 60). It reached the 0.01 floor five cuts later (t = 110) with the KL still at 0.019–0.021:
     the controller outruns the policy, as the expectation above says.
+- **B** (125 steps, no errors):
+  - The trainer logged "kl anchor: adaptive, pi_SL …/fleet/runs/k2b/snapshots/full.pth, coef 0.1"
+    and a new clock, and loaded no anchor state, with pilot A still the table's opponent.
+  - The first window's KL was 0.00000 with 99.96% agreement: the anchor is the policy's own
+    starting point, not pilot A (which would read 0.019 and 95%).
+  - The controller held for 5 windows, then cut the coefficient each window to the 0.01 floor
+    (t = 60), as `k2b`'s start did. The KL had reached 0.0007 by t = 120 at the soak's LR.
+
+## Launch (2026-11-12)
+
+- **A, `release-a`:** rented 18:43 UTC at a live quote of $1.81/h (limit $1.90/h).
+- **B, `release-b`:** by then the three cheapest remaining machines quoted ≈ $2.09/h, above the
+  limit, so the user was asked and chose "Now, up to $2.10/h": ≈ $100 for B and ≈ $185 for both,
+  $10 over the approved ≈ $175. B's stop is $105.
