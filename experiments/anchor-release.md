@@ -171,7 +171,30 @@ plumbing (32-game drains, the controller every 5 steps), from the staged inits.
 
 ## Launch (2026-11-12)
 
-- **A, `release-a`:** rented 18:43 UTC at a live quote of $1.81/h (limit $1.90/h).
-- **B, `release-b`:** by then the three cheapest remaining machines quoted ≈ $2.09/h, above the
-  limit, so the user was asked and chose "Now, up to $2.10/h": ≈ $100 for B and ≈ $185 for both,
-  $10 over the approved ≈ $175. B's stop is $105.
+- **A, `release-a`:** rented 18:43 UTC at a live quote of $1.81/h (limit $1.90/h). Its first
+  learner host (machine 54271) never finished loading its image and the fleet replaced it after
+  25 min. Training began 19:23 UTC: learner 60394006 (EPYC 7713), actors 60391934 (EPYC 7C13) and
+  60391935 (EPYC 7B13), **$1.63/h**, ≈ $78.
+  - On the learner: "run clock: origin at step 3,880,000, t = 0" and "loaded the kl anchor (coef
+    0.0759375)". At t = 4,800 the KL to pilot A was 0.0195 with 95.2% agreement, `k2b` full's
+    figures.
+- **B, `release-b`:** by 19:05 UTC the three cheapest remaining machines quoted ≈ $2.09/h, above
+  the limit, so the user was asked and chose "Now, up to $2.10/h" (≈ $100 for B, ≈ $185 for both;
+  stop $105). It rented at 19:09 UTC, and the boxes it got cost less: learner 60394073
+  (Threadripper PRO 5995WX), actors 60394075 (EPYC 7713) and 60397192 (EPYC 7Y83, after the first
+  actor2 host failed), **$1.77/h**, ≈ $85. Training began 19:43 UTC.
+  - On the learner: "kl anchor: adaptive, pi_SL …/fleet/runs/k2b/snapshots/full.pth, coef 0.1" and
+    the same new clock.
+- **Projected: ≈ $165 for both,** under the approved ≈ $175. `full` ≈ 2026-11-14 19:00 UTC for
+  each (144 box-hours); watchdogs at 22:43 and 23:09 UTC.
+- **The boxes report their commit as `-dirty`.** At each sync the tree held uncommitted `STATUS.md`
+  text (A's actors, at `7ef2a0a`) or the lab's new registry rows (the rest, at `acec88f`). The two
+  commits differ in notes and one workstation script, so every box runs the same code.
+  **A replacement box gets the working tree as it is at that moment: no trainer or engine code is
+  edited until both runs are down.**
+- **The comparator's chain** (`release_soak_chain.sh`) has run on the workstation since 19:10 UTC
+  at ≈ 5.1K sets/h (both measures done ≈ 2026-11-13 11:00 UTC). Its first run made the block
+  `release`: family-A nonces [74200, +40000).
+- **The eval-box chain** (`release_measure_chain.sh`) has waited, detached, since 19:45 UTC for
+  both `full` snapshots (log `workdir/fleet/runs/eval/release-measures.log`). When the measures
+  are in: `python experiments/release_paired.py` gives the reading.

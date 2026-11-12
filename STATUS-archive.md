@@ -4,6 +4,42 @@ Session entries moved out of `STATUS.md`, verbatim, newest first. It isn't read 
 search it when a detail is needed (`grep -n` for a run name, a date or a decision). The entries'
 "current position" statements were true when written; `STATUS.md` holds today's.
 
+## 2026-11-10 — the audit's seven changes (the user: "settle all 7")
+
+**Changed**
+- **Trainer file order** (`mortal/teacher.py`, `train_teacher.py`): the file list is shuffled by the
+  seed before the loader's workers split it (`[dataset] file_order`, default `'shuffled'`). The
+  teachers' order is `'sorted'`, now written into their three configs. A state resumes only in the
+  order it started in.
+- **Validation:** `[dataset] val_start` keeps the trainer's sample inside the train window.
+  `tools/eval/validate.py` scores any checkpoint on `heldout_game` or `heldout_time` on the
+  workstation, with the trainer's own validation pass (`experiments/validation-samples.md`).
+- **Checkpoint loading:** every load goes through `mortal/checkpoint.py` (`load_checkpoint`:
+  weights-only, plus numpy scalars). A test fails on an unrestricted load anywhere in the code.
+- **The EMA save bug, found on the way:** `final.pth`'s `ema_weights` were the raw weights (the save
+  kept live tensors across the swap back). Fixed (`teacher.ema_weights`), and `export_ema.py` now
+  rebuilds the EMA from a run's last `state.pth` and refuses a file whose EMA equals its raw weights.
+- **Decisions** (`08`): D64 (T1 waits for the critic check and the anchor-release pilot), D65 (two RL
+  seeds per size), D66 (the hard-label control student); D63a opened. `00`, `04` §6 and `05` §4–6
+  amended to match; the distillation draft amended; `docs/design/t1-preconditions-draft.md` written.
+- **This file:** cut from 760 lines to this; the rest is in `STATUS-archive.md`.
+
+**Verified**
+- `pytest tests/`: 191 pass, 5 skipped (10 new). No Rust change, so no cargo checks.
+- The recovered EMA weights reproduce the trainer's own final EMA validation on the same 200 logs:
+  BC s1 81.336% / NLL 0.4750 (trainer: 81.337% / 0.4750), AWR s1 80.989% / 0.4863 (80.989% / 0.4863).
+- Every existing checkpoint loads as data: of 92 scanned, 87 hold only tensors and plain values and
+  5 v1-era ones add numpy scalars, which the loader allows. The lab, the anchor and a trainer state
+  were loaded through it.
+
+**Not done**
+- `mortal/train_students.py`, the control's code and `students-s1.toml` (they follow the user's
+  choices on the draft).
+- No lab run, no rental. The two teacher T-stds haven't been repeated on the EMA weights.
+- `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
+
+**Next:** the user's choices above. Then the student trainer and its smoke run on the workstation.
+
 ## 2026-11-09 (later) — the audit's three checks (the user brought them back)
 
 State at the start: clean tree, nothing rented, `.so` current, splits frozen, nothing running.

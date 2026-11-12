@@ -6,14 +6,31 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 
 ## Current position (2026-11-12)
 
-**Live: D64's anchor-release pilot, candidate A (`release-a`)** on Vast, rented 2026-11-12 18:43 UTC
-(`experiments/anchor-release.md`): learner 60391930 (machine 54271), actors 60391934 and 60391935,
-$1.76/h, ≈ $84 for its 144 box-hours. `full` ≈ 2026-11-14 19:00 UTC, then its watcher downs it;
-watchdog deadline 2026-11-14 22:43 UTC; stop $95. Launch log `workdir/fleet/release-a-launch.out`.
-- **After a reboot or a WSL restart:** `bash experiments/release_launch.sh a --resume` (the watcher
-  and the watchdog, each only if missing).
-- **Candidate B (`release-b`)** launches at up to $2.10/h (the user, 2026-11-12: ≈ $100, ≈ $185 for
-  both, stop $105). Launch log `workdir/fleet/release-b-launch.out`; resume as A, with `b`.
+**Live: D64's anchor-release pilot** on Vast (`experiments/anchor-release.md`, pre-registered and
+launched 2026-11-12): two fleets of a learner and 2 actors, each continuing `k2b` full for 144
+box-hours. `full` ≈ 2026-11-14 19:00 UTC for both, then each watcher downs its run. ≈ $165 projected
+for both (approved ≈ $175).
+
+| Run | What | Boxes (learner; actors) | $/h | Watcher / watchdog PID | Deadline (UTC) | Stop |
+|---|---|---|---|---|---|---|
+| `release-a` | A: pilot A's anchor, target rising 0.02 → ≈ 0.06 | 60394006; 60391934, 60391935 | 1.63 | 107231 / 103391 | 11-14 22:43 | $95 |
+| `release-b` | B: re-anchored to `k2b` full, 0.02 | 60394073; 60394075, 60397192 | 1.77 | 108414 / 105869 | 11-14 23:09 | $105 |
+
+- **After a reboot or a WSL restart:** `bash experiments/release_launch.sh a --resume`, then the same
+  with `b` (the watcher and the watchdog, each only if missing). Then the two chains below if they
+  are gone; both skip what is already done.
+- **Don't edit trainer or engine code while these run:** a replacement box gets the working tree as
+  it is at that moment.
+- **On the workstation, detached:**
+  - `experiments/release_soak_chain.sh` (since 19:10 UTC, log `workdir/lab/release-soak.log`): the
+    comparator, `soak-a` full at tables of pilot A and pilot B, 40K sets each, done ≈ 11-13 11:00 UTC.
+    **No other lab or GPU job meanwhile.** Its registry rows are uncommitted until it ends.
+  - `experiments/release_measure_chain.sh` (since 19:45 UTC, log
+    `workdir/fleet/runs/eval/release-measures.log`): waits for both `full` snapshots, rents the eval
+    box (approved, ≤ $0.75/h, ≈ $8–10), plays the candidates' four measures, pulls and downs it.
+- **Then:** `python experiments/release_paired.py` gives the pre-registered reading. Also owed: the
+  drift report at p25, p50 and `full` (`experiments/rl_drift.py`, in the note), which needs the GPU
+  free of the lab.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
@@ -62,9 +79,11 @@ training. The early research has met G0's Select conditions; T1 waits on D64.
   pilot B, +0.0084 at 3× shanten-greedy.
 - **It stopped growing at the fixed anchor:** the run's second half bought +0.0025, the 48 h soak
   +0.0016 (the soak itself passes its gate, `experiments/fleet-soak.md`).
-- **D64: T1 and D31's curves wait** for a critic check (workstation, $0) and an anchor-release pilot
-  (a rental). Drafts: `docs/design/t1-preconditions-draft.md`. **D65:** D31's curves run two RL seeds
-  per size.
+- **D64: T1 and D31's curves wait** for the anchor-release pilot (running, above); the critic check
+  is done. What the review changed in the pilot's draft: `docs/design/t1-preconditions-draft.md`.
+  **D65:** D31's curves run two RL seeds per size.
+- **Early-research spend:** ≈ $1.24K of the $2.2K cap by the fleet's own records; ≈ $1.41K after
+  this pilot, which leaves ≈ $790 for D65's curves (≈ $630–690).
 - The observation is v5 from G0 on (D61); its checks and its recipe check pass
   (`experiments/v5-switch.md`).
 
@@ -96,48 +115,48 @@ The teachers' training states (the only source of their EMA) are in
 
 ## Waiting on the user
 
-1. **D64's pilot** (`docs/design/t1-preconditions-draft.md`): its base, size and candidates (≈ $175),
-   after the critic check's reading.
-2. *(Approved 2026-11-11, recorded so it isn't asked again:)* the eval box for the students'
-   qualification when they exist (`experiments/students-s1.md`); the critic check (done, above); no rerun
-   of AWR vs BC on the EMA weights (the user: skip).
-3. *(spare)*
-4. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
+1. *(Approved, recorded so it isn't asked again:)* the eval box for the students' qualification
+   when they exist (2026-11-11, `experiments/students-s1.md`); the eval box for the pilot's measures
+   (2026-11-12); no rerun of AWR vs BC on the EMA weights (the user: skip).
+2. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
    deploy, so it needs an `08` entry first. `origin/main` is far behind; a deployed version's source
    must be public before it plays.
+3. **`CLAUDE.md`'s Machine section** still says how space returns to Windows (fstrim, shutdown,
+   compact). The pending compaction is gone from this file (the user, 2026-11-12); that sentence
+   describes the machine and was left.
 
-## Last session: 2026-11-10, the audit's seven changes (the user: "settle all 7")
+## Last session: 2026-11-12, the pilot's draft reviewed, pre-registered and launched
 
 **Changed**
-- **Trainer file order** (`mortal/teacher.py`, `train_teacher.py`): the file list is shuffled by the
-  seed before the loader's workers split it (`[dataset] file_order`, default `'shuffled'`). The
-  teachers' order is `'sorted'`, now written into their three configs. A state resumes only in the
-  order it started in.
-- **Validation:** `[dataset] val_start` keeps the trainer's sample inside the train window.
-  `tools/eval/validate.py` scores any checkpoint on `heldout_game` or `heldout_time` on the
-  workstation, with the trainer's own validation pass (`experiments/validation-samples.md`).
-- **Checkpoint loading:** every load goes through `mortal/checkpoint.py` (`load_checkpoint`:
-  weights-only, plus numpy scalars). A test fails on an unrestricted load anywhere in the code.
-- **The EMA save bug, found on the way:** `final.pth`'s `ema_weights` were the raw weights (the save
-  kept live tensors across the swap back). Fixed (`teacher.ema_weights`), and `export_ema.py` now
-  rebuilds the EMA from a run's last `state.pth` and refuses a file whose EMA equals its raw weights.
-- **Decisions** (`08`): D64 (T1 waits for the critic check and the anchor-release pilot), D65 (two RL
-  seeds per size), D66 (the hard-label control student); D63a opened. `00`, `04` §6 and `05` §4–6
-  amended to match; the distillation draft amended; `docs/design/t1-preconditions-draft.md` written.
-- **This file:** cut from 760 lines to this; the rest is in `STATUS-archive.md`.
+- **The review of `docs/design/t1-preconditions-draft.md`** found the pilot not ready as drafted: the
+  candidates' room wasn't matched, the pass rule compared with `k2b` full, not the soak, and a new
+  run clock would have restarted the LR, clip and entropy schedules. The user took the review's
+  picks ("Go with your picks, I give the okay for the box rental as well").
+- **Pre-registered** (`experiments/anchor-release.md`, D64's note in `08`, `05` §5.1's pointer) and
+  the draft rewritten to the decided design.
+- **Code:** `tools/fleet/stage_init.py` (a snapshot without its run clock, and with `--new-anchor`
+  without its anchor state); `fleet.py` ships the anchor's file to the learner;
+  `release-{a,b}.toml` and their smoke configs; `experiments/release_launch.sh`,
+  `release_soak_chain.sh`, `release_measure_chain.sh`, `release_paired.py`.
+- **Launched** both fleets (above). B's live quote passed the $1.90/h limit, the user chose "Now, up
+  to $2.10/h", and it rented at $1.77/h.
+- **The disk compaction** is no longer waiting on the user (the user: not needed).
 
 **Verified**
-- `pytest tests/`: 191 pass, 5 skipped (10 new). No Rust change, so no cargo checks.
-- The recovered EMA weights reproduce the trainer's own final EMA validation on the same 200 logs:
-  BC s1 81.336% / NLL 0.4750 (trainer: 81.337% / 0.4750), AWR s1 80.989% / 0.4863 (80.989% / 0.4863).
-- Every existing checkpoint loads as data: of 92 scanned, 87 hold only tensors and plain values and
-  5 v1-era ones add numpy scalars, which the loader allows. The lab, the anchor and a trainer state
-  were loaded through it.
+- `pytest tests/`: 202 pass, 5 skipped (4 new). No Rust change, so no cargo checks.
+- Both configs smoke-ran on the workstation before the rental, and both learners logged the right
+  anchor, coefficient and clock on their boxes. A at t = 4,800: KL 0.0195, agreement 95.2%.
+
+**A correction to the review:** it said candidate A as drafted would end near 0.027 nats. `k2b`'s
+own start and A's smoke run show that once a cut starts the coefficient falls to its floor within
+minutes and the KL climbs to the band's upper edge. A is expected near 0.05 nats and B near 0.027
+from `k2b`; the note says so, and the user was told.
 
 **Not done**
-- `mortal/train_students.py`, the control's code and `students-s1.toml` (they follow the user's
-  choices on the draft).
-- No lab run, no rental. The two teacher T-stds haven't been repeated on the EMA weights.
+- The drift report at each snapshot, the candidates' measures and the reading (they follow the
+  runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** the user's choices above. Then the student trainer and its smoke run on the workstation.
+**Next:** read `workdir/lab/release-soak.log` and commit its registry rows (≈ 11-13 11:00 UTC); the
+drift report at p25 (≈ 11-13 07:00 UTC) and p50; after ≈ 11-14 19:00 UTC the eval-box chain, then
+`release_paired.py` and the result in the note. The students end ≈ 11-17.
