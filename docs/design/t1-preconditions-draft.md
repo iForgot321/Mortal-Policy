@@ -39,7 +39,7 @@ pilot B.
 
 | The draft | Now | Why |
 |---|---|---|
-| A's target rises 0.02 → 0.04 | 0.02 → ≈ 0.06, most of it early | The controller acts only below target / 1.5, so 0.04 would have delivered ≈ 0.027, late. B can reach up to ≈ 0.08 from pilot A (KL isn't additive) |
+| A's target rises 0.02 → 0.04 over the run | 0.02 → ≈ 0.06, most of it early | The controller acts only below target / 1.5, so nothing would have changed until the target passed 0.0285, up to two fifths of the run in. B can reach up to ≈ 0.09 from pilot A (KL isn't additive). The review's "A would end near 0.027" was wrong: once a cut starts the KL climbs to the band's upper edge (`experiments/anchor-release.md`) |
 | Pass against `k2b` full | Against `soak-a` full | D64 says the fixed anchor's continuation; the soak's own CI reaches +0.008 |
 | "The soak's LR" | LR, clip and entropy weight all held at the soak's values | A new run clock restarts all three schedules (3×, 2× and 7× the soak's) |
 | The larger gain at pilot B's table wins | Only if the candidates' paired difference excludes 0; otherwise B | One run each, and the lab can't separate differences under ≈ 0.004 |

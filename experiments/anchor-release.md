@@ -32,14 +32,22 @@ actors, with three pilot As at the table as before.
 | Init | `workdir/release/init-a.pth` (`db453c45…`): `k2b` full without its run clock | `workdir/release/init-b.pth` (`77f06b16…`): also without its anchor state |
 | Run | `release-a` | `release-b` |
 
-- **A's target is set by what the controller delivers.** It lowers the coefficient only when the KL
-  is below target / 1.5, so a target ending at 0.06 enforces a KL of at least 0.04 by the end. With
-  the KL at 0.019 the first cut comes when the target passes 0.0285, near 37K steps (≈ 1.5 h).
-- **B replays `k2b`'s start around a new centre.** `k2b`'s coefficient fell to its floor in the first
-  minutes and climbed back to 0.0759 on the overshoot (to 0.032); `k2-tune-a`'s ended at 0.114 the
-  same way. Where B's settles is reported, not fixed.
-- **Their distances from pilot A are measured, not assumed equal.** KL isn't additive: 0.02 around
-  `k2b` on top of 0.019 can be anywhere up to ≈ 0.08 from pilot A.
+- **What the controller is expected to do (an expectation, not a criterion).** It lowers the
+  coefficient when a 400-step window's KL is below target / 1.5 and raises it above target × 1.5.
+  The KL answers over thousands of steps, so once a cut starts the coefficient falls to its 0.01
+  floor within a few windows, and the KL then climbs until it meets the band's upper edge, where
+  the coefficient steps back up and holds it. `k2b`'s own start went this way (floor by t = 5.2K,
+  the KL over 0.03 near t = 16K, the coefficient back to 0.0759 by t = 18.4K, the KL then at
+  ≈ 0.027), and so did `k2-tune-a`'s (0.114).
+  - **A:** with the KL at 0.019 the first cut comes when the target passes 0.0285, near 37K steps
+    (≈ 1.5 h). The KL to pilot A should then climb to the upper edge, ≈ 0.05 nats within the first
+    few hours, and stay near there. The rule guarantees at least 0.04 by the end and allows up to
+    0.09.
+  - **B:** it replays `k2b`'s start around the new centre, so the KL to `k2b` should settle near
+    0.027, not 0.02.
+- **Their distances from pilot A are measured, not assumed equal.** KL isn't additive: ≈ 0.027
+  around `k2b` on top of 0.019 can be anywhere up to ≈ 0.09 from pilot A, and ≈ 0.046 if the new
+  step is orthogonal to the old one. A's expected ≈ 0.05 sits inside that range.
 
 ## Held equal to the soak
 
@@ -59,14 +67,16 @@ configs. The critic (K1) is as `k2b` left it, by the critic check's reading.
 ## Fleet and cost
 
 ```bash
+# experiments/release_launch.sh X runs, for X = a or b:
 F="python3 tools/fleet/fleet.py"
-for X in a b; do
-  $F up --run release-$X --config experiments/configs/release-$X.toml --init workdir/release/init-$X.pth \
-      --actors 2 --procs 2 --hard-hours 52 --verify --yes
-  setsid -f $F watch --run release-$X --replace --allow-zen2 --budget-box-hours 144 --snapshot-at 0.25,0.5 \
-      --max-dollars 95 --anchor-alert 0.10 > workdir/fleet/runs/release-$X/watch.out 2>&1 < /dev/null
-done
+$F up --run release-$X --config experiments/configs/release-$X.toml --init workdir/release/init-$X.pth \
+    --actors 2 --procs 2 --hard-hours 52 --verify --yes
+setsid -f $F watch --run release-$X --replace --allow-zen2 --budget-box-hours 144 --snapshot-at 0.25,0.5 \
+    --max-dollars 95 --anchor-alert 0.10 >> workdir/fleet/runs/release-$X/watch.out 2>&1 < /dev/null
 ```
+
+After a workstation restart: `bash experiments/release_launch.sh a --resume` (and `b`), which
+restarts the watcher and the watchdog if they are missing.
 
 - **Snapshots:** p25 (≈ 12 h), p50 (≈ 24 h) and `full` (144 box-hours, ≈ 48 h), then the watcher downs
   the run. Hard deadline 52 h.
@@ -90,12 +100,19 @@ Also each run's coefficient trace, learner steps and games.
 Both known failure modes come after early gains (an entropy collapse when an anchor is annealed too
 fast, forgetting when it moves), which is why all three snapshots are read.
 
-## Measures (after both `full` snapshots, on an eval box)
+## Measures
 
 Six runs of `python -m lab measure --sets 40000 --family A --block release`, AMP on, exploratory:
 A `full`, B `full` and `soak-a` full, each as the challenger at a table of three pilot As (the
 training table) and at a table of three pilot Bs (the held-out one). All six play the same 40,000
 deals (a new family-A block, `release`).
+
+- **`soak-a` full's two runs** don't depend on the pilot, so they play on the workstation while
+  the fleets train (≈ 15 h, ≈ 13 GB of logs).
+- **The candidates' four runs** play on an eval box once both `full` snapshots exist
+  (`experiments/release_measure_chain.sh`).
+- The two machines' GPUs differ, which acts like AMP's batch-composition noise (near-tie argmaxes
+  flip, zero-mean; CLAUDE.md's gotcha): it adds to D's variance, not to its mean.
 
 For a candidate at a table, per set:
 
@@ -118,8 +135,9 @@ a difference was 0.417 at pilot B's table, `experiments/k2b-opponents.md`), so a
 Also reported: each run's Δu, CI, average rank and style panel, and the paired difference between
 the candidates at each table.
 
-**Cost:** 240,000 sets. The eval box is approved (≈ $8 quoted; rented when both `full` snapshots
-exist, down when the queue drains).
+**Cost:** 240,000 sets: 80,000 on the workstation ($0) and 160,000 on the eval box, ≈ 14 h at the
+≈ 11K sets/h its b8c192 measures ran at, ≈ $8–10 (approved at ≈ $8; rented at ≤ $0.75/h when both
+`full` snapshots exist, down when the queue drains).
 
 ## Code (2026-11-12)
 
@@ -128,3 +146,18 @@ exist, down when the queue drains).
 - `tools/fleet/fleet.py` `inputs()`: the learner also gets `policy.kl_anchor.state_file` when a run
   names one (`tests/test_fleet.py`).
 - The two configs, and `release-smoke-{a,b}.toml` for the smoke runs below.
+
+## Smoke runs (2026-11-12, the workstation; not results)
+
+`experiments/configs/release-smoke-{a,b}.toml`: each config's anchor and schedules on k2-smoke's
+plumbing (32-game drains, the controller every 5 steps), from the staged inits.
+
+- **A** (155 steps, no errors):
+  - The trainer logged a new clock ("origin at step 3,880,000, t = 0") and "loaded the kl anchor
+    (coef 0.0759375)".
+  - The KL to pilot A started at 0.019 with 95% agreement, `k2b`'s figures.
+  - The LR, clip and entropy weight logged 6.4e-6, 0.1 and 1.5e-4 throughout.
+  - The target followed its formula (on the smoke's 20-step scale: 0.0210 at t = 5, 0.0289 at
+    t = 80), and the coefficient was first cut in the window where the KL fell below target / 1.5
+    (t = 60). It reached the 0.01 floor five cuts later (t = 110) with the KL still at 0.019–0.021:
+    the controller outruns the policy, as the expectation above says.
