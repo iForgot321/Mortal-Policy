@@ -706,6 +706,10 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - G0's Select conditions stay met (D59, L2). What moves is T1's start.
 - **Reopen if:** the pilot finds no mechanism that beats the fixed anchor. The roadmap's fallback (the SL incumbent plus search) is then weighed again, with the search pilot's failed belief stage in view (`experiments/search-pilot.md`), and the question goes to the user.
 - **The critic check's result (2026-11-12, `experiments/critic-ceiling.md`; not a new decision):** on the current kyoku's GRP-Δu, K1 as `k2b` left it explains 13.7%. The 1.2–1.8% quoted above is of the H return, most of whose variance is later kyoku. Supervised critics on 100K games reach 8.4–9.0% and overfit. By the pre-registered reading the critic isn't the lever: the anchor-release pilot goes ahead with K1 as it is, and sample efficiency (RL-6, RL-8) moves up for T1.
+- **The pilot's design (2026-11-12, `experiments/anchor-release.md`; not a new decision):** chosen by the user after the draft's review ("Go with your picks, I give the okay for the box rental as well").
+  - Two candidates continue `k2b` full for 48 h on a learner and 2 actors each (≈ $175 for both): a rising target to pilot A (0.02 → ≈ 0.06 nats), and a re-anchor to `k2b` full (0.02 nats). The LR, clip and entropy weight are held at the soak's values.
+  - A candidate passes if its paired difference from `soak-a` full has a 95% CI above 0 at a table of pilot A and at a table of pilot B (40K sets each, on an eval box).
+  - If both pass, the larger gain at pilot B's table is T1's mechanism only when the candidates' paired difference excludes 0; otherwise it is the re-anchor.
 
 **D65 (2026-11-10): D31's curves run two RL seeds per student size.** Amends D31's method, `00`'s Phase 1 item 2 and `04` §6's selection. Decided by the user (as D64).
 - **Why:** one run per size can't separate the size from the run.

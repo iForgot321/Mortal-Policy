@@ -1,114 +1,59 @@
-# Draft: before T1 (D64), the critic check and the anchor-release pilot, for the user's review
+# Before T1 (D64): the critic check and the anchor-release pilot
 
-**Status: draft, 2026-11-10.** D64 says T1 and D31's curves don't start on K2's fixed anchor, and names
-two things that come first. This is their design. Nothing here has run. Each part becomes a
-pre-registration (an `experiments/` note, fixed before any result) once the user has chosen below;
-the pilot is a rental and needs a yes.
+**Status: decided 2026-11-12.** D64 says T1 and D31's curves don't start on K2's fixed anchor, and
+names two things that come first. The critic check is done. The pilot's design was reviewed and
+chosen by the user on 2026-11-12, and its pre-registration is `experiments/anchor-release.md`,
+which is the text that counts. This file keeps the evidence and what the review changed.
 
 ## The evidence behind D64
 
 | What | Number | Source |
 |---|---|---|
-| `k2b`'s anchor coefficient | 0.0759 from the run's first tenth, never moved | the learner's TensorBoard |
+| `k2b`'s anchor coefficient | 0.0759 from the run's first hour (t = 18,400 of 3.66M), never moved | the learner's `anchor.jsonl` |
 | Reverse KL to pilot A / argmax agreement over the run | 0.025 → 0.019 / 94.1% → 95.3% | same |
+| The same over the soak, at the same coefficient | 0.019 → 0.018 / 95.2% → 95.4% | the soak's `anchor.jsonl` |
 | The run's second half (`full` vs `p50`, ≈ $130) | +0.0025 [+0.0004, +0.0046] | `experiments/k2-retry.md` |
 | 47.8 h more at the same anchor (the soak, $125) | +0.0016 [−0.0050, +0.0082] | `experiments/fleet-soak.md` |
-| Critic explained variance, all decisions / last kyoku | 1.2–1.8% / 6–10% | the learner's TensorBoard |
-| Critic loss, start → end | 0.0417 → 0.0424 | same |
-| The SL kyoku-Δ head, public information only | ≈ 10% of a kyoku's Δ (Huber 0.0287 vs ≈ 0.032 for a constant) | the teachers' validation |
+| Critic explained variance of the H return, all decisions / last kyoku | 1.2–1.8% / 6–10% | the learner's TensorBoard |
+| Critic explained variance of the current kyoku's Δ | 13.7% | `experiments/critic-ceiling.md` |
 
-The policy moved to where the PPO push and the anchor's pull balance, and stayed. The critic, which
-sees the opponents' hands, predicts a kyoku's outcome about as well as a head that doesn't.
+The policy moved to where the PPO push and the anchor's pull balance, and stayed. The coefficient
+was set by the start-up transient and never adapted after it: the KL stayed inside the
+controller's band (0.013–0.03), so the anchor acted as a fixed penalty.
 
-## 1. The critic check (workstation, $0)
+## 1. The critic check: done
 
-**Done 2026-11-12** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's GRP-Δu, above every
-supervised arm (8.4–9.0%). By the reading the critic isn't the lever, so the pilot below runs with K1 as
-it is. The design that was run:
+`experiments/critic-ceiling.md` (run 2026-11-11): K1 explains 13.7% of the kyoku's GRP-Δu, above
+every supervised arm on 100K games (8.4–9.0%). By its pre-registered reading the critic isn't the
+lever, so the pilot runs with K1 as it is, and sample efficiency (RL-6, RL-8) moves up for T1. The
+audit's "1.2–1.8%" was of the H return, which is mostly later-kyoku variance that nothing predicts.
 
-**Question.** How much of a kyoku's Δ can a critic explain with the opponents' hands, how much
-without, and how far below that is K1's online critic?
+## 2. The anchor-release pilot: pre-registered
 
-**Data (exists).** The K1 learning-rate check's games (`experiments/k1-lr-check.md`): 100,000 hanchan
-of pilot A's B0 play in `workdir/k1-lr-check/pool`, and 4,000 held-out ones in `fresh` (634,796
-trainee decisions). No lab nonces, no registry rows.
+`experiments/anchor-release.md`. Two candidates continue `k2b` full for 48 h on a learner and 2
+actors: **A** keeps pilot A as the anchor with a rising target, **B** re-anchors to `k2b` full at
+0.02 nats. Each is measured against the soak's last checkpoint at a table of pilot A and a table of
+pilot B.
 
-**Arms,** all scored on the held-out games:
+**What the review (2026-11-12) changed from the 2026-11-10 draft, and why:**
 
-| Arm | Input | Target | Training |
-|---|---|---|---|
-| K1 as `k2b` left it | obs + opponents' hands | (no training) | the critic in `k2b`'s `full.pth`, scored as is |
-| Public | obs | the current kyoku's GRP-Δu | supervised, b8c128, passes over the pool until held-out EV stops rising |
-| Privileged | obs + opponents' hands | the same | the same |
-| Privileged, larger | obs + opponents' hands | the same | b16c256, the same |
-
-**Metric.** Explained variance of the current kyoku's Δ on the held-out games: over all decisions, by
-third of the kyoku, and in the game's last kyoku (where K1's own figure, 6–10%, is the same target).
-Calibration in 10 bins.
-
-**Why the kyoku's Δ and not the H return.** Under H, 86% of the return's variance comes from later
-kyoku (`k1_h_ceiling.py`), which no input predicts. The check also reports the mean later-kyoku
-return by kyoku index: if that is near a constant, a critic trained on the kyoku's Δ plus that
-constant serves H's GAE.
-
-**Reading, fixed before it runs:**
-- **Privileged ≥ 2× K1's last-kyoku figure** (≥ 0.20 against ≈ 0.10): the critic is a lever. T1's
-  critic is trained this way before any policy step (a supervised B0), and the pilot below uses it.
-- **Privileged ≈ public** (within 0.02): the hidden hands add little at this size. The critic stays
-  as it is, and sample efficiency moves up the list instead (RL-6 four-seat harvesting, RL-8 reuse).
-- **Larger ≥ privileged + 0.03:** T1's critic takes the larger net.
-
-**Cost.** ≈ 6–8 h on the 3060 (one pass of the pool took 1.6 h per critic in the LR check). Nothing
-else runs on the workstation meanwhile (RAM). New code: one script, `experiments/critic_ceiling.py`.
-
-## 2. The anchor-release pilot (a rental)
-
-**Question.** Which mechanism lets the policy keep improving past the fixed anchor's equilibrium?
-
-**The baseline exists.** The soak continued `k2b` full at the fixed anchor for 47.8 h and gained
-nothing measurable. Both candidates start from the same checkpoint, so "no release" needs no new run.
-
-**Candidates,** each from `k2b` full (v4, pilot A at the table as before), with the soak's LR:
-
-| Candidate | The anchor | Room by the end |
+| The draft | Now | Why |
 |---|---|---|
-| **A. Rising target** | pilot A, target 0.02 → 0.04 nats over the pilot (`target_growth`) | ≈ 0.04 nats from pilot A |
-| **B. Re-anchor** | `k2b` full itself, target 0.02 nats, constant | ≈ 0.02 nats from `k2b`, so up to ≈ 0.04 from pilot A |
+| A's target rises 0.02 → 0.04 | 0.02 → ≈ 0.06, most of it early | The controller acts only below target / 1.5, so 0.04 would have delivered ≈ 0.027, late. B can reach up to ≈ 0.08 from pilot A (KL isn't additive) |
+| Pass against `k2b` full | Against `soak-a` full | D64 says the fixed anchor's continuation; the soak's own CI reaches +0.008 |
+| "The soak's LR" | LR, clip and entropy weight all held at the soak's values | A new run clock restarts all three schedules (3×, 2× and 7× the soak's) |
+| The larger gain at pilot B's table wins | Only if the candidates' paired difference excludes 0; otherwise B | One run each, and the lab can't separate differences under ≈ 0.004 |
+| Pilot B's table: estimate above 0 | CI above 0, as at pilot A's table | An estimate above 0 passes half the time by chance |
+| SE ≈ 0.0017; measures on the workstation | SE ≈ 0.0021; an eval box | 0.0017 is a direct 1v3's; 240K sets are ≈ 43 h and ≈ 40 GB here |
+| Code: a stage-init tool | Also: A keeps its coefficient, the fleet ships B's anchor file, a smoke run of each config | Found in the review |
 
-Both allow about the same distance from pilot A by the end. A gives it gradually around the old
-centre; B gives it at once around the new one. B is what a chain of champions would repeat.
+**The user's choices:** base `k2b` full on v4; a learner and 2 actors for 48 h per candidate
+(≈ $175 for both); both candidates; the eval box for the measures.
 
-**Measures,** each candidate's last checkpoint against `k2b` full, paired on the same deals as in
-`experiments/k2b-opponents.md`: 40K sets at a table of pilot A and 40K at a table of pilot B (the
-held-out table). 40K sets give a standard error of ≈ 0.0017.
-
-**Pass:** the 95% CI at pilot A's table is above 0, and the estimate at pilot B's table is above 0.
-If both pass, the larger gain at pilot B's table is T1's mechanism. If neither passes, D64's
-"reopen" applies.
-
-**Size and cost.** Per candidate a learner and 2 actors for 48 h, as `k2b` ran: ≈ $86 at `k2b`'s
-$1.80/h, so ≈ $175 for both, plus the measures (workstation, ≈ 28 h, or an eval box at ≈ $5).
-
-**Code before it can run:**
-- a stage-initialization tool: a snapshot without its `kl_anchor` state and `schedule_origin`, so a
-  run can start from it with a new anchor and a new run clock (`train_online.py` refuses an anchor
-  that differs from the checkpoint's). About 20 lines and a test;
-- nothing else: `policy.kl_anchor.state_file` and `target_growth` exist.
-
-**Not in this pilot:** who sits at the table. Both candidates keep pilot A there, so the result
-compares with `k2b` and the soak. Self-play or a pool is RL-5, after the mechanism is chosen.
-
-## Decisions for the user
-
-1. **Run the critic check now?** Recommended: yes. It costs nothing but the workstation for a night,
-   and its reading feeds the pilot.
-2. **The pilot's base:** `k2b` full on v4 (recommended, because the soak is its measured baseline), or
-   a v5 run, which would need its own fixed-anchor baseline first (≈ $125 more).
-3. **The pilot's size:** a learner and 2 actors for 48 h per candidate (≈ $175 for both), or the
-   soak's learner and 3 actors (≈ $250).
-4. **Candidates:** both A and B (recommended), or one.
+**Not in this pilot:** who sits at the table (RL-5), and a two-penalty anchor (a strong one to the
+current champion, a weak one to the supervised policy), which is worth weighing for T1.
 
 ## After these
 
-D31's curves (two RL seeds per size, D65) and T1 run on the mechanism and the critic these two
-select, from the students the distillation produces (`docs/design/distillation-draft.md`).
+D31's curves (two RL seeds per size, D65) and T1 run on the mechanism this pilot selects, with K1
+as it is, from the students the distillation produces (`docs/design/distillation-draft.md`).
