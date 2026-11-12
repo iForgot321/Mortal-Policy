@@ -7,19 +7,20 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 ## Current position (2026-11-11)
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
-2026-11-11 10:03 UTC; the trainer started 10:28 UTC. Steady 4,583 samples/s, so ≈ 142 h (≈ $72, ends
-≈ 2026-11-17 08:30 UTC); the watchdog (PID 434156) downs it at 177 h (≈ $89.7, ≈ 11-18 15:03 UTC).
-Driver PID 436577 (`experiments/secure_teacher.sh --attach`), log `workdir/secure/runs/students-s1.session.log`.
+2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
+156,000 of ≈ 1,142,600 (13.7%), ≈ $10 so far; it should end ≈ 2026-11-17 08:30 UTC (≈ 142 h, ≈ $72).
+The watchdog (PID 1127, re-armed 2026-11-12 06:05) downs it at 2026-11-18 15:03 UTC (177 h, ≈ $89.7).
+Driver PID 1122 (`experiments/secure_teacher.sh --attach`), log `workdir/secure/runs/students-s1.session.log`.
+- **The workstation's driver and watchdog died** between 12:29 and 14:29 UTC on 11-11 (the last
+  logged pull is 12:29; WSL restarted 23:03 UTC) and were restarted 11-12 06:05. The box trained on
+  unsupervised meanwhile, with no loss.
 - **After a reboot or `wsl --shutdown`:** `TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
-- **Getting here took two fixes:** the first VM (1154669) failed box setup on a test that set a
-  workstation-only config (destroyed after 11 min, ≈ $0.09); on the second, the driver's
-  start guard matched its own command line and never started the trainer (fixed; latent since
-  e14f422). Then 30 min of waiting for A6000 stock (`experiments/secure_retry.sh`).
+- Validation at step 140,000 (200 in-window heldout_game logs, EMA, exploratory): top-1 b8c192 81.16%,
+  b12c256 81.40%, b16c256 81.44%, the control 80.51%; the ensemble 81.61%.
 
-**Running on the workstation: D64's critic check** (`experiments/critic-ceiling.md`, started
-2026-11-11 10:00 UTC, ≈ 6–8 h; output `workdir/critic-ceiling/`, log `workdir/critic-ceiling.out`).
-Nothing else trains on the workstation meanwhile (RAM). If it dies, rerun the same command; it
-starts from scratch.
+**Done: D64's critic check** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's
+GRP-Δu, above supervised critics on 100K games (8.4–9.0%); by the pre-registered reading the critic
+isn't the lever. The audit's "1.2–1.8%" was of the H return, mostly unpredictable later kyoku.
 
 Phase 0 is exited (D55). In Phase 1 the SL substrate is being built: teachers done, students
 training. The early research has met G0's Select conditions; T1 waits on D64.
