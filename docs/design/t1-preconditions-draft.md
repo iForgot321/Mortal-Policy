@@ -22,6 +22,10 @@ sees the opponents' hands, predicts a kyoku's outcome about as well as a head th
 
 ## 1. The critic check (workstation, $0)
 
+**Done 2026-11-12** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's GRP-Δu, above every
+supervised arm (8.4–9.0%). By the reading the critic isn't the lever, so the pilot below runs with K1 as
+it is. The design that was run:
+
 **Question.** How much of a kyoku's Δ can a critic explain with the opponents' hands, how much
 without, and how far below that is K1's online critic?
 

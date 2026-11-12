@@ -64,6 +64,43 @@ It also showed the later kyoku's mean return isn't 0 for these games (−0.26 u 
 pilot A sampling at T = 1 loses ground to argmax opponents over the game. That is why reading 4 is
 there.
 
-## Result
+## Result (2026-11-11 10:00 → 12:37 UTC, the workstation)
 
-(none yet)
+`workdir/critic-ceiling/` (`report.json`, `log.jsonl`, the arms' best weights). Every supervised arm
+stopped by the rule at step 37,500 (≈ 1.2 passes, 2.6 h): their selection EV peaked at step 22,500
+(≈ 0.7 pass) and then fell, so they were overfitting the 100K games.
+
+**On the 3,000 report games** (476,950 trainee decisions; Var(kyoku-Δ) 0.063 u², Var(H) 0.458 u²),
+EV of kyoku-Δ:
+
+| Arm | All | Last kyoku | Earlier kyoku | 1st / 2nd / 3rd third of the kyoku | Calibration |
+|---|---|---|---|---|---|
+| `public` (b8c128) | 0.0836 | 0.0607 | 0.0897 | 0.026 / 0.061 / 0.175 | monotone |
+| `privileged` (b8c128) | 0.0872 | 0.0652 | 0.0933 | 0.027 / 0.063 / 0.182 | monotone |
+| `privileged_b16c256` | 0.0902 | 0.0651 | 0.0968 | 0.028 / 0.065 / 0.189 | monotone |
+| **`k1_k2b`** (as `k2b` left it) | **0.1371** | **0.1000** | 0.1469 | 0.040 / 0.094 / 0.294 | monotone |
+
+`k1_k2b` on the H return: EV 0.0182 (0.1000 in the last kyoku, where H = kyoku-Δ), as the trainer
+logged (1.2–1.8%).
+
+**Reading, as fixed:**
+1. **Is the critic a lever?** The better privileged arm (0.0902) is 0.047 *below* `k1_k2b`, not 0.05
+   above it. **No:** by the rule, the critic isn't the lever, and sample efficiency (RL-6, RL-8) moves
+   up the list for T1.
+2. **The hidden hands:** `privileged` − `public` = +0.0036, below 0.02: they add little at this size.
+3. **Size:** `privileged_b16c256` − `privileged` = +0.0030, below 0.03: T1's critic keeps b8c128.
+4. **The later kyoku:** the mean later return runs from −0.081 u (E1) to −0.005 u (kyoku 11) over
+   the kyoku with ≥ 5,000 decisions, a range of 0.076 > 0.05: **a kyoku-Δ critic would need a
+   per-kyoku offset to serve H's GAE.** (Pilot A sampling at T = 1 against argmax pilots loses ground
+   over the game; a policy's own critic absorbs that.)
+
+**What this does and doesn't show (beyond the rule):**
+- **K1 is not close to uninformative.** The audit (2026-11-09) read its 1.2–1.8% EV as a weak
+  critic and compared it with the SL kyoku-Δ head's ≈ 10%. That compared two targets: the H return
+  is 86% later-kyoku variance that nothing predicts. On the same target as the head, K1 explains
+  13.7%, more than any arm here and more than the head on Tenhou games. The audit's finding 3
+  overstated the problem.
+- **The ceiling isn't bounded.** The supervised arms saw 100K games (≈ 19M decisions) and overfit;
+  K1 saw ≈ 1.9B decisions online. So K1 beats them on data, not because its inputs are exhausted.
+  Whether a larger or better-fed critic would help T1 is open; this check only rules out a
+  supervised warm start on this pool as a quick win.

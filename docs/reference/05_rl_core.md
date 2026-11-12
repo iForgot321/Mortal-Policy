@@ -137,7 +137,7 @@ The upstream loader shuffles individual decisions and gives each one its kyoku's
   - Train the critic until its binned calibration (10 bins) is monotone and its explained variance has plateaued.
   - The student's kyoku-Δ head can initialize the observation pathway; it uses the same units.
 - **Diagnostic:** the ratio of within-kyoku to across-kyoku advantage variance should rise above ~0.
-- **Measured in `k2b` (D64):** explained variance 1.2–1.8% (6–10% in the game's last kyoku), a flat loss, a variance ratio of 0.11–0.13. The SL kyoku-Δ head explains ≈ 10% of a kyoku's Δ from public information alone, so this critic is probably far from what its inputs allow. D64's critic check measures that on fixed games before T1.
+- **Measured in `k2b` (D64):** explained variance of the H return 1.2–1.8% (6–10% in the game's last kyoku), a flat loss, a variance ratio of 0.11–0.13. **D64's critic check** (`experiments/critic-ceiling.md`): of the current kyoku's GRP-Δu, the same critic explains 13.7%, above b8c128 and b16c256 critics trained supervised on 100K games (8.4–9.0%, overfitting) and above the SL kyoku-Δ head's ≈ 10%. The low H figure is the target's later-kyoku variance, not a broken critic. The check found no quick win in the critic.
 
 ## 5. Discovery and confirmation (D35)
 
