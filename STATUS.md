@@ -90,7 +90,7 @@ The teachers' training states (the only source of their EMA) are in
 1. **D64's pilot** (`docs/design/t1-preconditions-draft.md`): its base, size and candidates (≈ $175),
    after the critic check's reading.
 2. *(Approved 2026-11-11, recorded so it isn't asked again:)* the eval box for the students'
-   qualification when they exist (`experiments/students-s1.md`); the critic check (running); no rerun
+   qualification when they exist (`experiments/students-s1.md`); the critic check (done, above); no rerun
    of AWR vs BC on the EMA weights (the user: skip).
 3. *(spare)*
 4. **Ranked riichi.dev play before π_SL.** It reverses the 2026-10-12 decision and `07` §1's smoke
