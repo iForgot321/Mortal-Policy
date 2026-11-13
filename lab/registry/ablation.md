@@ -44,3 +44,5 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261110-030053-measure | exploratory | k2b opponent check: pilot A vs 3x shanten-greedy (the pair's baseline) | measure | A [54200, +20000) | 20000 | +0.4130 | [+0.4091, +0.4170] |  | measured | -0.5573 | +41.36 | yes | 94b0c7cb+dirty |
 | 20261110-041102-measure | exploratory | k2b opponent check: k2b full vs 3x pilot B | measure | A [1000, +20000) | 20000 | +0.0193 | [+0.0145, +0.0240] |  | measured | -0.0264 | +1.91 | yes | 94b0c7cb+dirty |
 | 20261110-145755-T-std | exploratory | teacher vs quick student: BC s1 (EMA) vs No-SP A | T-std | B [1001280000, +100000) | 5000 | +0.0219 |  | +7.20 | pass | -0.0198 | +2.34 | yes | 94b0c7cb+dirty |
+| 20261112-121013-measure | exploratory | anchor release: soak-a full at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0190 | [+0.0158, +0.0223] |  | measured | -0.0233 | +1.92 | yes | ed73d0a8+dirty |
+| 20261112-192915-measure | exploratory | anchor release: soak-a full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0249 | [+0.0215, +0.0282] |  | measured | -0.0299 | +2.51 | yes | ed73d0a8+dirty |

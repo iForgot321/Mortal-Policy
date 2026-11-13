@@ -198,3 +198,53 @@ plumbing (32-game drains, the controller every 5 steps), from the staged inits.
 - **The eval-box chain** (`release_measure_chain.sh`) has waited, detached, since 19:45 UTC for
   both `full` snapshots (log `workdir/fleet/runs/eval/release-measures.log`). When the measures
   are in: `python experiments/release_paired.py` gives the reading.
+
+## Progress (2026-11-13 19:50 UTC): both runs past p50, nothing lost
+
+| | `release-a` (A) | `release-b` (B) |
+|---|---|---|
+| p25 | 06:47 UTC, step 4,138,800 (`eff4d3db…`) | 07:12 UTC, step 4,171,200 (`dbac46cc…`) |
+| p50 | 18:44 UTC, step 4,412,000 (`ce61bfc8…`) | 19:13 UTC, step 4,540,000 (`54548b31…`) |
+| Learner steps/h (games/h, last hour) | 23.0K (84K) | 28.3K (103K) |
+| Billed | $40.89 at 75.2 box-hours | $43.57 at 73.9 box-hours |
+
+No box lost, no `anchor_alert`. B's hosts are faster, so at equal box-hours B has had ≈ 23% more
+learner steps than A; that sits beside any A-versus-B reading.
+
+**The comparator** (workstation, block `release`, 40,000 sets each; exploratory):
+
+| Table | `soak-a` full, Δu | 95% CI | Run |
+|---|---|---|---|
+| 3× pilot A | +0.0190 | [+0.0158, +0.0223] | `20261112-121013-measure` |
+| 3× pilot B | +0.0249 | [+0.0215, +0.0282] | `20261112-192915-measure` |
+
+**What the controllers did** (each learner's `anchor.jsonl`), against the expectation written
+before launch:
+
+- **A:** one cut at a time, not a fall to the floor. The coefficient went 0.0759 → 0.0506 at
+  t = 42.4K, → 0.0338 at t = 106K and → 0.0225 at t = 539K, each when the rising target / 1.5
+  reached the KL. After each cut the KL rose fast enough to stay above that edge, so **the KL
+  trails target / 1.5**: 0.024 at t = 100K, 0.032 at 200K, 0.034–0.035 from 300K to 550K. The
+  expectation ("≈ 0.05 within the first few hours") was wrong. The fall to the floor in `k2b`'s
+  start came from starting at KL 0, far below the band, and in the smoke run from its 5-step
+  windows.
+- **B:** as expected up to the overshoot: the floor by t = 4.8K, the KL to `k2b` at 0.03 near
+  t = 190K, and four steps up to 0.0506. But at that coefficient the KL then fell to ≈ 0.0155 and
+  has stayed there, inside the band, so nothing moves it: B holds ≈ 0.016 nats from `k2b`, not
+  0.027.
+
+**Drift from pilot A** (`experiments/rl_drift.py`, 15,215 decisions of `workdir/diag/credit-a`;
+output in `workdir/diag/release-drift.txt`; pilot A's entropy 0.522):
+
+| Checkpoint | Reverse KL to pilot A | Agreement | Entropy |
+|---|---|---|---|
+| `k2b` full | 0.0194 | 95.4% | 0.468 |
+| `soak-a` full | 0.0181 | 95.4% | 0.470 |
+| A p25 / p50 | 0.0348 / 0.0354 | 93.8% / 93.8% | 0.430 / 0.430 |
+| B p25 / p50 | 0.0418 / 0.0415 | 93.5% / 93.4% | 0.415 / 0.420 |
+
+- The two candidates sit at similar distances from pilot A (B ≈ 1.2× A's), each about twice
+  `k2b`'s. B's 0.016 from `k2b` adds up to 0.042 from pilot A, so its step partly continues the
+  old direction.
+- Entropy is ≈ 8% (A) and ≈ 11% (B) below `k2b`'s and level between p25 and p50: lower, not
+  collapsing.

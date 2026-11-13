@@ -8,8 +8,10 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 
 **Live: D64's anchor-release pilot** on Vast (`experiments/anchor-release.md`, pre-registered and
 launched 2026-11-12): two fleets of a learner and 2 actors, each continuing `k2b` full for 144
-box-hours. `full` ≈ 2026-11-14 19:00 UTC for both, then each watcher downs its run. ≈ $165 projected
-for both (approved ≈ $175).
+box-hours. **At 2026-11-13 19:50 UTC both are past p50, with nothing lost and no alert:** $40.89 and
+$43.57 billed, ≈ $163 projected for both (approved ≈ $175). `full` ≈ 2026-11-14 19:00 UTC, then each
+watcher downs its run. The half-way readings are in the note's Progress section: A is 0.035 nats
+from pilot A and B 0.042 (`k2b`: 0.019), entropy 8% and 11% below `k2b`'s, level since p25.
 
 | Run | What | Boxes (learner; actors) | $/h | Watcher / watchdog PID | Deadline (UTC) | Stop |
 |---|---|---|---|---|---|---|
@@ -21,16 +23,14 @@ for both (approved ≈ $175).
   are gone; both skip what is already done.
 - **Don't edit trainer or engine code while these run:** a replacement box gets the working tree as
   it is at that moment.
-- **On the workstation, detached:**
-  - `experiments/release_soak_chain.sh` (since 19:10 UTC, log `workdir/lab/release-soak.log`): the
-    comparator, `soak-a` full at tables of pilot A and pilot B, 40K sets each, done ≈ 11-13 11:00 UTC.
-    **No other lab or GPU job meanwhile.** Its registry rows are uncommitted until it ends.
-  - `experiments/release_measure_chain.sh` (since 19:45 UTC, log
-    `workdir/fleet/runs/eval/release-measures.log`): waits for both `full` snapshots, rents the eval
-    box (approved, ≤ $0.75/h, ≈ $8–10), plays the candidates' four measures, pulls and downs it.
-- **Then:** `python experiments/release_paired.py` gives the pre-registered reading. Also owed: the
-  drift report at p25, p50 and `full` (`experiments/rl_drift.py`, in the note), which needs the GPU
-  free of the lab.
+- **The comparator is done** (workstation, 40K sets each, exploratory): `soak-a` full +0.0190
+  [+0.0158, +0.0223] at 3× pilot A and +0.0249 [+0.0215, +0.0282] at 3× pilot B.
+- **On the workstation, detached:** `experiments/release_measure_chain.sh` (since 11-12 19:45 UTC,
+  log `workdir/fleet/runs/eval/release-measures.log`): waits for both `full` snapshots, rents the
+  eval box (approved, ≤ $0.75/h, ≈ $8–10), plays the candidates' four measures, pulls and downs it
+  (≈ 11-15 midday UTC). It needs the tree clean outside `lab/registry/` when it rents.
+- **Then:** the drift report at `full` (`experiments/rl_drift.py`, the command is in the note) and
+  `python experiments/release_paired.py` for the pre-registered reading.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
@@ -147,16 +147,18 @@ The teachers' training states (the only source of their EMA) are in
 - Both configs smoke-ran on the workstation before the rental, and both learners logged the right
   anchor, coefficient and clock on their boxes. A at t = 4,800: KL 0.0195, agreement 95.2%.
 
-**A correction to the review:** it said candidate A as drafted would end near 0.027 nats. `k2b`'s
-own start and A's smoke run show that once a cut starts the coefficient falls to its floor within
-minutes and the KL climbs to the band's upper edge. A is expected near 0.05 nats and B near 0.027
-from `k2b`; the note says so, and the user was told.
+**The controller's course, as observed (2026-11-13):** the review's model was right and the
+"correction" written at launch was wrong. A's KL trails target / 1.5 with one cut at a time (0.035
+at half-time, heading for ≈ 0.04 at the end); it didn't jump to ≈ 0.05. B's coefficient
+over-tightened after its overshoot, so B holds ≈ 0.016 nats from `k2b`, not 0.027. The note's
+Progress section has both traces; the user was told.
 
 **Not done**
 - The drift report at each snapshot, the candidates' measures and the reading (they follow the
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** read `workdir/lab/release-soak.log` and commit its registry rows (≈ 11-13 11:00 UTC); the
-drift report at p25 (≈ 11-13 07:00 UTC) and p50; after ≈ 11-14 19:00 UTC the eval-box chain, then
-`release_paired.py` and the result in the note. The students end ≈ 11-17.
+**Next:** after ≈ 11-14 19:00 UTC check both runs are down and the eval-box chain has rented; the
+drift report at `full`; when the four measures are pulled (≈ 11-15 midday UTC), `release_paired.py`
+and the result in the note. The students end ≈ 11-17 (step 446,000 of ≈ 1,142,600 at 11-13 18:13
+UTC, 4,570 samples/s, $29).
