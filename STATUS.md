@@ -6,31 +6,28 @@ lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, do
 
 ## Current position (2026-11-12)
 
-**Live: D64's anchor-release pilot** on Vast (`experiments/anchor-release.md`, pre-registered and
-launched 2026-11-12): two fleets of a learner and 2 actors, each continuing `k2b` full for 144
-box-hours. **At 2026-11-13 19:50 UTC both are past p50, with nothing lost and no alert:** $40.89 and
-$43.57 billed, ≈ $163 projected for both (approved ≈ $175). `full` ≈ 2026-11-14 19:00 UTC, then each
-watcher downs its run. The half-way readings are in the note's Progress section: A is 0.035 nats
-from pilot A and B 0.042 (`k2b`: 0.019), entropy 8% and 11% below `k2b`'s, level since p25.
+**D64's anchor-release pilot: training done, measures running** (`experiments/anchor-release.md`).
+Both fleets reached `full` and were downed by their watchers on 2026-11-14 (`release-a` 18:48 UTC,
+$78.35; `release-b` 19:15 UTC, $85.15; **$163.50**, approved ≈ $175). `release-a` lost one actor
+for 29 min and recovered. Drift at `full`: A 0.0505 nats from pilot A, entropy 0.399 (falling: −15%
+from `k2b`); B 0.0445, entropy 0.427 (level).
 
-| Run | What | Boxes (learner; actors) | $/h | Watcher / watchdog PID | Deadline (UTC) | Stop |
-|---|---|---|---|---|---|---|
-| `release-a` | A: pilot A's anchor, target rising 0.02 → ≈ 0.06 | 60394006; 60391934, 60391935 | 1.63 | 107231 / 103391 | 11-14 22:43 | $95 |
-| `release-b` | B: re-anchored to `k2b` full, 0.02 | 60394073; 60394075, 60397192 | 1.77 | 108414 / 105869 | 11-14 23:09 | $105 |
+| Snapshot | sha256 |
+|---|---|
+| `release-a` full | `a57f195f…` (step 4,958,400) |
+| `release-b` full | `be94d8e8…` (step 5,316,000) |
 
-- **After a reboot or a WSL restart:** `bash experiments/release_launch.sh a --resume`, then the same
-  with `b` (the watcher and the watchdog, each only if missing). Then the two chains below if they
-  are gone; both skip what is already done.
-- **Don't edit trainer or engine code while these run:** a replacement box gets the working tree as
-  it is at that moment.
-- **The comparator is done** (workstation, 40K sets each, exploratory): `soak-a` full +0.0190
-  [+0.0158, +0.0223] at 3× pilot A and +0.0249 [+0.0215, +0.0282] at 3× pilot B.
-- **On the workstation, detached:** `experiments/release_measure_chain.sh` (since 11-12 19:45 UTC,
-  log `workdir/fleet/runs/eval/release-measures.log`): waits for both `full` snapshots, rents the
-  eval box (approved, ≤ $0.75/h, ≈ $8–10), plays the candidates' four measures, pulls and downs it
-  (≈ 11-15 midday UTC). It needs the tree clean outside `lab/registry/` when it rents.
-- **Then:** the drift report at `full` (`experiments/rl_drift.py`, the command is in the note) and
-  `python experiments/release_paired.py` for the pre-registered reading.
+- **Live: the eval box** (Vast 60686654, machine 13450, $0.556/h, rented 19:15 UTC), driven by
+  `experiments/release_measure_chain.sh` (PID 108719, log `workdir/fleet/runs/eval/release-measures.log`):
+  the candidates' four 40K-set measures on block `release`, ≈ 9K sets/h, done ≈ 2026-11-15 13:30 UTC;
+  it pulls hourly and downs the box when the queue drains (forced ≈ 11-15 17:25 UTC). It holds the
+  lab lease: no lab run on the workstation meanwhile.
+- **If the workstation restarts first:** check `vastai show instances`; with the box up, run
+  `python3 tools/fleet/evalbox.py status`, then `pull` and `down` once the queue is empty.
+- **The comparator** (workstation, 40K sets each, exploratory): `soak-a` full +0.0190 [+0.0158,
+  +0.0223] at 3× pilot A and +0.0249 [+0.0215, +0.0282] at 3× pilot B.
+- **Then:** `python experiments/release_paired.py` for the pre-registered reading, and the result in
+  the note.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
@@ -158,7 +155,7 @@ Progress section has both traces; the user was told.
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** after ≈ 11-14 19:00 UTC check both runs are down and the eval-box chain has rented; the
-drift report at `full`; when the four measures are pulled (≈ 11-15 midday UTC), `release_paired.py`
-and the result in the note. The students end ≈ 11-17 (step 446,000 of ≈ 1,142,600 at 11-13 18:13
-UTC, 4,570 samples/s, $29).
+**Next:** when the four measures are pulled and the eval box is down (≈ 11-15 13:30 UTC),
+`release_paired.py`, the result in the note, and the reading for D64 (T1's mechanism, or the reopen
+to the user). The students end ≈ 11-17 (step 640,000 of ≈ 1,142,600 at 11-14 18:28
+UTC, 8,000 steps/h, ≈ 11-17 09:15 UTC).

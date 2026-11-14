@@ -248,3 +248,38 @@ output in `workdir/diag/release-drift.txt`; pilot A's entropy 0.522):
   old direction.
 - Entropy is ≈ 8% (A) and ≈ 11% (B) below `k2b`'s and level between p25 and p50: lower, not
   collapsing.
+
+## Training done (2026-11-14)
+
+| | `release-a` (A) | `release-b` (B) |
+|---|---|---|
+| `full` | 18:48 UTC, step 4,958,400, 144.24 box-hours (`a57f195f…`) | 19:15 UTC, step 5,316,000, 144.27 box-hours (`be94d8e8…`) |
+| Learner steps in the run | 1.08M | 1.44M (1.33× A's) |
+| Cost | **$78.35** | **$85.15** |
+| Box losses | actor1 lost 17:11 UTC, replaced, recovered after 1,745 s (within 30 min) | none |
+
+Both watchers downed their fleets at `full`; **$163.50 for both** (approved ≈ $175). No
+`anchor_alert` in either run.
+
+**The anchors at the end** (the learners' last 50 windows): A at KL 0.049 to pilot A (coefficient
+0.0225 since t = 539K; target 0.060 at t = 1.08M, so target / 1.5 = 0.040); B at KL 0.018 to `k2b`
+(coefficient 0.0506 since t = 192K), up from 0.0155 at half-time.
+
+**Drift from pilot A at `full`** (same states and script as above):
+
+| Checkpoint | Reverse KL to pilot A | Agreement | Entropy |
+|---|---|---|---|
+| `k2b` full | 0.0194 | 95.4% | 0.468 |
+| A p25 / p50 / **full** | 0.0348 / 0.0354 / **0.0505** | 93.8% / 93.8% / **93.1%** | 0.430 / 0.430 / **0.399** |
+| B p25 / p50 / **full** | 0.0418 / 0.0415 / **0.0445** | 93.5% / 93.4% / **93.0%** | 0.415 / 0.420 / **0.427** |
+
+- A moved most of its distance in the second half, after its third cut; it ends 14% further from
+  pilot A than B.
+- **A's entropy fell again in the second half**, 0.430 → 0.399 (−15% from `k2b`'s), while B's held
+  (0.415–0.427). That is the direction of the entropy-collapse failure mode named above; it isn't a
+  criterion, and whether it cost strength is what the measures say.
+
+**The measures** started on the eval box at 19:24 UTC (machine 13450, EPYC 7B13, $0.556/h): the
+four 40K-set runs queued in order (A at pilot A, A at pilot B, B at pilot A, B at pilot B), at
+≈ 9K sets/h, so ≈ 18 h, done ≈ 2026-11-15 13:30 UTC. The chain pulls every hour and downs the box
+when the queue drains (forced at 22 h, ≈ 11-15 17:25 UTC).
