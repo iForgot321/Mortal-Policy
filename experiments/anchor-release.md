@@ -283,3 +283,75 @@ Both watchers downed their fleets at `full`; **$163.50 for both** (approved ≈ 
 four 40K-set runs queued in order (A at pilot A, A at pilot B, B at pilot A, B at pilot B), at
 ≈ 9K sets/h, so ≈ 18 h, done ≈ 2026-11-15 13:30 UTC. The chain pulls every hour and downs the box
 when the queue drains (forced at 22 h, ≈ 11-15 17:25 UTC).
+
+## Result (2026-11-15): both candidates pass; T1's mechanism is B, the re-anchor
+
+The eval box played the four candidate measures 2026-11-14 19:24 → 11-15 13:26 UTC and was downed
+by the chain ($10.12, 18.2 h). `experiments/release_paired.py` → `workdir/lab/release-paired.json`.
+Exploratory; family A, block `release` (nonces [74200, +40000)), AMP on; the lab is calibrated.
+
+**Each run against three copies of the table's pilot** (Δu, 40,000 sets):
+
+| Engine | 3× pilot A | 3× pilot B | Run ids (A table, B table) |
+|---|---|---|---|
+| `soak-a` full | +0.0190 [+0.0158, +0.0223] | +0.0249 [+0.0215, +0.0282] | `20261112-121013`, `20261112-192915` |
+| A `full` | +0.0311 [+0.0275, +0.0345] | +0.0293 [+0.0259, +0.0327] | `20261114-192413`, `20261114-235914` |
+| B `full` | +0.0299 [+0.0264, +0.0333] | +0.0307 [+0.0272, +0.0342] | `20261115-043647`, `20261115-085704` |
+
+**The pre-registered differences, D, paired on the same deals** (95% set-level bootstrap):
+
+| D | 3× pilot A (training table) | 3× pilot B (held out) |
+|---|---|---|
+| **A − soak** | **+0.0121 [+0.0076, +0.0164]** | **+0.0044 [+0.0000, +0.0087]** |
+| **B − soak** | **+0.0109 [+0.0066, +0.0150]** | **+0.0058 [+0.0014, +0.0101]** |
+| A − B | +0.0012 [−0.0031, +0.0056] | −0.0014 [−0.0057, +0.0028] |
+
+SD of D 0.44 (0.417 assumed), so each CI is ±0.0043, as planned; paired correlation 0.15–0.20.
+
+**Reading, as fixed:**
+1. **A passes** (both CIs above 0; at pilot B's table the lower bound is +0.00003, on the line).
+2. **B passes** (lower bounds +0.0066 and +0.0014).
+3. **Both pass, and A − B at pilot B's table includes 0, so T1's mechanism is B: re-anchoring to
+   the new champion.**
+
+**What else the data say (beyond the rule):**
+- **Releasing the anchor paid; the fixed anchor didn't.** At the training table each candidate
+  gained ≈ +0.011 over the soak in 144 box-hours ($78–85), against the soak's +0.0016 over `k2b`
+  in 192 ($125). That is ≈ 60% of `k2b`'s whole gain over pilot A (+0.0195), in a third of its
+  compute.
+- **The gain is smaller at the held-out table:** 36% of the training table's for A, 53% for B. For
+  A the gap is ≈ 2.5 SE (0.0077 ± 0.0031); for B 1.6 SE. Part of what was learned is specific to
+  pilot A, more so for A, whose anchor and opponent are both pilot A. Pilot B is pilot A's twin
+  (seed 2), so neither table says much about other kinds of opponent.
+- **The style moved as `k2b`'s did** (lab panels, challenger seat, 160K games each):
+
+  | At 3× pilot A | Avg rank | 1st % | 4th % | Win % | Deal-in % | Call % | Riichi % |
+  |---|---|---|---|---|---|---|---|
+  | `soak-a` full | 2.4767 | 25.41 | 24.03 | 21.72 | 12.51 | 28.54 | 19.58 |
+  | A `full` | 2.4630 | 25.49 | 23.36 | 21.92 | 11.89 | 30.38 | 18.79 |
+  | B `full` | 2.4646 | 25.43 | 23.42 | 21.60 | 11.78 | 29.70 | 18.94 |
+
+  The gain is almost all fewer fourths (−0.6 to −0.7 pp; the utility charges −1.3 u for a fourth),
+  through fewer deal-ins and more calls; firsts are unchanged. The pilot B table shows the same.
+- **No sign of a cross-machine artifact.** The soak's runs played on the workstation (RTX 3060),
+  the candidates' on the eval box (RTX 4090). The share of sets with identical scores is the same
+  across machines (A = soak 9.4%) as on one machine (A = B 9.0%), and the soak's +0.0190 at pilot
+  A's table matches `k2b`'s confirmed +0.0195. Not proven: a same-machine replay of one pair would
+  settle it ($0, ≈ 8 h on the workstation).
+
+**Limits:**
+- One run per candidate, and exploratory. Not a confirmation (`05` §5.2 wants matched pairs and
+  family C).
+- **A and B are tied, so B was chosen by the tie rule, not by a measured advantage.** B also had
+  1.33× A's learner steps at equal box-hours (faster hosts), which, if anything, favours B.
+- Only `full` was measured, so whether more release keeps paying, or where it turns, is unknown.
+- A's entropy fell to 0.399 (−15% from `k2b`) with no measurable cost at `full`; B's held at 0.427.
+- B's controller over-tightened after its overshoot and held 0.016–0.018 nats from `k2b`, below its
+  0.02 target, so B had less room than designed and still tied A.
+
+**For T1's pre-registration (not decided here):** how often to re-anchor (the pilot re-anchored
+once, for one 48 h stage); the controller's start (B's coefficient floor-then-overshoot left it
+too tight); whether to keep a weak second penalty to the SL policy against forgetting; and a
+held-out table of another kind than pilot A's twin.
+
+**Cost:** $163.50 (fleets) + $10.12 (eval box) = **$173.62**, approved ≈ $175 + ≈ $8.

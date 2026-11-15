@@ -46,3 +46,7 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261110-145755-T-std | exploratory | teacher vs quick student: BC s1 (EMA) vs No-SP A | T-std | B [1001280000, +100000) | 5000 | +0.0219 |  | +7.20 | pass | -0.0198 | +2.34 | yes | 94b0c7cb+dirty |
 | 20261112-121013-measure | exploratory | anchor release: soak-a full at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0190 | [+0.0158, +0.0223] |  | measured | -0.0233 | +1.92 | yes | ed73d0a8+dirty |
 | 20261112-192915-measure | exploratory | anchor release: soak-a full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0249 | [+0.0215, +0.0282] |  | measured | -0.0299 | +2.51 | yes | ed73d0a8+dirty |
+| 20261114-192413-measure | exploratory | anchor release: release-a full at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0311 | [+0.0275, +0.0345] |  | measured | -0.0370 | +3.14 | yes | 5093fc33+dirty |
+| 20261114-235914-measure | exploratory | anchor release: release-a full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0293 | [+0.0259, +0.0327] |  | measured | -0.0342 | +2.96 | yes | 5093fc33+dirty |
+| 20261115-043647-measure | exploratory | anchor release: release-b full at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0299 | [+0.0264, +0.0333] |  | measured | -0.0354 | +3.02 | yes | 5093fc33+dirty |
+| 20261115-085704-measure | exploratory | anchor release: release-b full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0307 | [+0.0272, +0.0342] |  | measured | -0.0352 | +3.13 | yes | 5093fc33+dirty |

@@ -710,6 +710,10 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - Two candidates continue `k2b` full for 48 h on a learner and 2 actors each (≈ $175 for both): a rising target to pilot A (0.02 → ≈ 0.06 nats), and a re-anchor to `k2b` full (0.02 nats). The LR, clip and entropy weight are held at the soak's values.
   - A candidate passes if its paired difference from `soak-a` full has a 95% CI above 0 at a table of pilot A and at a table of pilot B (40K sets each, on an eval box).
   - If both pass, the larger gain at pilot B's table is T1's mechanism only when the candidates' paired difference excludes 0; otherwise it is the re-anchor.
+- **The pilot's result (2026-11-15, `experiments/anchor-release.md`; not a new decision):** both candidates pass, so by the pre-registered rule **T1's mechanism is the re-anchor**.
+  - Against `soak-a` full, paired on 40K deals: rising target +0.0121 [+0.0076, +0.0164] at 3× pilot A and +0.0044 [+0.0000, +0.0087] at 3× pilot B; re-anchor +0.0109 [+0.0066, +0.0150] and +0.0058 [+0.0014, +0.0101]. Exploratory, one run each.
+  - The two are tied (−0.0014 [−0.0057, +0.0028] at pilot B's table), so the tie rule picked the re-anchor.
+  - The reopen condition ("no mechanism beats the fixed anchor") isn't met. T1 and D31's curves run on the re-anchor; their pre-registrations set how often it re-anchors. $173.62 in all.
 
 **D65 (2026-11-10): D31's curves run two RL seeds per student size.** Amends D31's method, `00`'s Phase 1 item 2 and `04` §6's selection. Decided by the user (as D64).
 - **Why:** one run per size can't separate the size from the run.

@@ -154,7 +154,7 @@ Each package is a bounded comparison of a coherent set of changes. Its box-day c
 **KL anchor (part of K2):**
 - Reverse KL(π_θ ‖ π_SL), exact over the legal mask, computed on a frozen copy on the learner.
 - Target 0.02 nats/decision at the start. Anchor **decay** is part of the schedule; LuckyJ reached its flexible style without human data (`01` §6).
-- **A constant target doesn't compound (D64).** `k2b` held 0.02 nats to its frozen initialization for the whole run: the coefficient settled in the first tenth, the second half of the budget bought +0.0025, and the soak's 48 h more bought nothing measurable. T1 doesn't scale that recipe. An anchor-release pilot picks between a rising target (`target_growth`) and re-anchoring to each new champion (pre-registered in `experiments/anchor-release.md`).
+- **A constant target doesn't compound (D64).** `k2b` held 0.02 nats to its frozen initialization for the whole run: the coefficient settled in the first tenth, the second half of the budget bought +0.0025, and the soak's 48 h more bought nothing measurable. T1 doesn't scale that recipe. The anchor-release pilot (`experiments/anchor-release.md`, 2026-11-15) found both a rising target and re-anchoring beat the fixed anchor's continuation at both tables (≈ +0.011 at the training table, +0.004–0.006 at the held-out one); they tied, and by the rule **T1 re-anchors to each new champion**.
 
 ### 5.2 Confirmation (needed before a result counts toward a rung)
 

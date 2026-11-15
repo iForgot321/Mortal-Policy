@@ -4,30 +4,20 @@ Where the project is against `docs/reference/00_ROADMAP.md`. Read it whole at th
 and update it at the end: what changed, verified vs only attempted, the next step. Keep it near 150
 lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, don't read it through.
 
-## Current position (2026-11-12)
+## Current position (2026-11-15)
 
-**D64's anchor-release pilot: training done, measures running** (`experiments/anchor-release.md`).
-Both fleets reached `full` and were downed by their watchers on 2026-11-14 (`release-a` 18:48 UTC,
-$78.35; `release-b` 19:15 UTC, $85.15; **$163.50**, approved ≈ $175). `release-a` lost one actor
-for 29 min and recovered. Drift at `full`: A 0.0505 nats from pilot A, entropy 0.399 (falling: −15%
-from `k2b`); B 0.0445, entropy 0.427 (level).
+**Done: D64's anchor-release pilot** (`experiments/anchor-release.md`, exploratory, $173.62). **Both
+candidates beat the fixed anchor's continuation at both tables, so T1 re-anchors to each new
+champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40K deals:
 
-| Snapshot | sha256 |
-|---|---|
-| `release-a` full | `a57f195f…` (step 4,958,400) |
-| `release-b` full | `be94d8e8…` (step 5,316,000) |
+| | 3× pilot A (training table) | 3× pilot B (held out) |
+|---|---|---|
+| A, rising target | +0.0121 [+0.0076, +0.0164] | +0.0044 [+0.0000, +0.0087] |
+| B, re-anchor | +0.0109 [+0.0066, +0.0150] | +0.0058 [+0.0014, +0.0101] |
 
-- **Live: the eval box** (Vast 60686654, machine 13450, $0.556/h, rented 19:15 UTC), driven by
-  `experiments/release_measure_chain.sh` (PID 108719, log `workdir/fleet/runs/eval/release-measures.log`):
-  the candidates' four 40K-set measures on block `release`, ≈ 9K sets/h, done ≈ 2026-11-15 13:30 UTC;
-  it pulls hourly and downs the box when the queue drains (forced ≈ 11-15 17:25 UTC). It holds the
-  lab lease: no lab run on the workstation meanwhile.
-- **If the workstation restarts first:** check `vastai show instances`; with the box up, run
-  `python3 tools/fleet/evalbox.py status`, then `pull` and `down` once the queue is empty.
-- **The comparator** (workstation, 40K sets each, exploratory): `soak-a` full +0.0190 [+0.0158,
-  +0.0223] at 3× pilot A and +0.0249 [+0.0215, +0.0282] at 3× pilot B.
-- **Then:** `python experiments/release_paired.py` for the pre-registered reading, and the result in
-  the note.
+- ≈ 60% of `k2b`'s whole gain again in 144 box-hours, where the soak's 192 bought nothing. Smaller at
+  the held-out table (36% and 53% of the training table's), and A's pass there is on the line.
+- Nothing is rented for it; the frozen snapshots are below.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
@@ -76,11 +66,11 @@ training. The early research has met G0's Select conditions; T1 waits on D64.
   pilot B, +0.0084 at 3× shanten-greedy.
 - **It stopped growing at the fixed anchor:** the run's second half bought +0.0025, the 48 h soak
   +0.0016 (the soak itself passes its gate, `experiments/fleet-soak.md`).
-- **D64: T1 and D31's curves wait** for the anchor-release pilot (running, above); the critic check
-  is done. What the review changed in the pilot's draft: `docs/design/t1-preconditions-draft.md`.
-  **D65:** D31's curves run two RL seeds per size.
-- **Early-research spend:** ≈ $1.24K of the $2.2K cap by the fleet's own records; ≈ $1.41K after
-  this pilot, which leaves ≈ $790 for D65's curves (≈ $630–690).
+- **D64 is satisfied:** the critic isn't the lever, and T1 and D31's curves run on re-anchoring
+  (above). What waits: their pre-registrations (how often to re-anchor), the students (≈ 11-17) and
+  the user's yes to the rentals. **D65:** D31's curves run two RL seeds per size.
+- **Early-research spend:** ≈ $1.41K of the $2.2K cap with this pilot ($173.62), which leaves ≈ $785
+  for D65's curves (≈ $630–690).
 - The observation is v5 from G0 on (D61); its checks and its recipe check pass
   (`experiments/v5-switch.md`).
 
@@ -102,6 +92,7 @@ Parked (the user, 2026-10-21).
 | GRP-v2 | `grp-v2/grp-v2-frozen.pth` | `db28beac…` |
 | `k2b` full / p50 (P1 + K2, v4) | `fleet/runs/k2b/snapshots/{full,p50}.pth` | `f5a22c5c…` / `7d5937a7…` |
 | `soak-a` full; `k2v5` full (v5) | `fleet/runs/{soak-a,k2v5}/snapshots/full.pth` | `9c0b7b34…`; `0510c68c…` |
+| `release-a` / `release-b` full (the pilot, v4) | `fleet/runs/release-{a,b}/snapshots/full.pth` | `a57f195f…` / `be94d8e8…` |
 | Heads-quick (b8c192 v5 with heads) | `teacher/heads-quick/final.pth` | `ac9cc916…` |
 | BC s1 / AWR s1, the trainer's file | `teacher/teacher-{bc,awr}-s1/final.pth` | `6762492e…` / `bcb2987f…` |
 | BC s1 / AWR s1, **raw** weights for the lab | `teacher/teacher-{bc,awr}-s1/ema.pth` (misnamed) | `2f200d7c…` / `381ce65f…` |
@@ -155,7 +146,5 @@ Progress section has both traces; the user was told.
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** when the four measures are pulled and the eval box is down (≈ 11-15 13:30 UTC),
-`release_paired.py`, the result in the note, and the reading for D64 (T1's mechanism, or the reopen
-to the user). The students end ≈ 11-17 (step 640,000 of ≈ 1,142,600 at 11-14 18:28
-UTC, 8,000 steps/h, ≈ 11-17 09:15 UTC).
+**Next:** the students finish ≈ 11-17 09:15 UTC; their qualification on the eval box (approved).
+Then the T1 / D31 pre-registration on re-anchoring, for the user.
