@@ -18,6 +18,12 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - ≈ 60% of `k2b`'s whole gain again in 144 box-hours, where the soak's 192 bought nothing. Smaller at
   the held-out table (36% and 53% of the training table's), and A's pass there is on the line.
 - Nothing is rented for it; the frozen snapshots are below.
+- **Running: the stage-timing check** (pre-registered 2026-11-16, the note's last section; the
+  user: "Start on 1"): B's p50, then p25, at 3× pilot A, 40K sets each, on the workstation since
+  20:50 UTC (`experiments/release_timing_chain.sh`, log `workdir/lab/release-timing.log`). p50's
+  reading ≈ 11-17 04:30 UTC, all done ≈ 11-17 12:00 UTC. **Rent no eval box before it ends:** the box
+  takes the lab registry, and this chain writes to it. After a restart, start it again; it skips
+  what is done.
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
