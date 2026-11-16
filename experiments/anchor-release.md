@@ -355,3 +355,33 @@ too tight); whether to keep a weak second penalty to the SL policy against forge
 held-out table of another kind than pilot A's twin.
 
 **Cost:** $163.50 (fleets) + $10.12 (eval box) = **$173.62**, approved ≈ $175 + ≈ $8.
+
+## Stage-timing check: pre-registered 2026-11-16, before it runs
+
+The user ran it on 2026-11-16 ("Start on 1"), the first of the open choices for T1's
+pre-registration: **how long a re-anchoring stage should be.** The pilot measured only B's `full`
+(48 h, 144 box-hours). If B's gain was mostly in by half-time, stages can be shorter and T1 gets
+more re-anchors for the same money; if it kept coming, 48 h stays.
+
+**Runs** (the workstation, $0, `experiments/release_timing_chain.sh`): B's frozen p50 (24 h,
+72.17 box-hours, `54548b31…`) and then p25 (12 h, 36.12 box-hours, `dbac46cc…`), each as the
+challenger at 3× pilot A, 40,000 sets on block `release` (the same deals as every pilot measure),
+AMP on, `--no-logs` (C: has 22 GB free; only the per-set scores are needed). Only the training
+table: the held-out gain (+0.006) is too small to time at this size. ≈ 7.3 h each at the
+workstation's ≈ 5.5K sets/h; p50 first, since it decides.
+
+**Quantities** (`experiments/release_timing.py`, paired on the same deals, 95% set-level bootstrap):
+- G(s) = B's snapshot s − `soak-a` full, for s = p25, p50 (G(full) = +0.0109 [+0.0066, +0.0150]);
+- R = B full − B p50: the gain of the stage's second half.
+
+**Reading, fixed now:**
+1. **R's CI includes 0 and G(p50)'s CI is entirely above 0:** the stage's gain was mostly in by
+   24 h. T1's pre-registration proposes 24 h stages (72 box-hours on this fleet).
+2. **R's CI is entirely above 0:** the gain was still coming in the second half. 48 h stays.
+3. **Anything else:** grey, and 48 h stays (the length that was tested).
+
+Also reported: G(p25), and G(p50) / G(full) as a point estimate. The reading proposes a length to
+the user; T1's pre-registration decides it.
+
+**What it can't show:** whether a 24 h stage followed by a re-anchor gains as much as the first
+24 h of a 48 h one (the controller restarts at each re-anchor), or anything about v5 students.
