@@ -159,3 +159,27 @@ teachers' save bug didn't recur.
   reports failed on a `tools/eval/validate.py` bug: a student's file keeps only its heads' shape
   under `[teacher]`, not the loss weights (`KeyError: 'huber_delta'`). Fixed (`loss_config`,
   `tests/test_validate.py`) and rerun.
+
+### The golden-set half (2026-11-17): all three students pass
+
+`tools/eval/golden_agreement.py` on the full golden set (120,000 decisions, AMP, EMA weights;
+`workdir/eval/golden-students.json`), top-1 against BC s1's reference row, in pp. The rule: no
+category more than 1 pp below BC s1.
+
+| Category | BC s1 | b8c192 | b12c256 | b16c256 | control b8c192 (not a candidate) |
+|---|---|---|---|---|---|
+| routine | 85.50% | 85.08% (−0.43) | 85.41% (−0.10) | 85.38% (−0.13) | 85.04% (−0.46) |
+| riichi_dama | 84.20% | 83.86% (−0.34) | 84.17% (−0.03) | 84.19% (−0.02) | 83.05% (**−1.16**) |
+| call_pass | 94.88% | 94.77% (−0.11) | 94.90% (+0.02) | 94.86% (−0.02) | 94.68% (−0.20) |
+| push_fold | 80.27% | 79.92% (−0.35) | 80.14% (−0.13) | 80.05% (−0.22) | 79.83% (−0.45) |
+| oorasu | 78.29% | 77.64% (−0.64) | 77.79% (−0.50) | 77.80% (−0.49) | 77.36% (−0.92) |
+| early | 78.11% | 77.98% (−0.13) | 78.20% (+0.09) | 78.11% (+0.00) | 77.84% (−0.27) |
+| all | 83.54% | 83.21% (−0.34) | 83.43% (−0.11) | 83.40% (−0.15) | 82.97% (−0.58) |
+
+- **b8c192, b12c256 and b16c256 pass the golden half;** their qualification now rests on the T-NIs.
+  Their worst category is oorasu (−0.5 to −0.6 pp).
+- The control would miss on riichi_dama (−1.16 pp) and is the weakest of the four in every row.
+  At b8c192, the teachers' targets add 0.2–0.8 pp of human agreement over training on the labels
+  (exploratory; the control's lab readings follow).
+- b12c256 and b16c256 are level with each other, and within 0.15 pp of BC s1 overall, at 1/6 and
+  1/5 of its parameters.
