@@ -201,3 +201,11 @@ The order matches the golden set's: every student above AWR s1 and below BC s1 (
 the control last. The heads' losses are within 0.5% of BC s1's for placement and kyoku-Δ, and
 within 4% for tenpai and waits. heldout_time scores higher for every model; it is a different sample of players and
 dates, not an easier version of the same one.
+- **Second launch, failed in setup (2026-11-17 18:00–18:32 UTC, ≈ $0.55 with the first):** two boxes
+  in a row failed `setup_box.sh`'s test suite on `tests/test_value.py` (a workstation path to the
+  GRP), and a third host was offline; no job ran. The cause was the new `tests/test_validate.py`:
+  importing `validate.py` at collection left its workstation `MORTAL_CFG` in the environment, which
+  every later test then used. It passed here, where those paths exist. Fixed (the test restores the
+  variable; a test checks it), the suite passes with no inherited config (205 passed, 5 skipped),
+  and the chain was relaunched. `fleet.py`'s provisioning retries also took a $1.038/h host after
+  the first setup failure, above the chain's $0.75/h limit, for 25 min.

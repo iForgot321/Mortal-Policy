@@ -3,9 +3,33 @@ import importlib.util
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-spec = importlib.util.spec_from_file_location('validate', os.path.join(ROOT, 'tools', 'eval', 'validate.py'))
-validate = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(validate)
+
+
+def _load():
+    """Import validate.py without its MORTAL_CFG default leaking out. This module is imported at
+    collection, before any test's fixture sets a box-safe config, and validate.py's default names
+    experiments/configs/ (workstation paths): left in os.environ, it failed test_value.py on every
+    rented box's setup (2026-11-17), while passing here, where those paths exist."""
+    before = os.environ.get('MORTAL_CFG')
+    spec = importlib.util.spec_from_file_location('validate', os.path.join(ROOT, 'tools', 'eval', 'validate.py'))
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        if before is None:
+            os.environ.pop('MORTAL_CFG', None)
+        else:
+            os.environ['MORTAL_CFG'] = before
+    return mod
+
+
+validate = _load()
+
+
+def test_importing_it_leaves_mortal_cfg_alone():
+    before = os.environ.get('MORTAL_CFG')
+    _load()
+    assert os.environ.get('MORTAL_CFG') == before
 
 
 def test_a_students_file_gets_the_full_loss_config():
