@@ -50,3 +50,5 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261114-235914-measure | exploratory | anchor release: release-a full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0293 | [+0.0259, +0.0327] |  | measured | -0.0342 | +2.96 | yes | 5093fc33+dirty |
 | 20261115-043647-measure | exploratory | anchor release: release-b full at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0299 | [+0.0264, +0.0333] |  | measured | -0.0354 | +3.02 | yes | 5093fc33+dirty |
 | 20261115-085704-measure | exploratory | anchor release: release-b full at 3x pilot B | measure | A [74200, +40000) | 40000 | +0.0307 | [+0.0272, +0.0342] |  | measured | -0.0352 | +3.13 | yes | 5093fc33+dirty |
+| 20261116-135055-measure | exploratory | anchor release timing: release-b p50 at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0259 | [+0.0225, +0.0294] |  | measured | -0.0358 | +2.56 | yes | 89c8ca56+dirty |
+| 20261116-205523-measure | exploratory | anchor release timing: release-b p25 at 3x pilot A | measure | A [74200, +40000) | 40000 | +0.0251 | [+0.0217, +0.0284] |  | measured | -0.0331 | +2.50 | yes | 50a85599+dirty |

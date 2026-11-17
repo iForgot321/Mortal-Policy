@@ -4,7 +4,7 @@ Where the project is against `docs/reference/00_ROADMAP.md`. Read it whole at th
 and update it at the end: what changed, verified vs only attempted, the next step. Keep it near 150
 lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, don't read it through.
 
-## Current position (2026-11-15)
+## Current position (2026-11-17)
 
 **Done: D64's anchor-release pilot** (`experiments/anchor-release.md`, exploratory, $173.62). **Both
 candidates beat the fixed anchor's continuation at both tables, so T1 re-anchors to each new
@@ -18,24 +18,17 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - ≈ 60% of `k2b`'s whole gain again in 144 box-hours, where the soak's 192 bought nothing. Smaller at
   the held-out table (36% and 53% of the training table's), and A's pass there is on the line.
 - Nothing is rented for it; the frozen snapshots are below.
-- **The stage-timing check** (the note's last section; the user: "Start on 1"): **B's p50 is done,
-  reading 1 (24 h stages), but borderline:** G(p50) +0.0069 [+0.0026, +0.0112] over the soak, the
-  second half R +0.0040 [−0.0003, +0.0082], 64% of the gain by 24 h. **p25 resumed** 2026-11-17 07:38 UTC (paused
-  06:09–07:38 by the user) at 12,500 of 40,000 sets; done ≈ 12:40 UTC. A WSL restart kills it (then
-  rerun `experiments/release_timing_chain.sh`; it skips p50). **No eval box before it ends** (it
-  writes the registry when it ends).
+- **The stage-timing check is done** (the note's last section): reading 1, **24 h stages**, but
+  borderline. B's gain over the soak: +0.0061 at 12 h, +0.0069 at 24 h, +0.0109 at 48 h; the second
+  24 h, +0.0040 [−0.0003, +0.0082], misses significance by 0.0003.
 
-**Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
-2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
-156,000 of ≈ 1,142,600 (13.7%), ≈ $10 so far; it should end ≈ 2026-11-17 08:30 UTC (≈ 142 h, ≈ $72).
-The watchdog (PID 1127, re-armed 2026-11-12 06:05) downs it at 2026-11-18 15:03 UTC (177 h, ≈ $89.7).
-Driver PID 1122 (`experiments/secure_teacher.sh --attach`), log `workdir/secure/runs/students-s1.session.log`.
-- **The workstation's driver and watchdog died** between 12:29 and 14:29 UTC on 11-11 (the last
-  logged pull is 12:29; WSL restarted 23:03 UTC) and were restarted 11-12 06:05. The box trained on
-  unsupervised meanwhile, with no loss.
-- **After a reboot or `wsl --shutdown`:** `TRAINER=train_students.py setsid -f bash experiments/secure_teacher.sh students-s1 students-s1 --attach >> workdir/secure/runs/students-s1.session.log 2>&1 < /dev/null`.
-- Validation at step 140,000 (200 in-window heldout_game logs, EMA, exploratory): top-1 b8c192 81.16%,
-  b12c256 81.40%, b16c256 81.44%, the control 80.51%; the ensemble 81.61%.
+**Done: the student distillation `students-s1`** (`experiments/students-s1.md`): finished at step
+1,142,584 (2.34B presentations) on 2026-11-17 09:14 UTC; pulled, wiped and destroyed by its driver at
+09:25 UTC after 143.4 h, **≈ $72.65**. The four students' EMA and raw weights are in
+`workdir/secure/runs/students-s1/box/students-s1/` (read-only; EMA ≠ raw checked for all four).
+**Next for them: the qualification** (the note's fixed section): a T-NI of each student against BC s1
+on an eval box (approved 2026-11-11), the golden-set check on the workstation, then the control's
+readings.
 
 **Done: D64's critic check** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's
 GRP-Δu, above supervised critics on 100K games (8.4–9.0%); by the pre-registered reading the critic
@@ -152,5 +145,5 @@ Progress section has both traces; the user was told.
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** the students finish ≈ 11-17 09:15 UTC; their qualification on the eval box (approved).
-Then the T1 / D31 pre-registration on re-anchoring, for the user.
+**Next:** the students' qualification (eval box approved). Then the T1 / D31 pre-registration on
+re-anchoring, with 24 h stages proposed, for the user.

@@ -385,3 +385,27 @@ the user; T1's pre-registration decides it.
 
 **What it can't show:** whether a 24 h stage followed by a re-anchor gains as much as the first
 24 h of a 48 h one (the controller restarts at each re-anchor), or anything about v5 students.
+
+### Stage-timing result (2026-11-17): reading 1, 24 h stages; borderline
+
+The workstation, 2026-11-16 20:50 → 11-17 12:23 UTC (p25 paused 06:09–07:38 by the user; a set's
+games depend only on its seed). `experiments/release_timing.py` → `workdir/lab/release-timing.json`.
+Exploratory; 3× pilot A, block `release`, 40,000 sets each.
+
+| B's snapshot | Hours | G = B − `soak-a` full | Run |
+|---|---|---|---|
+| p25 | 12 | +0.0061 [+0.0018, +0.0104] | `20261116-205523-measure` |
+| p50 | 24 | +0.0069 [+0.0026, +0.0112] | `20261116-135055-measure` |
+| `full` | 48 | +0.0109 [+0.0066, +0.0150] | `20261115-043647-measure` |
+
+Paired steps between snapshots: p50 − p25 = +0.0008 [−0.0033, +0.0050]; **R = full − p50 =
++0.0040 [−0.0003, +0.0082].**
+
+- **By the rule: reading 1.** R's CI includes 0 and G(p50)'s lies above 0, so T1's
+  pre-registration proposes 24 h stages.
+- **It is borderline:** R's lower bound misses 0 by 0.0003, and the point estimates put 36% of the
+  stage's gain in its second half.
+- **The shape, beyond the rule:** ≈ 56% of the gain was in by 12 h. Then +0.0008 to 24 h and
+  +0.0040 to 48 h, each within noise. A quick early gain after the anchor moved, then slower gains.
+- **Whether that early gain repeats after every re-anchor is the open question.** This check can't
+  show it, since there was only one re-anchor. T1's first stages measure it.
