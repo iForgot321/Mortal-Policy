@@ -198,6 +198,6 @@ category more than 1 pp below BC s1.
 | control b8c192 | 81.33% / 0.4796 | 82.37% / 0.4554 |
 
 The order matches the golden set's: every student above AWR s1 and below BC s1 (within 0.1–0.3 pp),
-the control last. The heads' losses (placement, kyoku-Δ, tenpai, waits) are within 1–3% of the
-teachers'. heldout_time scores higher for every model; it is a different sample of players and
+the control last. The heads' losses are within 0.5% of BC s1's for placement and kyoku-Δ, and
+within 4% for tenpai and waits. heldout_time scores higher for every model; it is a different sample of players and
 dates, not an easier version of the same one.
