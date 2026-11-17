@@ -26,9 +26,15 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 1,142,584 (2.34B presentations) on 2026-11-17 09:14 UTC; pulled, wiped and destroyed by its driver at
 09:25 UTC after 143.4 h, **≈ $72.65**. The four students' EMA and raw weights are in
 `workdir/secure/runs/students-s1/box/students-s1/` (read-only; EMA ≠ raw checked for all four).
-**Next for them: the qualification** (the note's fixed section): a T-NI of each student against BC s1
-on an eval box (approved 2026-11-11), the golden-set check on the workstation, then the control's
-readings.
+**Running: their qualification** (the user, 2026-11-17: "Start it"; `experiments/students-s1.md`):
+- the lab half on a Vast eval box (instance 61105544, $0.427/h, rented 17:49 UTC) driven by
+  `experiments/students_qual_chain.sh` (log `workdir/fleet/runs/eval/students-qual.log`): the three
+  T-NIs, then the control's three readings; it pulls hourly and downs the box when the queue drains
+  (forced at 40 h). **It holds the lab lease: no lab run on the workstation.** If the workstation
+  restarts first: `python3 tools/fleet/evalbox.py status`, then `pull` and `down` once it is empty.
+- the golden-set check and the validation reports on the workstation (log
+  `workdir/eval/students-qual-ws.log`; outputs `workdir/eval/golden-students.json`,
+  `validate-students-*.json`).
 
 **Done: D64's critic check** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's
 GRP-Δu, above supervised critics on 100K games (8.4–9.0%); by the pre-registered reading the critic
