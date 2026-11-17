@@ -61,7 +61,15 @@ def load_models(path, weights, device):
         heads = TeacherHeads(hidden=cfg['teacher']['hidden'], detach=cfg['teacher']['detach'])
         heads.load_state_dict(w['heads'])
     models = [m.to(torch.device(device)).eval() for m in (mortal, policy, heads) if m is not None]
-    return (models + [None])[:3], version, cfg.get('teacher', LOSS_CFG), used
+    return (models + [None])[:3], version, loss_config(cfg), used
+
+
+def loss_config(cfg):
+    """The head losses' weights: a teacher's own (its config's [teacher] holds them), else
+    LOSS_CFG. A student's file keeps only the heads' shape there (hidden, detach), and its heads
+    train with the teachers' loss weights, which are LOSS_CFG's (students-s1.toml)."""
+    own = cfg.get('teacher', {})
+    return {k: own.get(k, v) for k, v in LOSS_CFG.items()}
 
 
 def main(argv=None):

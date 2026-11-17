@@ -151,3 +151,11 @@ teachers' save bug didn't recur.
   judged against BC s1's row in `workdir/eval/golden-teachers.json` (above).
 - **Reported, not judged:** `tools/eval/validate.py` on every student and both teachers' EMA weights,
   in-window (`heldout_game --start 2015-01-01`) and on `heldout_time`.
+- **First launch, aborted (2026-11-17 17:49–17:58 UTC, ≈ $0.07):** the box (machine 41250) set up,
+  then the first job's upload died on a dropped connection, and the chain downed it as designed. No
+  job ran. The chain now tries each submit 3 times, 3 min apart, and the machine is marked bad for
+  the eval box. Relaunched at once.
+- **The golden set ran (17:50–17:51 UTC);** its reading follows below with the T-NIs. The validation
+  reports failed on a `tools/eval/validate.py` bug: a student's file keeps only its heads' shape
+  under `[teacher]`, not the loss weights (`KeyError: 'huber_delta'`). Fixed (`loss_config`,
+  `tests/test_validate.py`) and rerun.

@@ -29,13 +29,20 @@ stop_billing() {  # whatever state the box is in
     $E down || { $E pull; $E down --force; }
 }
 submit() {  # description, then the lab command and its flags
-    local desc=$1; shift
-    say "START submit: $desc"
-    if ! $E submit -- "$@" --description "$desc"; then
-        say "END submit failed: $desc"
-        stop_billing "submit failed"
-        exit 1
-    fi
+    # 3 tries, 3 min apart: the first launch (2026-11-17 17:57 UTC) lost its upload to a dropped
+    # connection right after setup, and fleet.py's own retries (3 × 15 s) were too short to ride it out
+    local desc=$1 try; shift
+    for try in 1 2 3; do
+        say "START submit (try $try): $desc"
+        if $E submit -- "$@" --description "$desc"; then
+            return 0
+        fi
+        say "submit try $try failed"
+        (( try < 3 )) && sleep 180
+    done
+    say "END submit failed: $desc"
+    stop_billing "submit failed"
+    exit 1
 }
 
 while ps -eo args | grep -q "[p]ython -m lab"; do say "a lab job still runs here; waiting"; sleep 300; done
