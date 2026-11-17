@@ -20,11 +20,10 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - Nothing is rented for it; the frozen snapshots are below.
 - **The stage-timing check** (the note's last section; the user: "Start on 1"): **B's p50 is done,
   reading 1 (24 h stages), but borderline:** G(p50) +0.0069 [+0.0026, +0.0112] over the soak, the
-  second half R +0.0040 [−0.0003, +0.0082], 64% of the gain by 24 h. **p25 is PAUSED** (the user,
-  2026-11-17 06:09 UTC) at 12,500 of 40,000 sets: `kill -CONT 912201` resumes it (≈ 5 h left). While
-  stopped it holds ≈ 2.1 GB of RAM and its GPU memory, dies with a WSL restart (then rerun
-  `experiments/release_timing_chain.sh`; it skips p50), and **blocks renting an eval box** (it writes
-  the registry when it ends).
+  second half R +0.0040 [−0.0003, +0.0082], 64% of the gain by 24 h. **p25 resumed** 2026-11-17 07:38 UTC (paused
+  06:09–07:38 by the user) at 12,500 of 40,000 sets; done ≈ 12:40 UTC. A WSL restart kills it (then
+  rerun `experiments/release_timing_chain.sh`; it skips p50). **No eval box before it ends** (it
+  writes the registry when it ends).
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
