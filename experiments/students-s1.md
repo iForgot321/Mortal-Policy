@@ -123,3 +123,31 @@ six; riichi-vs-dama is where the size and data show most.
 - RAM: the main process 3.0 GB and each of the 2 workers ≈ 3.5 GB (PSS); 2 GB stayed available.
 - `tools/eval/golden_agreement.py --limit 30`: all 280 decisions matched the golden set's labels and
   masks.
+
+### The run's end (2026-11-17)
+
+Done at step 1,142,584 (2,340,012,032 presentations) at 09:14 UTC; the driver pulled, wiped and
+destroyed VM 1154755 at 09:25 UTC after 143.37 h, **≈ $72.65** (the watchdog's stop was $89.7).
+The outputs are in `workdir/secure/runs/students-s1/box/students-s1/`, read-only. Each student's EMA
+weights differ from its raw weights (max |EMA − raw| 0.0010–0.0014 over the trunk), so the
+teachers' save bug didn't recur.
+
+| Student | EMA weights for the lab | sha256 |
+|---|---|---|
+| b8c192 | `ema-b8c192.pth` | `6fd237ae66b5530c…` |
+| b12c256 | `ema-b12c256.pth` | `8f8031f44aa95479…` |
+| b16c256 | `ema-b16c256.pth` | `8aedb80b92390df3…` |
+| control (b8c192, hard labels) | `ema-control-b8c192.pth` | `529ff579dc5eeb51…` |
+
+### Qualification launch (2026-11-17; the user: "Start it")
+
+- **The lab half** (`experiments/students_qual_chain.sh`, log `workdir/fleet/runs/eval/students-qual.log`):
+  a Vast eval box at ≤ $0.75/h, the six jobs in the order fixed above (the three T-NIs, then the
+  control's T-std, measure and T-std), pulled hourly, downed when the queue drains. Worst case,
+  every test to its cap, is 400K sets (≈ 40 h, ≈ $30), which is also the forced-down ceiling; the
+  GSPRTs usually stop far sooner (the teacher T-stds stopped at 5,000–6,500 sets).
+- **The golden-set half** (the workstation, `tools/eval/golden_agreement.py`, AMP as for the
+  reference): the four students on the full golden set → `workdir/eval/golden-students.json`,
+  judged against BC s1's row in `workdir/eval/golden-teachers.json` (above).
+- **Reported, not judged:** `tools/eval/validate.py` on every student and both teachers' EMA weights,
+  in-window (`heldout_game --start 2015-01-01`) and on `heldout_time`.
