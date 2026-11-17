@@ -50,7 +50,7 @@ training. The early research has met G0's Select conditions; T1 waits on D64.
 | Rung | State |
 |---|---|
 | L0, the lab is trustworthy | **Met** 2026-10-05: calibrated GSPRT (D44), σ_set 0.3277, exact A/A in true FP32 |
-| L1, the baseline is deployed | Not yet: teachers trained, students not distilled, no ranked play |
+| L1, the baseline is deployed | Not yet: students distilled and two qualified (b12c256, b16c256); no ranked play |
 | L2, RL beats its initialization | **Met** 2026-10-26: `k2b` full vs pilot A +0.0195 [+0.0174, +0.0216], 100K sets, confirmed |
 
 **SL substrate (`04`)**
@@ -111,6 +111,10 @@ The teachers' training states (the only source of their EMA) are in
 `workdir/secure/runs/teacher-{bc,awr}-s1/box/`. Lab seeds: `lab/seeds.toml`; ledger `lab/registry/`.
 
 ## Waiting on the user
+
+0. **The disk (2026-11-17): C: has 6.8 GB free,** below the lab's 10 GB start limit. The lab's game logs
+   are 144.5 GB in 49 runs (`workdir/lab/*/logs`); each run's results stay in its `games.npz` and
+   `panel.json`. Deleting logs needs the user's yes; nothing writes much until then.
 
 1. *(Approved, recorded so it isn't asked again:)* the eval box for the students' qualification
    when they exist (2026-11-11, `experiments/students-s1.md`); the eval box for the pilot's measures
