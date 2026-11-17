@@ -183,3 +183,21 @@ category more than 1 pp below BC s1.
   (exploratory; the control's lab readings follow).
 - b12c256 and b16c256 are level with each other, and within 0.15 pp of BC s1 overall, at 1/6 and
   1/5 of its parameters.
+
+### Validation (reported, not judged; 2026-11-17)
+
+`tools/eval/validate.py`, EMA weights, AMP, 200 logs each (`workdir/eval/validate-students-*.json`):
+
+| | In-window (heldout_game from 2015; 128,821 decisions) top-1 / NLL | heldout_time (2025-07 on; 128,393) top-1 / NLL |
+|---|---|---|
+| BC s1 | 81.70% / 0.4689 | 82.72% / 0.4450 |
+| AWR s1 | 81.37% / 0.4790 | 82.43% / 0.4547 |
+| b8c192 | 81.44% / 0.4748 | 82.56% / 0.4511 |
+| b12c256 | 81.56% / 0.4715 | 82.64% / 0.4478 |
+| b16c256 | 81.60% / 0.4710 | 82.62% / 0.4471 |
+| control b8c192 | 81.33% / 0.4796 | 82.37% / 0.4554 |
+
+The order matches the golden set's: every student above AWR s1 and below BC s1 (within 0.1–0.3 pp),
+the control last. The heads' losses (placement, kyoku-Δ, tenpai, waits) are within 1–3% of the
+teachers'. heldout_time scores higher for every model; it is a different sample of players and
+dates, not an easier version of the same one.
