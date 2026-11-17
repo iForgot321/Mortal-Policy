@@ -8,6 +8,20 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'mortal'))
 
+_MORTAL_CFG_AT_START = os.environ.get('MORTAL_CFG')
+
+
+def pytest_collection_finish(session):
+    """No test module may set MORTAL_CFG while it is imported. Collection imports every module
+    before any fixture runs, so a module-level default (one that names experiments/configs/, i.e.
+    workstation paths) becomes every later test's config. Here those paths exist and the suite
+    passes; on a rented box it fails setup_box.sh (2026-11-17: tests/test_validate.py, two eval
+    boxes). Set it inside a fixture instead, as tests/test_teacher.py does."""
+    now = os.environ.get('MORTAL_CFG')
+    if now != _MORTAL_CFG_AT_START:
+        raise pytest.UsageError(f'MORTAL_CFG was set to {now!r} while collecting the tests: set it '
+                                'inside a fixture (workdir/box/configs/ first), not at import')
+
 
 def make_engine(brain, policy, explore_rate, name):
     import torch
