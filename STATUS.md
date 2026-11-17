@@ -18,12 +18,13 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - ≈ 60% of `k2b`'s whole gain again in 144 box-hours, where the soak's 192 bought nothing. Smaller at
   the held-out table (36% and 53% of the training table's), and A's pass there is on the line.
 - Nothing is rented for it; the frozen snapshots are below.
-- **Running: the stage-timing check** (pre-registered 2026-11-16, the note's last section; the
-  user: "Start on 1"): B's p50, then p25, at 3× pilot A, 40K sets each, on the workstation since
-  20:50 UTC (`experiments/release_timing_chain.sh`, log `workdir/lab/release-timing.log`). p50's
-  reading ≈ 11-17 04:30 UTC, all done ≈ 11-17 12:00 UTC. **Rent no eval box before it ends:** the box
-  takes the lab registry, and this chain writes to it. After a restart, start it again; it skips
-  what is done.
+- **The stage-timing check** (the note's last section; the user: "Start on 1"): **B's p50 is done,
+  reading 1 (24 h stages), but borderline:** G(p50) +0.0069 [+0.0026, +0.0112] over the soak, the
+  second half R +0.0040 [−0.0003, +0.0082], 64% of the gain by 24 h. **p25 is PAUSED** (the user,
+  2026-11-17 06:09 UTC) at 12,500 of 40,000 sets: `kill -CONT 912201` resumes it (≈ 5 h left). While
+  stopped it holds ≈ 2.1 GB of RAM and its GPU memory, dies with a WSL restart (then rerun
+  `experiments/release_timing_chain.sh`; it skips p50), and **blocks renting an eval box** (it writes
+  the registry when it ends).
 
 **Live: the student distillation `students-s1`** on Hyperstack VM 1154755 (RTX A6000, $0.507/h), rented
 2026-11-11 10:03 UTC; training since 10:28 UTC at 4,580 samples/s. At 2026-11-12 06:00 UTC: step
