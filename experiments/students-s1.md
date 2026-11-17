@@ -209,3 +209,43 @@ dates, not an easier version of the same one.
   variable; a test checks it), the suite passes with no inherited config (205 passed, 5 skipped),
   and the chain was relaunched. `fleet.py`'s provisioning retries also took a $1.038/h host after
   the first setup failure, above the chain's $0.75/h limit, for 25 min.
+
+### The lab half and the qualification (2026-11-17): b12c256 and b16c256 qualify; b8c192 doesn't
+
+Eval box 61110696 (Threadripper PRO 5995WX, $0.511/h), 18:45 → 22:32 UTC; pulled and destroyed by
+the chain at 22:43 UTC. **≈ $2.66** with the three failed attempts. Family B (T-NIs and T-stds, the
+calibrated GSPRT) and A (the measure); AMP; EMA weights throughout. A sequential test's mean is
+biased away from the bound it didn't cross, and the ≈ 95% intervals below are mean ± 1.96 · sd/√n,
+not part of the test.
+
+| Test | Challenger vs champion | Verdict | Sets | Δu | ≈ 95% | Run |
+|---|---|---|---|---|---|---|
+| T-NI (δ 0.01) | b8c192 vs BC s1 | **fail** | 12,500 | −0.0074 | [−0.0130, −0.0019] | `20261117-184513-T-NI` |
+| T-NI | b12c256 vs BC s1 | **pass** | 5,000 | +0.0047 | [−0.0037, +0.0131] | `20261117-193933-T-NI` |
+| T-NI | b16c256 vs BC s1 | **pass** | 10,000 | −0.0021 | [−0.0080, +0.0037] | `20261117-200117-T-NI` |
+| T-std | distilled b8c192 vs the control | **pass** | 14,000 | +0.0075 | [+0.0021, +0.0129] | `20261117-204544-T-std` |
+| measure | the control vs No-SP A | measured | 20,000 | +0.0140 | [+0.0093, +0.0186] (bootstrap) | `20261117-212358-measure` |
+| T-std | BC s1 (EMA) vs No-SP A | **pass** | 5,000 | +0.0226 | [+0.0131, +0.0321] | `20261117-221715-T-std` |
+
+**Qualification, as fixed:**
+- **b12c256 qualifies** (T-NI pass, golden set within 1 pp everywhere).
+- **b16c256 qualifies** (the same).
+- **b8c192 doesn't:** its T-NI crossed the lower bound (LLR −3.07 against −2.944), so it is about
+  0.007 u worse than BC s1, although its golden-set agreement was within 1 pp.
+- **The two smallest qualifying candidates, b12c256 and b16c256, go to D31's RL curves** (two seeds
+  per size, D65), on the recipe the anchor-release pilot selected. That is its own
+  pre-registration and rental.
+
+**The control's readings (D66, exploratory):**
+1. **Distillation adds strength at b8c192:** the distilled b8c192 beats the hard-label control on
+   the same data and schedule (T-std pass, ≈ +0.0075). The golden set showed the same order.
+2. **The full data adds to a b8c192 trained without a teacher:** the control beats No-SP A (500K
+   games) by +0.0140.
+3. **BC s1's own row on its EMA weights:** +0.0226 against No-SP A, as on the raw weights (+0.0219,
+   `20261110-145755-T-std`).
+
+**Beyond the rule:**
+- Size matters between b8c192 and b12c256 and not visibly beyond: b12c256 and b16c256 are level
+  with BC s1 in play, as on the golden set, at 1/6 and 1/5 of its parameters.
+- Golden-set agreement within 1 pp did not imply equal strength: b8c192 was within 0.65 pp
+  everywhere and still lost ≈ 0.007 u in play. The T-NI carried the qualification.

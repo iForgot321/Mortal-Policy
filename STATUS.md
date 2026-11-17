@@ -26,17 +26,18 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 1,142,584 (2.34B presentations) on 2026-11-17 09:14 UTC; pulled, wiped and destroyed by its driver at
 09:25 UTC after 143.4 h, **≈ $72.65**. The four students' EMA and raw weights are in
 `workdir/secure/runs/students-s1/box/students-s1/` (read-only; EMA ≠ raw checked for all four).
-**Running: their qualification** (the user, 2026-11-17: "Start it"; `experiments/students-s1.md`):
-- **the lab half** on a Vast eval box (instance 61110696, machine 7064, $0.511/h, ready 18:44 UTC
-  after three failed attempts, ≈ $0.55: a dropped upload, then a test that leaked a workstation
-  path into the box's setup, fixed), driven by `experiments/students_qual_chain.sh` (log
-  `workdir/fleet/runs/eval/students-qual.log`). **All six jobs queued 18:46 UTC:** the three T-NIs,
-  then the control's T-std, measure and T-std. It pulls hourly and downs the box when the queue
-  drains (forced at 40 h). **It holds the lab lease: no lab run on the workstation.** If the
-  workstation restarts first: `python3 tools/fleet/evalbox.py status`, then `pull` and `down` once
-  it is empty.
-- **The golden-set half is done: all three students pass** (worst category oorasu, −0.5 to
-  −0.6 pp); the control would miss on riichi_dama. Validation reports done (reported only).
+**Done: their qualification** (2026-11-17, `experiments/students-s1.md`; eval box ≈ $2.66, down):
+**b12c256 and b16c256 qualify; b8c192 doesn't.**
+
+| Student | T-NI vs BC s1 (δ 0.01) | Golden set (≤ 1 pp below BC s1) |
+|---|---|---|
+| b8c192 | **fail**, 12,500 sets, −0.0074 | pass |
+| b12c256 | **pass**, 5,000 sets, +0.0047 | pass |
+| b16c256 | **pass**, 10,000 sets, −0.0021 | pass |
+
+- The control (D66): distillation beats it at b8c192 (T-std pass, +0.0075); it beats No-SP A by
+  +0.0140; BC s1's EMA weights beat No-SP A by +0.0226.
+- **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65), with T1's re-anchoring.
 
 
 **Done: D64's critic check** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's
@@ -154,5 +155,5 @@ Progress section has both traces; the user was told.
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** the students' qualification (eval box approved). Then the T1 / D31 pre-registration on
-re-anchoring, with 24 h stages proposed, for the user.
+**Next:** the T1 / D31 pre-registration for the user: b12c256 and b16c256 on re-anchoring, with 24 h
+stages proposed; and whether the incumbent (L1) is deployed on riichi.dev now that π_SL exists.
