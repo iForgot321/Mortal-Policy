@@ -51,7 +51,33 @@ measures below; family A, block `curves-boundary`):
    agreement falls below **88%**, or its entropy falls below **70%** of the starting student's.
    For scale, after one re-anchor in the pilot: KL 0.045–0.050, agreement 93%, entropy 76–82%.
 
-## The measures (after each run's `full`; an eval box)
+**How they run** (`experiments/curves_stage_check.py`, started by `fleet.py watch --stage-check`):
+- **One check per re-anchor request.** The request records the stage's anchor: the student for
+  p25, then the previous snapshot. The watcher starts the check on the workstation, detached. On a
+  `stop` verdict it downs the run; that's a teardown, already authorized.
+- **Drift first** (≈ 1 min): the limits on the student's states, 15,635 decisions for b12c256 and
+  15,331 for b16c256. The students' entropies are 0.5166 and 0.5177, so the entropy limit sits
+  near 0.362.
+- **Then the stop check**, if no drift limit fired: a lab `measure`, `--arm P1 --package K2
+  --horizon H`, AMP and game logs on (a stop rule keeps its games). Its description is
+  `curves boundary: <run> <label> at 3x <anchor label>`.
+  - A batch's two runs reach their boundaries together, so the measures take turns under a
+    workstation lock.
+  - A measure already in the registry is read, not replayed, so a check relaunched after a
+    reboot costs nothing.
+- **Time:** the bare arena plays b12c256 at ≈ 48K and b16c256 at ≈ 42K hanchan/h on the 3060
+  (`tools/fleet/bench_1v3.py`, 2026-11-18). So each 10K-set check plays in about an hour, plus the
+  lab's overhead, and both of a boundary's checks fit well inside the 24 h stage.
+- **Failures:**
+  - A check that dies without a verdict is relaunched once, then reported.
+  - A check that can't be made writes an `error` verdict.
+  - Neither stops the run.
+- **The lab's lease:** while an eval box holds the registry, the workstation's checks wait for it
+  (an error after 48 h). So the final measures play only after batch 2 has passed its last
+  boundary: in practice, all twelve on one eval box after batch 2's `full`. The reading needs all
+  four runs anyway.
+
+## The measures (after the last run's `full`; one eval box)
 
 Family A, block `curves`, AMP, 40,000 sets each, fixed N:
 
@@ -144,10 +170,12 @@ Where each item stands (2026-11-18; nothing rented):
      change, r = +0.847 and +0.849 at offset 0 (≤ 0.017 at ±1).
 6. **The full test suite as a box runs it: passes.** `env -u MORTAL_CFG pytest tests/`: 219
    passed, 5 skipped (14 new). No Rust changed.
-7. **Not built yet:**
-   - the stage-boundary checks: the 10K-set stop check and the drift limits, started on the
-     workstation by the watcher at each re-anchor, and downing the run when one fires;
-   - the launch, B0 and measure scripts.
+7. **The stage-boundary checks: done** (above, "How they run").
+   - Tests: 9 in `tests/test_curves_stage_check.py`.
+   - A dry run on the smoke's snapshots read drift against the student (reverse KL 0.0166,
+     agreement 94.9%), with the lab measure stubbed: a real one would create the
+     `curves-boundary` block, whose first use fixes its size.
+8. **Not built yet:** the launch, B0 and measure scripts.
    - The configs are written: `experiments/configs/curves-{b12,b16}-s{1,2,3}.toml` (`k2-v5.toml`
      with the table's settings, the hold included). The two students are now frozen inputs that
      every box checks (`tools/fleet/frozen.sha256`).

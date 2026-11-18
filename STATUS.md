@@ -38,8 +38,8 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - The control (D66): distillation beats it at b8c192 (T-std pass, +0.0075); it beats No-SP A by
   +0.0140; BC s1's EMA weights beat No-SP A by +0.0226.
 - **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65, D68), with T1's
-  re-anchoring. The code they need is done and smoke-tested (2026-11-18, below). What's left is
-  the stage checks and the scripts, then the rental.
+  re-anchoring. The code they need is done and smoke-tested, the stage checks included
+  (2026-11-18, below). What's left is the scripts, then the rental.
 
 Phase 0 is exited (D55). In Phase 1 the SL substrate is built: teachers done, two students
 qualified. The early research has met G0's Select conditions; T1 and D31's curves run on
@@ -139,9 +139,17 @@ C: at 57 GB free.
   replacements included.
 - `stage_init.py --from-policy` (the B0s' inits); `curves-{b12,b16}-s{1,2,3}.toml`; the two
   students in `frozen.sha256`.
+- **The stage-boundary checks** (`a0922dc`): `fleet.py watch --stage-check` starts
+  `experiments/curves_stage_check.py` on the workstation at each re-anchor and downs the run on
+  `stop`. It runs the drift limits, then the 10K-set stop check (lab block `curves-boundary`).
+- **The controller's hold:** 100 windows, the user's choice (below).
 
 **Verified**
-- `env -u MORTAL_CFG pytest tests/`: 219 passed, 5 skipped (14 new). No Rust change.
+- `env -u MORTAL_CFG pytest tests/`: 228 passed, 5 skipped (23 new). No Rust change.
+- The check's drift half ran on the smoke's snapshots (reverse KL 0.0166, agreement 94.9% from
+  the student). The lab measure was stubbed: a real one would create the block and fix its size.
+- The bare arena plays b12c256 at ≈ 48K and b16c256 at ≈ 42K hanchan/h on the 3060, so a 10K-set
+  stop check plays in about an hour plus the lab's overhead.
 - **The re-anchoring smoke passed** on the workstation (`experiments/curves_smoke.py`, b12c256):
   - pickup at the next save, the coefficient carried, the KL to the new anchor 0.0070 → 0.0009;
   - a restart with the anchor's file moved away resumed on it;
@@ -157,12 +165,14 @@ C: at 57 GB free.
 
 **Not done**
 - The token's check on a box (with the B0s).
-- The stage-boundary checks (the stop check, the drift limits) and the launch, B0 and measure
-  scripts.
+- The launch, B0 and measure scripts.
 - The rental itself: the B0s, then the two batches, need the user's yes on a live quote.
 
 **Decided by the user:** the controller's hold after each re-anchor is 100 windows ("Go with option
 1"; `experiments/size-curves.md`). With `k2.toml`'s 5, the coefficient hit its floor ≈ 10–15 min into
 every stage, as in every run so far, so D68's start of 0.11 and its carry would change nothing.
 
-**Next:** the stage checks and the scripts, then the quote for the B0s and the first batch.
+**Planned:** the final measures play on one eval box after batch 2. An eval box holding the lab
+registry would hold up the workstation's stop checks, and the reading needs all four runs anyway.
+
+**Next:** the launch, B0 and measure scripts, then the quote for the B0s and the first batch.
