@@ -335,21 +335,36 @@ def rank_offers(offers, exclude=(), allow_zen2=False, now=None):
     return sorted(out, key=lambda o: o['usd_per_m'])
 
 
+def within_limit(offers, max_dph):
+    """The offers at or under `max_dph` $/h (all of them when it is None), in their order."""
+    return [o for o in offers if max_dph is None or o['dph_total'] <= max_dph]
+
+
 def pick_offer(run, machine=None, allow_zen2=False):
     """The best offer for a new box: on `machine` if given, else on a machine this run doesn't use
-    and hasn't marked bad. Call with run.lock held, so parallel provisions pick different ones."""
+    and hasn't marked bad. Every box of a run, a provisioning retry's or a replacement's too, stays
+    within the run's price limit (`max_dph`, $/h per box, set at `up`), if it has one: on
+    2026-11-17 a retry rented a $1.04/h host against a $0.75/h limit checked only at launch.
+    Call with run.lock held, so parallel provisions pick different ones."""
+    limit = (run.data or {}).get('max_dph')
     if machine:
         found = vast('search', 'offers', f'machine_id={machine} num_gpus=1 gpu_name=RTX_4090',
                      '--storage', 50)
         if not found:
             raise FleetError(f'no RTX 4090 offer on machine {machine}')
+        if not within_limit(found[:1], limit):
+            raise FleetError(f'machine {machine} asks ${found[0]["dph_total"]:.3f}/h, above the run\'s limit of ${limit:.3f}/h')
         return found[0]
     taken = {b.get('machine_id') for b in run.boxes.values()} | set(run.data['bad_machines'])
     ranked = rank_offers(vast('search', 'offers', OFFER_QUERY, '--storage', 50, '-o', 'dph_total'),
                          taken, allow_zen2)
     if not ranked:
         raise FleetError('no allowlisted offer')
-    return ranked[0]
+    priced = within_limit(ranked, limit)
+    if not priced:
+        raise FleetError(f'no allowlisted offer within the run\'s limit of ${limit:.3f}/h '
+                         f'(the cheapest asks ${min(o["dph_total"] for o in ranked):.3f}/h)')
+    return priced[0]
 
 
 def destroy_instance(iid):
@@ -1426,11 +1441,14 @@ def cmd_up(a):
         a.init = os.path.relpath(Path(a.init).resolve(), REPO)
     inputs(cfg, 'learner', a.init)
     commit = git_commit(a.allow_dirty)
-    ranked = rank_offers(vast('search', 'offers', OFFER_QUERY, '--storage', 50, '-o', 'dph_total'),
-                         allow_zen2=a.allow_zen2)
+    ranked = within_limit(rank_offers(vast('search', 'offers', OFFER_QUERY, '--storage', 50, '-o', 'dph_total'),
+                                      allow_zen2=a.allow_zen2), a.max_dph)
+    print('price limit: ' + (f'${a.max_dph:.3f}/h per box, replacements included' if a.max_dph is not None else 'none'))
     pinned = 0.0
     if a.learner_machine:
         offer = pick_offer(run, a.learner_machine)
+        if not within_limit([offer], a.max_dph):
+            raise FleetError(f'learner machine {a.learner_machine} asks ${offer["dph_total"]:.3f}/h, above --max-dph')
         pinned = offer['dph_total']
         print(f'learner: machine {a.learner_machine}  ${pinned:.3f}/h  {offer.get("cpu_name")}')
         ranked = [o for o in ranked if o['machine_id'] != a.learner_machine]
@@ -1441,7 +1459,7 @@ def cmd_up(a):
     for o in ranked[:n]:
         print(f'  machine {o["machine_id"]:>6}  ${o["dph_total"]:.3f}/h  ~${o["usd_per_m"]:.1f}/M hanchan  {o["cpu_name"]}')
     if len(ranked) < n:
-        raise FleetError(f'only {len(ranked)} allowlisted machines for {n} boxes')
+        raise FleetError(f'only {len(ranked)} allowlisted machines within the price limit for {n} boxes')
     print(f'≈ ${pinned + sum(o["dph_total"] for o in ranked[:n]):.2f}/h for the fleet')
     if not a.yes:
         print('rerun with --yes to rent')
@@ -1455,7 +1473,7 @@ def cmd_up(a):
                 'overrides': overrides,
                 'actors': a.actors, 'procs': a.procs, 'port': cfg['online']['remote']['port'],
                 'capacity': cfg['online']['server']['capacity'], 'boxes': {}, 'retired': [],
-                'bad_machines': [], 'watchdog': None}
+                'bad_machines': [], 'watchdog': None, 'max_dph': a.max_dph}
     run.save()
     with run.locked():
         if a.hard_hours:
@@ -1862,6 +1880,8 @@ def main(argv=None):
     s.add_argument('--no-start', action='store_true', help='set the boxes up, but neither join nor start them')
     s.add_argument('--learner-machine', type=int,
                    help="the learner's Vast machine (a fast CPU for the learner's main process: experiments/fleet-soak.md)")
+    s.add_argument('--max-dph', type=float,
+                   help='$/h per box: no box of the run, retries and replacements included, rents above it')
     s.add_argument('--yes', action='store_true', help='rent; without it, only show the offers')
     s = p('provision', cmd_provision, 'rent and set up one box')
     s.add_argument('--name', required=True)

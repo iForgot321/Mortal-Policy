@@ -199,7 +199,10 @@ def cmd_up(a):
         run.data = {'run': RUN, 'created': F.now_iso(), 'config': CONFIG, 'init': None, 'commit': commit[:12],
                     'overrides': {}, 'actors': 0, 'procs': 0, 'port': None, 'capacity': None,
                     'boxes': {}, 'retired': [], 'bad_machines': [], 'watchdog': None}
+    # this rental's limit, for its provisioning retries too (fleet.py: pick_offer)
+    run.data['max_dph'] = a.max_dph
     offer = F.pick_offer(run, a.machine, a.allow_zen2)
+    print('price limit: ' + (f'${a.max_dph:.3f}/h, retries included' if a.max_dph is not None else 'none'))
     print(f'machine {offer["machine_id"]}  ${offer["dph_total"]:.3f}/h  {offer.get("geolocation")}  '
           f'{offer.get("cpu_name")}  ({offer.get("cpu_cores_effective", 0):.0f} cores)')
     if not a.yes:
@@ -318,6 +321,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest='cmd', required=True)
     s = sub.add_parser('up', help='rent and set up the eval box')
     s.add_argument('--machine', type=int)
+    s.add_argument('--max-dph', type=float, help='$/h: no offer above it is rented, retries included')
     s.add_argument('--skip-tests', action='store_true')
     s.add_argument('--allow-zen2', action='store_true')
     s.add_argument('--yes', action='store_true', help='rent; without it, only show the offer')

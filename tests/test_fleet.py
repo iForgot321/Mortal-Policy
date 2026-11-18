@@ -3,6 +3,7 @@ parsers, and the box scripts' syntax. The tunnel restrictions run against a real
 test_fleet_tunnel.py; the full loop only on rented boxes (tools/fleet/README.md)."""
 import importlib.util
 import os
+import re
 import subprocess
 import tomllib
 from datetime import datetime
@@ -711,3 +712,30 @@ def test_a_replacement_learner_gets_the_current_anchor(tmp_path, monkeypatch):
 
 def test_pulls_leave_the_server_token_on_the_box():
     assert '--exclude=server.token' in fleet.PULL_EXCLUDES
+
+
+def test_every_box_of_a_run_stays_within_its_price_limit(monkeypatch):
+    """2026-11-17: after a setup failure the eval box's retry rented a $1.04/h host against the
+    chain's $0.75/h limit, which only the launch quote had checked."""
+    offers = [
+        {'id': 1, 'machine_id': 10, 'cpu_name': 'AMD EPYC 9684X 96-Core Processor', 'dph_total': 0.80},  # $16/M
+        {'id': 2, 'machine_id': 11, 'cpu_name': 'AMD EPYC 7V13 64-Core Processor', 'dph_total': 1.04},  # $26/M
+        {'id': 3, 'machine_id': 12, 'cpu_name': 'AMD EPYC 7B13 64-Core Processor', 'dph_total': 0.70},  # $17.5/M
+    ]
+
+    def fake_vast(*args, **kw):
+        pinned = re.search(r'machine_id=(\d+)', args[2])
+        return [o for o in offers if not pinned or o['machine_id'] == int(pinned.group(1))]
+    monkeypatch.setattr(fleet, 'vast', fake_vast)
+    run = fleet.Run.__new__(fleet.Run)
+    run.data = {'boxes': {}, 'bad_machines': [10, 12]}
+    assert fleet.pick_offer(run)['id'] == 2  # no limit: the incident's $1.04/h retry
+    run.data = {'boxes': {}, 'bad_machines': [], 'max_dph': 0.75}
+    assert fleet.pick_offer(run)['id'] == 3  # the best within the limit, not the best per hanchan
+    run.data['bad_machines'] = [12]  # a failed setup marks its machine bad: the retry stays within
+    with pytest.raises(fleet.FleetError, match=r'within the run.s limit of \$0.750/h .*\$0.800/h'):
+        fleet.pick_offer(run)
+    with pytest.raises(fleet.FleetError, match='above the run'):
+        fleet.pick_offer(run, machine=11)  # a pinned machine too
+    assert fleet.pick_offer(run, machine=12)['id'] == 3
+    assert fleet.within_limit(offers, None) == offers
