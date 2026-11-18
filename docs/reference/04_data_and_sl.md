@@ -149,8 +149,9 @@ Curation is kept deliberately short. Past these steps, compute buys more in RL a
 - **T-NI against the best single teacher** (δ = 0.01). This single reference is used both here and for L1;
 - golden-set top-1 agreement within 1 pp of that teacher in every category.
 
-**Selection is by RL learning curves, not by distillation alone.** The **two smallest** qualifying candidates go through RL on the leading engine arm, at 6 and 12 box-days (`05` §2), **two RL seeds each** (D65), on the recipe D64's pilot selects.
-- Choose by Δu per dollar at 12 box-days, on the mean of each size's two seeds. The larger net wins only if its lead is more than the seed spread (D65).
+**Selection is by RL learning curves, not by distillation alone.** The **two smallest** qualifying candidates go through RL on the leading engine arm, at 6 and 12 box-days (`05` §2), **two RL seeds each** (D65), a third each when the reading is close (D68), on re-anchoring (D64's pilot; settings in D68).
+- Choose by Δu per dollar at 12 box-days, on the mean of each size's seeds. The larger net wins only if its lead is more than the seed spread (D65).
+- **The qualified candidates (2026-11-17):** b12c256 and b16c256 (`experiments/students-s1.md`); b8c192 failed its T-NI.
 - If the larger net trails at 6 but leads at 12 (a crossover), choose the larger, under the same condition.
 - Distillation non-inferiority shows a student reproduces the teacher. It doesn't show the student can learn stronger strategies.
 

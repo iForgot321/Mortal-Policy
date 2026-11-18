@@ -162,7 +162,7 @@ These counts are tracked separately as generated games, consumed samples and cha
    - P1 + package K1 ×2;
    - V value-based ×2;
    - H hybrid ×1, started once V has a champion.
-2. **Actor-size learning curves** (D31): the two student candidates on the leading arm at 6 and 12 box-days, two RL seeds each (D65), on the recipe D64's pilot selects.
+2. **Actor-size learning curves** (D31): the two student candidates on the leading arm at 6 and 12 box-days, two RL seeds each (D65), a third each when the reading is close (D68), on re-anchoring with D68's settings. The candidates are b12c256 and b16c256.
 3. **Fleet soak** (D39): ≥ 48 h end-to-end at T1 scale, with the leading arm.
 4. **Search pilot** (D32), riichi vs dama:
    - policy only, oracle search, belief search;

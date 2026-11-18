@@ -725,6 +725,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
   - The larger net is picked only if its lead at 12 box-days is more than the spread. D31's crossover rule is read on the means, under the same condition. Otherwise the smaller net.
 - **Cost:** ≈ 48 box-days against ≈ 24: ≈ $630 at the planning price ($13.2 per box-day), ≈ $690 at what `k2b` billed ($14.4). A rental with its own pre-registration and the user's yes. With D64's pilot it may pass the early-research cap ($2.2K, `00`); the quote says where the cap stands (D24).
 - **Reopen if:** the first size's two seeds agree within the lab's noise (≈ ±0.004 at 20K sets). The other size's second seed can then be dropped by a new entry.
+- **Amended 2026-11-18 by D68:** the reopen clause is withdrawn; a third seed per size runs when the reading is close.
 
 **D66 (2026-11-10): the distillation stream carries a fourth student, a hard-label b8c192 control.** Amends `04` §6 (candidates). Decided by the user (as D64).
 - **What:** a b8c192 on the students' data, batches, optimizer and schedule, trained by the teachers' loss on the true labels (the human action; the final placement, the kyoku's Δ and the opponents' tenpai and waits). No teacher term.
@@ -748,6 +749,28 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **The rental is approved** once the student trainer's smoke run passes on the workstation, with a stop at $90 (the watchdog's deadline). The quote is ≈ 137 h, ≈ $70.
 - **Reopen if:** the students are to be distilled again from the same teachers (a cache would pay then), or the smoke run projects past the $90 stop.
 
+**D68 (2026-11-18): D31's curves run all four runs, add a third seed per size when the size reading is close, and run on the pilot's re-anchoring with fixed settings.** Amends D65 (its method and its reopen clause), `00`'s Phase 1 item 2 and `04` §6's selection; sets what D64 left to the curves' pre-registration. Decided by the user ("Update the plan based on the default recommendation", 2026-11-18), after a review of the literature on seeded runs.
+- **Why:**
+  - **Multiple seeds are standard, and two per size is their minimum.** Henderson et al. (2018): two groups of 5 seeds of the same algorithm differed significantly (p = 0.0016). Colas et al. (2018): the number of seeds follows from a power analysis, and small samples underestimate the spread between seeds. Patterson et al. (2023/24) run ≥ 15 per configuration; Agarwal et al. (2021) find 3–10 typical and point estimates from so few misleading.
+  - **So two seeds that agree are weak evidence that seed variance is small.** D65's reopen (drop the other size's second seed when the first size's two agree) would act on exactly that underestimate.
+  - Our runs are measured precisely (paired 40K-set lab measures, ±0.004), so what more runs buy is the seed spread itself.
+- **Seeds:**
+  - All four runs: b12c256 and b16c256, two `control.seed`s each. **D65's reopen clause is withdrawn.**
+  - **A third seed per size when the reading is close.** With L the larger net's lead and S D65's spread (both in Δu per dollar at 12 box-days), and S floored at the lab's noise for a difference of two runs (0.0043 Δu over the run's cost), the curves are close if 0.5 S < L < 1.5 S. Then each size runs a third seed, and D65's rule decides on three (S = the larger within-size range). The crossover rule is read the same way.
+  - The two extra runs (≈ $340) pass the early-research cap. Triggering them is a spend decision for the user at the time, with a live quote (D24). If it is declined, D65's rule decides on two seeds.
+  - **Reported beside the rule, not deciding:** a 95% interval for the size difference from all seeds and the lab's measurement noise.
+- **The recipe** (D64: "their pre-registrations set how often it re-anchors"):
+  - Fixed 24 h stages, 4 per run (the stage-timing check, `experiments/anchor-release.md`). At each boundary the current weights become the anchor. A 10K-set check of the new snapshot against its anchor stops the run if its 95% CI is entirely below 0.
+  - The KL controller starts at 0.11 (`k2v5`'s settled coefficient on v5) with tolerance 1.25, and its coefficient carries across re-anchors.
+  - The LR, clip and entropy weight follow `k2.toml`'s power laws on the run clock, not restarted at a re-anchor.
+  - No second penalty toward π_SL. Each run is monitored at every boundary (reverse KL to its starting student, argmax agreement, entropy), with stop limits fixed in the pre-registration.
+  - The opponents are three frozen copies of the run's starting student. The final measures add a held-out table of another kind (3× BC s1).
+  - Two runs at a time, paired across sizes (both sizes' seed 1, then both sizes' seed 2), so size isn't confounded with the period or the hosts. One critic B0 per student, shared by its seeds.
+- **Before the rental:** in-run re-anchoring (code, tests, a workstation smoke run); `server.py` answering `submit_param` and `drain` only from the learner's own processes (the 2026-11-09 audit's finding 9); `fleet.py`'s provisioning retries kept within the price limit. Then the pre-registration (`experiments/size-curves.md`) with a live quote for the user's yes.
+- **Cost:** ≈ $680–735 for the four runs (fleets ≈ $630–690, two B0s ≈ $20, the final measures on an eval box ≈ $25), inside the ≈ $785 left of the early-research cap; ≈ $1.02–1.08K with the third seeds.
+- **T1's opponents aren't decided here:** a fixed table, the latest champion or a pool of past champions (RL-5) is weighed after the curves.
+- **Reopen if:** in-run re-anchoring can't be made to work (then each stage runs as its own run from a staged snapshot, `tools/fleet/stage_init.py`), or the first stage's KL settles far outside the band at the start coefficient.
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -770,7 +793,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D14a:** the winning player-scoring arm (A0–A5), from the `04a` §6.3 sweep.
 - **D14b:** the held-out-by-time window, if the coverage audit (`04a` §5) moves it from 2025-07-01 → 2026-01-23.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
-- **D16:** the student net size (`03` §4.1 + `04` §6). By D31's curves, two RL seeds per size (D65), on the recipe D64's pilot selects.
+- **D16:** the student net size (`03` §4.1 + `04` §6), between b12c256 and b16c256 (`experiments/students-s1.md`). By D31's curves, two RL seeds per size and a third when close (D65, D68), on re-anchoring (D64, D68).
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
 - **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are. **Resolved by D67** (2026-11-11): the real EMA weights (`ema-from-state.pth`).

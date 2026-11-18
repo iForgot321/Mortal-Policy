@@ -166,5 +166,8 @@ Progress section has both traces; the user was told.
   runs). No strength claim yet.
 - `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
 
-**Next:** the T1 / D31 pre-registration for the user: b12c256 and b16c256 on re-anchoring, with 24 h
-stages proposed; and whether the incumbent (L1) is deployed on riichi.dev now that π_SL exists.
+**Next:** D31's curves are planned (D68, 2026-11-18; draft pre-registration
+`experiments/size-curves.md`): b12c256 and b16c256, two seeds each (a third if close), 24 h
+re-anchoring stages, ≈ $680–735. Before the rental: in-run re-anchoring, the `server.py` peer
+restriction and `fleet.py`'s price limit (code, tests, smoke runs), the two B0s and the students'
+v5 states. Then the quote for the user's yes.
