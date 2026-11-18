@@ -144,8 +144,21 @@ def events(run):
 
 
 def sleeper(marker):
-    """A live process whose command line holds `marker`, as a running check's holds its --out."""
-    return subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', marker])
+    """A live process whose command line holds `marker`, as a running check's holds its --out.
+    Returned once it has exec'd: until then /proc shows the parent's command line, and on a busy
+    box (every rented box runs this suite at setup) the check would read pytest's (2026-11-18)."""
+    import time
+    p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', marker])
+    for _ in range(500):
+        try:
+            with open(f'/proc/{p.pid}/cmdline', 'rb') as f:
+                if marker.encode() in f.read():
+                    return p
+        except OSError:
+            pass
+        time.sleep(0.01)
+    p.kill()
+    raise RuntimeError('the sleeper never exec\'d')
 
 
 def test_a_check_starts_at_each_re_anchor_against_the_stages_anchor(run):
