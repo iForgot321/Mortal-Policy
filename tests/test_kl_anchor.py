@@ -1,6 +1,7 @@
 """K2's KL anchor (05 §5.1, D59): the exact reverse KL over the legal mask, the frozen π_SL, and
 the coefficient rules (`mortal/kl_anchor.py`)."""
 import math
+import os
 
 import pytest
 import torch
@@ -168,3 +169,133 @@ def test_bad_settings_are_refused(anchor_file):
         with pytest.raises(ValueError):
             make(anchor_file, **cfg)
     assert math.isfinite(make(anchor_file).coef(10 ** 9))
+
+
+# ---------------------------------------------------------------- re-anchoring (D64, D68)
+
+def policy_file(path, seed, version=4):
+    torch.manual_seed(seed)
+    brain = Brain(version=version, conv_channels=32, num_blocks=1, Norm='GN')
+    policy = CategoricalPolicy()
+    torch.save({'mortal': brain.state_dict(), 'policy_net': policy.state_dict(), 'steps': 4800,
+                'config': {'control': {'version': version}, 'resnet': {'conv_channels': 32, 'num_blocks': 1}}}, path)
+    return str(path), brain.eval(), policy.eval()
+
+
+def request(path, file, sha=None, label='p25'):
+    import json
+    from kl_anchor import sha256_file
+    path.write_text(json.dumps({'label': label, 'file': file, 'sha256': sha or sha256_file(file)}))
+    return str(path)
+
+
+def logits_of(brain, policy, obs, masks):
+    with torch.no_grad():
+        return policy.logits(brain(obs), masks)
+
+
+@pytest.fixture
+def inputs():
+    g = torch.Generator().manual_seed(5)
+    obs = torch.randn(8, 1012, 34, generator=g)
+    masks = torch.rand(8, A, generator=g) < 0.5
+    masks[:, 0] = True
+    return obs, masks
+
+
+def test_a_request_moves_the_anchor_and_carries_the_coefficient(anchor_file, tmp_path, inputs):
+    from kl_anchor import request_path
+    obs, masks = inputs
+    a = make(anchor_file, target=0.02, adapt_every=2, tolerance=1.25, factor=1.5, hold_windows=3)
+    for step in range(1, 5):
+        a.observe(torch.tensor(0.1), step)  # above the band twice: 0.1 · 1.5²
+    a.observe(torch.tensor(0.1), 5)  # half a window, against the old anchor
+    coef = a.coef(5)
+    assert coef == pytest.approx(0.225) and a.reached and a.windows == 2 and a.kl_n == 1
+    snap, brain, policy = policy_file(tmp_path / 'p25.pth', seed=11)
+    req = request_path(str(tmp_path / 'run' / 'mortal.pth'))
+    assert req == str(tmp_path / 'run' / 'reanchor.json')
+    assert a.poll(req, 5, 5) is None  # no request yet
+    (tmp_path / 'run').mkdir()
+    rec = a.poll(request(tmp_path / 'run' / 'reanchor.json', snap), 4800, 4790)
+    assert rec['reanchor'] == 'p25' and rec['stage'] == 2 and rec['steps'] == 4800 and rec['coef'] == coef
+    assert a.stage == 2 and a.anchor_sha256 == rec['sha256']
+    assert torch.allclose(a.logits(obs, masks), logits_of(brain, policy, obs, masks), atol=1e-5)
+    assert not any(p.requires_grad for p in (*a.brain.parameters(), *a.policy.parameters()))
+    # the coefficient carries; the old anchor's half window and the hold's progress don't
+    assert a.coef(4790) == coef and a.kl_n == 0 and not a.reached and a.windows == 0
+    assert a.poll(req, 5200, 5190) is None  # picked up once
+
+
+def test_the_hold_applies_again_after_a_re_anchor(anchor_file, tmp_path):
+    a = make(anchor_file, target=0.02, adapt_every=1, tolerance=1.5, factor=2.0, hold_windows=2)
+    for step in range(1, 4):
+        a.observe(0.0, step)  # the hold ends after 2 windows: the third halves it
+    assert a.coef(3) == pytest.approx(0.05)
+    snap, _, _ = policy_file(tmp_path / 'p25.pth', seed=11)
+    a.poll(request(tmp_path / 'reanchor.json', snap), 3, 3)
+    for step in range(4, 6):
+        a.observe(0.0, step)  # held again: the KL to the new anchor starts at ≈ 0
+    assert a.coef(5) == pytest.approx(0.05)
+    a.observe(0.0, 6)
+    assert a.coef(6) == pytest.approx(0.025)
+
+
+def test_a_bad_request_is_refused_once_and_the_anchor_kept(anchor_file, tmp_path, inputs):
+    obs, masks = inputs
+    _, brain, policy = anchor_file
+    a = make(anchor_file)
+    snap, _, _ = policy_file(tmp_path / 'p25.pth', seed=11)
+    req = request(tmp_path / 'reanchor.json', snap, sha='0' * 64)
+    rec = a.poll(req, 10, 10)
+    assert rec['reanchor_failed'] == 'p25' and 'sha256' in rec['error']
+    assert a.poll(req, 20, 20) is None  # not retried at every save
+    v5, _, _ = policy_file(tmp_path / 'v5.pth', seed=12, version=5)
+    assert 'version' in a.poll(request(tmp_path / 'reanchor.json', v5), 30, 30)['error']
+    missing = request(tmp_path / 'reanchor.json', snap)
+    os.remove(snap)
+    assert 'reanchor_failed' in a.poll(missing, 40, 40)
+    (tmp_path / 'reanchor.json').write_text('{"label": "p2')  # torn
+    assert 'unreadable' in a.poll(str(tmp_path / 'reanchor.json'), 50, 50)['error']
+    assert a.stage == 1
+    assert torch.allclose(a.logits(obs, masks), logits_of(brain, policy, obs, masks), atol=1e-5)
+    # a request naming the run's first anchor changes nothing
+    assert a.poll(request(tmp_path / 'reanchor.json', anchor_file[0]), 60, 60) is None and a.stage == 1
+
+
+def test_a_re_anchored_state_resumes_without_the_anchor_file(anchor_file, tmp_path, inputs):
+    """A restarted trainer, or a replaced learner without the snapshot, resumes on the anchor its
+    checkpoint names."""
+    from checkpoint import load_checkpoint
+    obs, masks = inputs
+    a = make(anchor_file, adapt_every=4)
+    p25, brain25, policy25 = policy_file(tmp_path / 'p25.pth', seed=11)
+    a.poll(request(tmp_path / 'reanchor.json', p25), 100, 100)
+    p50, brain50, policy50 = policy_file(tmp_path / 'p50.pth', seed=13)
+    a.poll(request(tmp_path / 'reanchor.json', p50, label='p50'), 200, 200)
+    a.observe(torch.tensor(0.03), 201)
+    assert [s['label'] for s in a.stages] == ['p25', 'p50'] and a.stage == 3
+    torch.save({'kl_anchor': a.state_dict()}, tmp_path / 'mortal.pth')
+    os.remove(p25)
+    os.remove(p50)
+    b = make(anchor_file, adapt_every=4)
+    b.load_state_dict(load_checkpoint(str(tmp_path / 'mortal.pth'))['kl_anchor'])
+    assert b.stage == 3 and b.stages == a.stages and b.kl_n == 1 and b.coef(201) == a.coef(201)
+    assert torch.allclose(b.logits(obs, masks), logits_of(brain50, policy50, obs, masks), atol=1e-5)
+    # the request it was saved under is already done; an earlier stage's is ignored
+    assert b.poll(str(tmp_path / 'reanchor.json'), 202, 202) is None
+    (tmp_path / 'stale.json').write_text(__import__('json').dumps(
+        {'label': 'p25', 'file': p25, 'sha256': a.stages[0]['sha256']}))
+    assert b.poll(str(tmp_path / 'stale.json'), 203, 203) is None and b.stage == 3
+
+
+def test_a_changed_first_anchor_is_refused(anchor_file, tmp_path):
+    a = make(anchor_file)
+    state = a.state_dict()
+    assert 'weights' not in state and state['stages'] == []  # stage 1: the config's file is the anchor
+    b = make(anchor_file)
+    b.load_state_dict(state)
+    old = {k: v for k, v in state.items() if k not in ('sha256', 'stages')}
+    b.load_state_dict(old)  # a checkpoint from before re-anchoring existed
+    with pytest.raises(ValueError, match='changed'):
+        b.load_state_dict(dict(state, sha256='f' * 64))

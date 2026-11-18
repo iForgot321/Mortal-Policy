@@ -35,27 +35,69 @@ Config (`[policy.kl_anchor]`), two coefficient rules:
     factor = 2.0
     coef_min = 0.01         # in the local smoke, 0.1 held the KL near 0.007: the 0.02 target
     coef_max = 10.0         # needs ≈ 0.03, and a floor far below that switches the anchor off
+
+Re-anchoring in the run (D64, D68: `experiments/size-curves.md`). The fleet asks for it by writing
+`reanchor.json` beside the trainer's state file (`request_path`; `fleet.py reanchor`):
+
+    {"label": "p25", "file": "<a checkpoint on this machine>", "sha256": "<its sha256>", ...}
+
+The trainer polls it at start and at every save (`poll`). A request for a checkpoint that isn't
+the current anchor makes that checkpoint the anchor from then on, once its sha256 matches. The
+adaptive coefficient carries over; the window's KL, measured against the old anchor, is dropped,
+and the start-of-run hold applies again, since the KL starts again from ≈ 0. The new anchor's
+weights are kept in the trainer's state (`state_dict`), so a restarted or replaced learner resumes
+on it whatever files it has; the config's `state_file` stays the run's first anchor (stage 1) and
+is still checked against the checkpoint's.
 """
+import hashlib
+import json
+import os
+
 import torch
 
 from checkpoint import load_checkpoint
 from model import Brain, CategoricalPolicy
 
 MODES = ('fixed', 'adaptive')
+REQUEST_NAME = 'reanchor.json'
 
 
-def load_policy(state_file, device):
-    """A policy checkpoint's (brain, policy), frozen and in eval mode."""
-    state = load_checkpoint(state_file)
+def request_path(state_file):
+    """Where the fleet asks the trainer that owns `state_file` to re-anchor."""
+    return os.path.join(os.path.dirname(state_file), REQUEST_NAME)
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def arch_of(state):
+    """The network a policy checkpoint holds, as Brain's arguments."""
     cfg = state['config']
-    brain = Brain(version=cfg['control'].get('version', 1), num_blocks=cfg['resnet']['num_blocks'],
-                  conv_channels=cfg['resnet']['conv_channels'], Norm=cfg['resnet'].get('norm', 'GN'))
-    brain.load_state_dict(state['mortal'])
+    return {'version': cfg['control'].get('version', 1), 'num_blocks': cfg['resnet']['num_blocks'],
+            'conv_channels': cfg['resnet']['conv_channels'], 'Norm': cfg['resnet'].get('norm', 'GN')}
+
+
+def build_policy(arch, mortal, policy_net, device):
+    """(brain, policy) from their weights, frozen and in eval mode."""
+    brain = Brain(**arch)
+    brain.load_state_dict(mortal)
     policy = CategoricalPolicy()
-    policy.load_state_dict(state['policy_net'])
+    policy.load_state_dict(policy_net)
     for m in (brain, policy):
         m.to(device).eval().requires_grad_(False)
     return brain, policy
+
+
+def load_policy(state_file, device):
+    """A policy checkpoint's (brain, policy), frozen and in eval mode, and its arch."""
+    state = load_checkpoint(state_file)
+    arch = arch_of(state)
+    return (*build_policy(arch, state['mortal'], state['policy_net'], device), arch)
 
 
 def same_file(a, b):
@@ -89,9 +131,15 @@ class KLAnchor:
         self.coef_max = float(cfg.get('coef_max', 10.0))
         if self.decay_steps <= 0 or self.tolerance <= 1 or self.factor <= 1 or not 0 < self.coef_min <= self.coef_max:
             raise ValueError('kl_anchor: decay_steps > 0, tolerance > 1, factor > 1, 0 < coef_min <= coef_max')
-        self.brain, self.policy = load_policy(self.state_file, device)
+        self.device, self.version = device, version
+        self.brain, self.policy, self.arch = load_policy(self.state_file, device)
         if self.brain.version != version:
             raise ValueError(f'kl_anchor: {self.state_file} is obs version {self.brain.version}, the run {version}')
+        # the run's first anchor (stage 1), then one record per re-anchor
+        self.sha256 = sha256_file(self.state_file)
+        self.stages = []
+        # requests that failed in this process, so a bad one isn't retried at every save
+        self.failed = set()
         # the adaptive coefficient, and the KL seen since its last update
         self.adaptive_coef = min(max(self.coef0, self.coef_min), self.coef_max)
         self.kl_sum = 0.0
@@ -130,16 +178,85 @@ class KLAnchor:
         elif mean < target / self.tolerance and (self.reached or self.windows > self.hold_windows):
             self.adaptive_coef = max(self.adaptive_coef / self.factor, self.coef_min)
 
+    @property
+    def stage(self):
+        return len(self.stages) + 1
+
+    @property
+    def anchor_sha256(self):
+        """The current anchor's sha256: the last re-anchor's file, else the config's."""
+        return self.stages[-1]['sha256'] if self.stages else self.sha256
+
+    def reanchor(self, file, sha256, *, label=None, step=None, t=None):
+        """Make the policy checkpoint at `file` the anchor from here on. Its sha256 must be
+        `sha256`. Returns the stage's record."""
+        got = sha256_file(file)
+        if got != sha256:
+            raise ValueError(f'kl_anchor: {file} has sha256 {got[:12]}, the request {sha256[:12]}')
+        state = load_checkpoint(file, map_location='cpu')
+        arch = arch_of(state)
+        if arch['version'] != self.version:
+            raise ValueError(f'kl_anchor: {file} is obs version {arch["version"]}, the run {self.version}')
+        self.brain, self.policy = build_policy(arch, state['mortal'], state['policy_net'], self.device)
+        self.arch = arch
+        # the window so far measured the KL to the old anchor; the policy starts again at ≈ 0
+        self.kl_sum, self.kl_n = 0.0, 0
+        self.reached, self.windows = False, 0
+        rec = {'stage': self.stage + 1, 'label': label, 'file': file, 'sha256': sha256,
+               'steps': step, 't': t, 'coef': self.coef(t or 0)}
+        self.stages.append(rec)
+        return rec
+
+    def poll(self, path, step, t):
+        """Act on the fleet's request at `path`, if any: re-anchor when it names a checkpoint other
+        than the current anchor. Returns a record to log ({'reanchor': label, ...} or
+        {'reanchor_failed': label, 'error': ...}) when something happened, else None. A request
+        for an earlier stage's anchor is ignored."""
+        try:
+            with open(path) as f:
+                req = json.load(f)
+        except FileNotFoundError:
+            return None
+        except (OSError, json.JSONDecodeError) as e:
+            return {'reanchor_failed': None, 'error': f'unreadable request {path}: {e!r}'}
+        sha = req.get('sha256')
+        done = {self.sha256, *(s['sha256'] for s in self.stages)}
+        if sha in done or (sha, req.get('file')) in self.failed:
+            return None
+        try:
+            rec = self.reanchor(req['file'], sha, label=req.get('label'), step=step, t=t)
+        except (KeyError, OSError, ValueError, RuntimeError) as e:
+            self.failed.add((sha, req.get('file')))
+            return {'reanchor_failed': req.get('label'), 'sha256': sha, 'error': repr(e)[:300]}
+        return {'reanchor': rec['label'], **rec}
+
     def state_dict(self):
-        return {'mode': self.mode, 'state_file': self.state_file, 'adaptive_coef': self.adaptive_coef,
-                'kl_sum': float(self.kl_sum), 'kl_n': self.kl_n, 'reached': self.reached,
-                'windows': self.windows}
+        state = {'mode': self.mode, 'state_file': self.state_file, 'adaptive_coef': self.adaptive_coef,
+                 'kl_sum': float(self.kl_sum), 'kl_n': self.kl_n, 'reached': self.reached,
+                 'windows': self.windows, 'sha256': self.sha256, 'stages': list(self.stages)}
+        if self.stages:
+            # the current anchor travels with the trainer's state (the module docstring)
+            state['arch'] = self.arch
+            state['weights'] = {'mortal': self.brain.state_dict(), 'policy_net': self.policy.state_dict()}
+        return state
 
     def load_state_dict(self, state):
         # compared from workdir/ on: a box writes /workspace/Mortal-Policy/..., the workstation
         # /home/.../Mortal-Policy/..., for the same file
         if not same_file(state["state_file"], self.state_file):
             raise ValueError(f"kl_anchor: the checkpoint anchors to {state['state_file']}, the config to {self.state_file}")
+        if state.get('sha256', self.sha256) != self.sha256:
+            raise ValueError(f'kl_anchor: {self.state_file} has changed since the checkpoint was saved '
+                             f"(sha256 {self.sha256[:12]}, the checkpoint's {state['sha256'][:12]})")
+        stages = state.get('stages') or []
+        if stages:
+            arch = state['arch']
+            if arch['version'] != self.version:
+                raise ValueError(f'kl_anchor: the checkpoint\'s anchor is obs version {arch["version"]}, the run {self.version}')
+            w = state['weights']
+            self.brain, self.policy = build_policy(arch, w['mortal'], w['policy_net'], self.device)
+            self.arch = arch
+        self.stages = list(stages)
         self.adaptive_coef = state['adaptive_coef']
         self.kl_sum = state['kl_sum']
         self.kl_n = state['kl_n']

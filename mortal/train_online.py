@@ -25,7 +25,7 @@ def train():
     from dataloader import FileDatasetsIter, worker_init_fn
     from rl_dataset import OrderedDatasetsIter, split_by_sidecar, shuffled_minibatches
     from ppo import ppo_loss, reverse_kl
-    from kl_anchor import KLAnchor
+    from kl_anchor import KLAnchor, request_path as reanchor_request_path
     import schedules
     from critic import Critic, gae_targets, explained_variance, calibration, advantage_variance_ratio
     import numpy as np
@@ -236,6 +236,28 @@ def train():
     if kl_anchor is not None and state is not None and 'kl_anchor' in state:
         kl_anchor.load_state_dict(state['kl_anchor'])
         logging.info(f'loaded the kl anchor (coef {kl_anchor.coef(steps - schedule_origin):g})')
+
+    # D68: the fleet's re-anchor requests (kl_anchor.py), polled now and at every save; each
+    # pickup or refusal is logged beside the state file, which the fleet's pull brings back
+    reanchor_request = reanchor_request_path(state_file)
+
+    def poll_anchor():
+        if kl_anchor is None:
+            return
+        rec = kl_anchor.poll(reanchor_request, steps, steps - schedule_origin)
+        if rec is None:
+            return
+        if 'reanchor' in rec:
+            logging.info(f"re-anchored, stage {rec['stage']}: {rec['label']} {rec['file']} "
+                         f"({rec['sha256'][:12]}) at step {steps:,}; coef {rec['coef']:g} carried")
+        else:
+            logging.error(f're-anchor request refused: {rec}')
+        with open(path.join(path.dirname(state_file), 'reanchor.jsonl'), 'a') as f:
+            f.write(json.dumps({'time': datetime.now().timestamp(), 'steps': steps, **rec}) + '\n')
+
+    poll_anchor()
+    if kl_anchor is not None:
+        logging.info(f'kl anchor stage {kl_anchor.stage}, sha256 {kl_anchor.anchor_sha256[:12]}')
        
     optimizer.zero_grad(set_to_none=True)
 
@@ -555,6 +577,7 @@ def train():
                                                 't': steps - schedule_origin, **rec}) + '\n')
                     if kl_anchor is not None:
                         writer.add_scalar('anchor/target', kl_anchor.target(steps - schedule_origin), steps)
+                        writer.add_scalar('anchor/stage', kl_anchor.stage, steps)
                     ppo_stats.clear()
                     anchor_stats.clear()
                     ppo_batches = 0
@@ -586,6 +609,8 @@ def train():
 
                 before_next_test_play = (test_every - steps % test_every) % test_every
                 logging.info(f'total steps: {steps:,} (~{before_next_test_play:,})')
+                # after this window's anchor stats (against the old anchor), before the save
+                poll_anchor()
                 stats_dict = save_shared_stats(shared_stats, steps, writer)
                 state = {
                     'mortal': mortal.state_dict(),
