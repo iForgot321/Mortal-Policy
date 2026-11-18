@@ -707,3 +707,7 @@ def test_a_replacement_learner_gets_the_current_anchor(tmp_path, monkeypatch):
         assert f.read() == b'p25 weights'
     req = json.loads((tmp_path / 'box' / 'workdir' / 'p0' / 'reanchor.json').read_text())
     assert req['sha256'] == sha and req['file'] == fleet.box_snapshot(run, 'p25')
+
+
+def test_pulls_leave_the_server_token_on_the_box():
+    assert '--exclude=server.token' in fleet.PULL_EXCLUDES

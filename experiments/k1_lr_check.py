@@ -160,6 +160,7 @@ def serve(replay, port):
             msg = recv_msg(self.request)
             if msg['type'] == 'submit_param':
                 replay.version += 1
+                send_msg(self.request, {'status': 'ok'})
             elif msg['type'] == 'drain':
                 send_msg(self.request, replay.drain())
 
@@ -236,6 +237,9 @@ def cmd_run(a):
     logs = sorted(os.listdir(out / 'pool' / 'logs'))[:a.limit or None]
     replay = Replay(logs, out / 'pool', run_dir / 'drain', a.drain)
     server = serve(replay, a.port)
+    # the trainer sends server.py's token (common.py); this replay server takes any
+    from common import new_server_token, server_token_path
+    new_server_token(server_token_path(cfg))
     t0 = time.time()
     with open(run_dir / 'trainer.log', 'w') as log:
         trainer = subprocess.Popen([sys.executable, 'train_online.py'], cwd=ROOT / 'mortal', stdout=log,

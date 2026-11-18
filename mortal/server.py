@@ -1,5 +1,6 @@
 import prelude
 
+import hmac
 import ipaddress
 import logging
 import socket
@@ -14,7 +15,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from socketserver import ThreadingTCPServer, BaseRequestHandler
 from threading import Lock
-from common import send_msg, recv_msg, UnexpectedEOF
+from common import send_msg, recv_msg, UnexpectedEOF, new_server_token, server_token_path
 from config import config
 
 @dataclass
@@ -39,6 +40,8 @@ class State:
     dqn_param: Optional[OrderedDict]
     param_version: int
     idle_param_version: int
+    # the trainer's requests carry it (common.py: server_token)
+    token: str = ''
 S = None
 
 class Handler(BaseRequestHandler):
@@ -50,11 +53,23 @@ class Handler(BaseRequestHandler):
                 self.handle_get_param(msg)
             case 'submit_replay':
                 self.handle_submit_replay(msg)
-            # called by trainer
+            # called by trainer, and answered only for it (common.py's token)
             case 'submit_param':
-                self.handle_submit_param(msg)
+                if self.from_trainer(msg):
+                    self.handle_submit_param(msg)
             case 'drain':
-                self.handle_drain()
+                if self.from_trainer(msg):
+                    self.handle_drain()
+
+    def from_trainer(self, msg):
+        """Whether a trainer request carries this server's token. Tunnel peers (actors) can't
+        read it, so they can't replace the parameters every actor plays or take the buffer."""
+        token = msg.get('token')
+        if isinstance(token, str) and S.token and hmac.compare_digest(token, S.token):
+            return True
+        logging.warning(f'refused {msg["type"]} from {self.client_address}: no valid token')
+        self.send_msg({'status': 'denied'})
+        return False
 
     def handle_get_param(self, msg):
         with S.dir_lock:
@@ -105,6 +120,7 @@ class Handler(BaseRequestHandler):
             S.param_version += 1
             if msg['is_idle']:
                 S.idle_param_version = S.param_version
+        self.send_msg({'status': 'ok'})
 
     def handle_drain(self):
         drained_size = 0
@@ -128,6 +144,7 @@ class Handler(BaseRequestHandler):
         with S.param_lock:
             param_version = S.param_version
         self.send_msg({
+            'status': 'ok',
             'count': drained_size,
             'drain_dir': S.drain_dir,
             'behaviour_drain_dir': S.behaviour_drain_dir,
@@ -188,6 +205,9 @@ def main():
         if path.isdir(d):
             shutil.rmtree(d)
         os.makedirs(d)
+    # before listening: box_learner.sh starts the trainer once the port is open
+    S.token = new_server_token(server_token_path())
+    logging.info(f'trainer token in {server_token_path()}')
 
     with Server(bind_addr, Handler, bind_and_activate=False) as server:
         server.allow_reuse_address = True

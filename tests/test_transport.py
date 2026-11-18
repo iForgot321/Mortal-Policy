@@ -28,7 +28,7 @@ def server(tmp_path):
         behaviour_buffer_dir=str(dirs['buffer_behaviour']), behaviour_drain_dir=str(dirs['drain_behaviour']),
         capacity=4, force_sequential=True, dir_lock=Lock(), param_lock=Lock(),
         buffer_size=0, submission_id=0, buffer_versions={},
-        mortal_param=None, dqn_param=None, param_version=7, idle_param_version=0,
+        mortal_param=None, dqn_param=None, param_version=7, idle_param_version=0, token='t0ken',
     )
     return server
 
@@ -117,3 +117,52 @@ def test_server_binds_loopback_only(server):
     with pytest.raises(SystemExit):
         server.check_bind_host('0.0.0.0')
     server.check_bind_host('0.0.0.0', allow_non_loopback=True)
+
+
+def handle(server, msg):
+    """One request through Handler.handle, as from a connection; returns the replies."""
+    replies = []
+    handler = server.Handler.__new__(server.Handler)
+    handler.client_address = ('127.0.0.1', 40000)
+    handler.recv_msg = lambda: msg
+    handler.send_msg = lambda m, packed=False: replies.append(m)
+    handler.handle()
+    return replies
+
+
+def test_trainer_requests_need_the_servers_token(server):
+    """The 2026-11-09 audit's finding 9: a tunnel peer arrives from loopback like the trainer,
+    so only the token tells them apart (common.py)."""
+    import torch
+    param = {'type': 'submit_param', 'mortal': {'w': torch.ones(1)}, 'dqn': {}, 'is_idle': True}
+    for bad in ({}, {'token': ''}, {'token': 'guess'}, {'token': 7}):
+        assert handle(server, {**param, **bad}) == [{'status': 'denied'}]
+        assert server.S.mortal_param is None and server.S.param_version == 7
+    assert handle(server, {**param, 'token': 't0ken'}) == [{'status': 'ok'}]
+    assert server.S.param_version == 8 and server.S.idle_param_version == 8
+
+    submit(server, ['a.json.gz', 'b.json.gz', 'c.json.gz', 'd.json.gz'], version=8)
+    assert handle(server, {'type': 'drain'}) == [{'status': 'denied'}]
+    assert server.S.buffer_size == 4 and len(os.listdir(server.S.buffer_dir)) == 4  # not taken
+    (rsp,) = handle(server, {'type': 'drain', 'token': 't0ken'})
+    assert rsp['status'] == 'ok' and rsp['count'] == 4
+
+    # an actor's requests need no token
+    (rsp,) = handle(server, {'type': 'get_param', 'param_version': -1})
+    assert torch.load(__import__('io').BytesIO(rsp), weights_only=True)['status'] == 'ok'
+    server.S.token = ''  # a server that never wrote its token answers no trainer request
+    assert handle(server, {**param, 'token': ''}) == [{'status': 'denied'}]
+
+
+def test_the_token_file_is_owner_only_and_new_at_each_start(server, tmp_path):
+    import stat
+    from common import new_server_token, server_token_path
+    cfg = {'online': {'server': {'buffer_dir': str(tmp_path / 'run' / 'buffer')}}}
+    path = server_token_path(cfg)
+    assert path == str(tmp_path / 'run' / 'server.token')
+    first = new_server_token(path)
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    with open(path) as f:
+        assert f.read().strip() == first and len(first) == 64
+    assert new_server_token(path) != first
+    assert sorted(os.listdir(tmp_path / 'run')) == ['server.token']  # no temporary left

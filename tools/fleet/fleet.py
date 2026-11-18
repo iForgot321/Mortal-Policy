@@ -852,7 +852,7 @@ def stop(run, box, tunnel=False):
 # ---------------------------------------------------------------- results
 
 PULL_EXCLUDES = ['--exclude=buffer*/', '--exclude=drain*/', '--exclude=train_play*/', '--exclude=test_play*/',
-                 '--exclude=*.tmp']
+                 '--exclude=*.tmp', '--exclude=server.token']
 
 
 def pull(run, boxes=None):
