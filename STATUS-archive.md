@@ -4,6 +4,45 @@ Session entries moved out of `STATUS.md`, verbatim, newest first. It isn't read 
 search it when a detail is needed (`grep -n` for a run name, a date or a decision). The entries'
 "current position" statements were true when written; `STATUS.md` holds today's.
 
+## 2026-11-12 — the pilot's draft reviewed, pre-registered and launched
+
+**Changed**
+- **The review of `docs/design/t1-preconditions-draft.md`** found the pilot not ready as drafted: the
+  candidates' room wasn't matched, the pass rule compared with `k2b` full, not the soak, and a new
+  run clock would have restarted the LR, clip and entropy schedules. The user took the review's
+  picks ("Go with your picks, I give the okay for the box rental as well").
+- **Pre-registered** (`experiments/anchor-release.md`, D64's note in `08`, `05` §5.1's pointer) and
+  the draft rewritten to the decided design.
+- **Code:** `tools/fleet/stage_init.py` (a snapshot without its run clock, and with `--new-anchor`
+  without its anchor state); `fleet.py` ships the anchor's file to the learner;
+  `release-{a,b}.toml` and their smoke configs; `experiments/release_launch.sh`,
+  `release_soak_chain.sh`, `release_measure_chain.sh`, `release_paired.py`.
+- **Launched** both fleets (above). B's live quote passed the $1.90/h limit, the user chose "Now, up
+  to $2.10/h", and it rented at $1.77/h.
+- **The disk compaction** is no longer waiting on the user (the user: not needed).
+
+**Verified**
+- `pytest tests/`: 202 pass, 5 skipped (4 new). No Rust change, so no cargo checks.
+- Both configs smoke-ran on the workstation before the rental, and both learners logged the right
+  anchor, coefficient and clock on their boxes. A at t = 4,800: KL 0.0195, agreement 95.2%.
+
+**The controller's course, as observed (2026-11-13):** the review's model was right and the
+"correction" written at launch was wrong. A's KL trails target / 1.5 with one cut at a time (0.035
+at half-time, heading for ≈ 0.04 at the end); it didn't jump to ≈ 0.05. B's coefficient
+over-tightened after its overshoot, so B holds ≈ 0.016 nats from `k2b`, not 0.027. The note's
+Progress section has both traces; the user was told.
+
+**Not done**
+- The drift report at each snapshot, the candidates' measures and the reading (they follow the
+  runs). No strength claim yet.
+- `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
+
+**Next:** D31's curves are planned (D68, 2026-11-18; draft pre-registration
+`experiments/size-curves.md`): b12c256 and b16c256, two seeds each (a third if close), 24 h
+re-anchoring stages, ≈ $680–735. Before the rental: in-run re-anchoring, the `server.py` peer
+restriction and `fleet.py`'s price limit (code, tests, smoke runs), the two B0s and the students'
+v5 states. Then the quote for the user's yes.
+
 ## 2026-11-10 — the audit's seven changes (the user: "settle all 7")
 
 **Changed**

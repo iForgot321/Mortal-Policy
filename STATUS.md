@@ -4,7 +4,7 @@ Where the project is against `docs/reference/00_ROADMAP.md`. Read it whole at th
 and update it at the end: what changed, verified vs only attempted, the next step. Keep it near 150
 lines. Older session entries are in `STATUS-archive.md`, verbatim: search it, don't read it through.
 
-## Current position (2026-11-17)
+## Current position (2026-11-18)
 
 **Done: D64's anchor-release pilot** (`experiments/anchor-release.md`, exploratory, $173.62). **Both
 candidates beat the fixed anchor's continuation at both tables, so T1 re-anchors to each new
@@ -37,15 +37,13 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 
 - The control (D66): distillation beats it at b8c192 (T-std pass, +0.0075); it beats No-SP A by
   +0.0140; BC s1's EMA weights beat No-SP A by +0.0226.
-- **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65), with T1's re-anchoring.
+- **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65, D68), with T1's
+  re-anchoring. The code they need is done and smoke-tested (2026-11-18, below). What's left is
+  the controller's hold (the user), the stage checks and the scripts, then the rental.
 
-
-**Done: D64's critic check** (`experiments/critic-ceiling.md`): K1 explains 13.7% of the kyoku's
-GRP-Δu, above supervised critics on 100K games (8.4–9.0%); by the pre-registered reading the critic
-isn't the lever. The audit's "1.2–1.8%" was of the H return, mostly unpredictable later kyoku.
-
-Phase 0 is exited (D55). In Phase 1 the SL substrate is being built: teachers done, students
-training. The early research has met G0's Select conditions; T1 waits on D64.
+Phase 0 is exited (D55). In Phase 1 the SL substrate is built: teachers done, two students
+qualified. The early research has met G0's Select conditions; T1 and D31's curves run on
+re-anchoring (D64, D68).
 
 | Rung | State |
 |---|---|
@@ -63,9 +61,8 @@ training. The early research has met G0's Select conditions; T1 waits on D64.
   - BC s1 beats the quick student No-SP A: T-std pass, +0.0219 [+0.012, +0.031].
   - **Both T-stds played the raw weights, not the EMA weights** (a save bug, fixed 2026-11-10;
     `experiments/teacher-ema-export.md`). D67: the teachers are the real EMA weights from now on.
-- **Students (running):** b8c192, b12c256, b16c256 and the hard-label control, distilled online from
-  both teachers in one stream, 2.34B presentations (D66, D67; `experiments/students-s1.md` has the
-  pre-registered qualification). The workstation smoke run passed (1,525 samples/s → ≈ 137 h).
+- **Students:** four distilled online from both teachers in one stream (D66, D67); two qualify
+  (above, `experiments/students-s1.md`).
 
 **RL (`05`)**
 - P0, both P1 seeds and V lost to their initializations; the diagnosis found unanchored drift
@@ -75,9 +72,9 @@ training. The early research has met G0's Select conditions; T1 waits on D64.
   pilot B, +0.0084 at 3× shanten-greedy.
 - **It stopped growing at the fixed anchor:** the run's second half bought +0.0025, the 48 h soak
   +0.0016 (the soak itself passes its gate, `experiments/fleet-soak.md`).
-- **D64 is satisfied:** the critic isn't the lever, and T1 and D31's curves run on re-anchoring
-  (above). What waits: their pre-registrations (how often to re-anchor), the students (≈ 11-17) and
-  the user's yes to the rentals. **D65:** D31's curves run two RL seeds per size.
+- **D64 is satisfied:** the critic isn't the lever (`experiments/critic-ceiling.md`: K1 explains
+  13.7% of the kyoku's GRP-Δu, supervised critics 8.4–9.0%), and re-anchoring beats the fixed
+  anchor (above). D31's curves: two seeds per size, a third when close, 24 h stages (D65, D68).
 - **Early-research spend:** ≈ $1.41K of the $2.2K cap with this pilot ($173.62), which leaves ≈ $785
   for D65's curves (≈ $630–690).
 - The observation is v5 from G0 on (D61); its checks and its recipe check pass
@@ -112,17 +109,10 @@ The teachers' training states (the only source of their EMA) are in
 
 ## Waiting on the user
 
-0. **The disk (2026-11-17):** the game logs of 19 finished lab runs were deleted (the user: the
-   targeted deletion; 90.7 GB): the two doubling estimates, the anchor-release pilot's six measures,
-   the soak's three tracking measures, and the engine arms' halfway checks, V sweep and `v-cql03`.
-   Each run keeps its registry row, `games.npz` and `panel.json`. The Linux disk dropped to 182 GB
-   used; **C: rose only from 6.5 to 12 GB**, so the rest is still held by the disk file
-   (`ext4.vhdx`, 278 GiB, not sparse). `fstrim` won't help: `/` is mounted with `discard`, so the
-   blocks were trimmed on delete. Only a compaction returns the ≈ 95 GiB, from an admin PowerShell
-   with nothing running: `wsl --shutdown`, then `Optimize-VHD -Path <vhdx> -Mode Full` (or
-   diskpart's `compact vdisk`), where `<vhdx>` is
-   `C:\Users\Peiyan\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc\LocalState\ext4.vhdx`.
-   Docker Desktop's unused data disk holds another 46 GiB.
+0. **The disk:** after the 2026-11-17 deletion of 19 finished lab runs' game logs (90.7 GB; each
+   keeps its registry row, `games.npz` and `panel.json`), C: had 12 GB free. On 2026-11-18 it had
+   57 GB, so the vhdx compaction looks done. If C: runs low again: `ext4.vhdx` isn't sparse, and
+   `fstrim` doesn't help with `discard` on, so only a compaction returns space (CLAUDE.md, Machine).
 1. *(Approved, recorded so it isn't asked again:)* the eval box for the students' qualification
    when they exist (2026-11-11, `experiments/students-s1.md`); the eval box for the pilot's measures
    (2026-11-12); no rerun of AWR vs BC on the EMA weights (the user: skip).
@@ -133,41 +123,48 @@ The teachers' training states (the only source of their EMA) are in
    compact). The pending compaction is gone from this file (the user, 2026-11-12); that sentence
    describes the machine and was left.
 
-## Last session: 2026-11-12, the pilot's draft reviewed, pre-registered and launched
+## Last session: 2026-11-18, the curves' prerequisites (`experiments/size-curves.md`)
 
-**Changed**
-- **The review of `docs/design/t1-preconditions-draft.md`** found the pilot not ready as drafted: the
-  candidates' room wasn't matched, the pass rule compared with `k2b` full, not the soak, and a new
-  run clock would have restarted the LR, clip and entropy schedules. The user took the review's
-  picks ("Go with your picks, I give the okay for the box rental as well").
-- **Pre-registered** (`experiments/anchor-release.md`, D64's note in `08`, `05` §5.1's pointer) and
-  the draft rewritten to the decided design.
-- **Code:** `tools/fleet/stage_init.py` (a snapshot without its run clock, and with `--new-anchor`
-  without its anchor state); `fleet.py` ships the anchor's file to the learner;
-  `release-{a,b}.toml` and their smoke configs; `experiments/release_launch.sh`,
-  `release_soak_chain.sh`, `release_measure_chain.sh`, `release_paired.py`.
-- **Launched** both fleets (above). B's live quote passed the $1.90/h limit, the user chose "Now, up
-  to $2.10/h", and it rented at $1.77/h.
-- **The disk compaction** is no longer waiting on the user (the user: not needed).
+State at the start: clean tree at `6a61eff`, nothing rented, no watchers needed, `.so` current,
+C: at 57 GB free.
+
+**Changed** (`764dbc1`..; nothing rented): the note's items 1–3 and the configs, each with tests
+(`experiments/size-curves.md`, "Before the first rental", has the detail).
+- **In-run re-anchoring:** `fleet.py reanchor` / `watch --reanchor` → the trainer's `reanchor.json`,
+  picked up at its next save with the coefficient carried; the anchor's weights live in the
+  trainer's state, and the watcher confirms each pickup from `reanchor.jsonl`.
+- **`server.py`** (the audit's finding 9): `submit_param` and `drain` need a per-start token only
+  the learner's user can read.
+- **Price limit:** `up --max-dph` (fleet and eval box) holds every offer a run takes, retries and
+  replacements included.
+- `stage_init.py --from-policy` (the B0s' inits); `curves-{b12,b16}-s{1,2,3}.toml`; the two
+  students in `frozen.sha256`.
 
 **Verified**
-- `pytest tests/`: 202 pass, 5 skipped (4 new). No Rust change, so no cargo checks.
-- Both configs smoke-ran on the workstation before the rental, and both learners logged the right
-  anchor, coefficient and clock on their boxes. A at t = 4,800: KL 0.0195, agreement 95.2%.
-
-**The controller's course, as observed (2026-11-13):** the review's model was right and the
-"correction" written at launch was wrong. A's KL trails target / 1.5 with one cut at a time (0.035
-at half-time, heading for ≈ 0.04 at the end); it didn't jump to ≈ 0.05. B's coefficient
-over-tightened after its overshoot, so B holds ≈ 0.016 nats from `k2b`, not 0.027. The note's
-Progress section has both traces; the user was told.
+- `env -u MORTAL_CFG pytest tests/`: 219 passed, 5 skipped (14 new). No Rust change.
+- **The re-anchoring smoke passed** on the workstation (`experiments/curves_smoke.py`, b12c256):
+  - pickup at the next save, the coefficient carried, the KL to the new anchor 0.0070 → 0.0009;
+  - a restart with the anchor's file moved away resumed on it;
+  - a bad hash was refused, and a second re-anchor went through;
+  - a tokenless `submit_param` was denied.
+- **v5 monitoring states** for both students (`workdir/diag/credit-b12c256`, `credit-b16c256`):
+  15,635 and 15,331 decisions, entropies 0.5166 and 0.5177.
+- Found on the way:
+  - loopback port 5004 times out on this workstation (WSL mirrored networking), so the smoke
+    uses 5099;
+  - a run from a B0 snapshot keeps the B0's run clock (`k2v5` began at t = 226,800), so the
+    curves' inits drop it.
 
 **Not done**
-- The drift report at each snapshot, the candidates' measures and the reading (they follow the
-  runs). No strength claim yet.
-- `server.py` still takes `submit_param` and `drain` from any tunnel peer (the audit's finding 9).
+- The token's check on a box (with the B0s).
+- The stage-boundary checks (the stop check, the drift limits) and the launch, B0 and measure
+  scripts.
+- The rental itself: the B0s, then the two batches, need the user's yes on a live quote.
 
-**Next:** D31's curves are planned (D68, 2026-11-18; draft pre-registration
-`experiments/size-curves.md`): b12c256 and b16c256, two seeds each (a third if close), 24 h
-re-anchoring stages, ≈ $680–735. Before the rental: in-run re-anchoring, the `server.py` peer
-restriction and `fleet.py`'s price limit (code, tests, smoke runs), the two B0s and the students'
-v5 states. Then the quote for the user's yes.
+**Waiting on the user:** the controller's hold after each re-anchor (`experiments/size-curves.md`,
+"Open"). With `k2.toml`'s 5 windows, the coefficient hits its floor ≈ 10–15 min into every stage, as
+in every run so far, so D68's start of 0.11 and its carry change nothing. Proposed:
+`hold_windows = 100`.
+
+**Next:** the user's answer on the hold, then the stage checks and the scripts. Then the quote for
+the B0s and the first batch.
