@@ -5,3 +5,5 @@ f8a867da0d26fdeaca81114a52e48e0483d8f2f4b71ee902cec78e72a66c8362  workdir/cql/qs
 c0ea3b963de2d6121997952791d0908dc15d0126c7c54f46428a3e5d8a6b981f  workdir/cql/qs-b/cql-qs-b-final.pth
 498aabc83c34291c0028107fc7cee6f3ac0e662bc37fba79b66b558306418054  workdir/sp-ablation/nosp-a/nosp-a-final.pth
 3180f2f08bdeb3a1ab7824dd0b7149f86ce5e94fd8873d1b58e2390980312f27  workdir/sp-ablation/nosp-b/nosp-b-final.pth
+8f8031f44aa95479f0367b3bc7070e5129c4ebb539f634b0e900e81081cc0758  workdir/secure/runs/students-s1/box/students-s1/ema-b12c256.pth
+8aedb80b92390df3f4056a1dbed21458c80f062ce7fb683966440b71566eab08  workdir/secure/runs/students-s1/box/students-s1/ema-b16c256.pth

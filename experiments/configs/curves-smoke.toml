@@ -1,0 +1,168 @@
+# Local smoke of D68's in-run re-anchoring (experiments/size-curves.md): server, trainer and
+# client on the workstation, from b12c256's EMA weights as a trainer's first state. Plumbing, not
+# an experiment: no registry rows, no strength claims. release-smoke-b.toml's plumbing (32-game
+# drains, saves every 5 steps) with obs v5, b12c256, the student as opponent and first anchor, and
+# D68's controller and schedules. The re-anchor requests are written by hand
+# (experiments/curves_smoke.sh).
+#
+# Init: python tools/fleet/stage_init.py --from-policy workdir/secure/runs/students-s1/box/students-s1/ema-b12c256.pth workdir/curves-smoke/init.pth
+#       cp workdir/curves-smoke/init.pth workdir/curves-smoke/mortal.pth && chmod u+w workdir/curves-smoke/mortal.pth
+
+[control]
+version = 5
+online = true
+
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/mortal.pth'
+best_state_file = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/best.pth'
+tensorboard_dir = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/tb'
+
+device = 'cuda:0'
+enable_cudnn_benchmark = true
+enable_amp = true
+enable_compile = true
+
+batch_size = 512
+opt_step_every = 1
+
+save_every = 5
+# test_play proves nothing (no verdict); evaluation is the lab's job. Also, the online
+# trainer exits after test_play and main() respawns it.
+test_every = 100_000_000
+submit_every = 5
+# unused with ratio_reference = 'stored'
+old_update_every = 400
+
+[train_play.default]
+games = 32
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/train_play'
+# behaviour sidecars (D46): log_dir + '_behaviour'
+repeats = 1
+explore_rate = 1.0
+
+[test_play]
+games = 1000
+log_dir = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/test_play'
+
+[dataset]
+# per-seat ordered trajectories joined to their behaviour sidecars (rl_dataset.py)
+ordered = true
+globs = []
+file_index = ''
+player_names_files = []
+# 1v3 logs carry one trainee seat: ~158 decisions, ~11 MB of fp16 obs per log
+file_batch_size = 8
+reserve_ratio = 0.0
+num_workers = 1
+num_epochs = 1
+enable_augmentation = false
+augmented_first = false
+obs_fp16 = true
+
+[resnet]
+conv_channels = 256
+num_blocks = 12
+
+[env]
+# u x 100 (D2)
+pts = [90.0, 50.0, -10.0, -130.0]
+# the ordered dataset always uses fixed units; recorded for the checkpoint
+reward_standardization = false
+
+[policy]
+ratio_reference = 'stored'
+horizon = 'H'
+advantage_norm = true
+entropy_weight = 1e-3
+clip_ratio = 0.2
+dual_clip = 3.0
+
+[optim]
+eps = 1e-8
+betas = [0.9, 0.999]
+weight_decay = 0.0
+max_grad_norm = 0.5
+
+[optim.scheduler]
+# constant: peak = final
+peak = 2e-5
+final = 2e-5
+warm_up_steps = 0
+max_steps = 0
+
+[critic]
+enabled = true
+# B0: the policy stays frozen and only the critic trains
+warmup = false
+conv_channels = 128
+num_blocks = 8
+gamma = 1.0
+gae_lambda = 0.95
+max_grad_norm = 1.0
+
+[critic.optim]
+weight_decay = 0.0
+
+[critic.optim.scheduler]
+peak = 1e-4
+final = 1e-4
+warm_up_steps = 0
+max_steps = 0
+
+[baseline.train]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/secure/runs/students-s1/box/students-s1/ema-b12c256.pth'
+
+[baseline.test]
+device = 'cuda:0'
+enable_compile = false
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/secure/runs/students-s1/box/students-s1/ema-b12c256.pth'
+
+[online]
+history_window = 50
+# actor-side compile; the engine's batch sizes vary
+enable_compile = false
+
+[online.remote]
+host = '127.0.0.1'
+# 5004 times out on this workstation (WSL mirrored networking; a Windows-side port)
+port = 5099
+
+[online.server]
+buffer_dir = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/buffer'
+drain_dir = '/home/iforgot/projects/Mortal-Policy/workdir/curves-smoke/drain'
+# sidecars: buffer_dir + '_behaviour', drain_dir + '_behaviour'
+sample_reuse_rate = 0
+sample_reuse_threshold = 0
+capacity = 32
+force_sequential = true
+
+[grp]
+state_file = '/home/iforgot/projects/Mortal-Policy/workdir/grp-v2/grp-v2-frozen.pth'
+
+[grp.network]
+hidden_size = 64
+num_layers = 2
+
+[policy.kl_anchor]
+# D68 (experiments/size-curves.md): stage 1 anchors to the starting student (the default,
+# baseline.train.state_file); start 0.11, tolerance 1.25, factor 1.5; the controller acts every 5
+# steps here, every 400 in the runs
+enabled = true
+mode = 'adaptive'
+coef = 0.11
+target = 0.02
+target_growth = 0.0
+adapt_every = 5
+hold_windows = 5
+tolerance = 1.25
+factor = 1.5
+coef_min = 0.01
+coef_max = 10.0
+
+[policy.schedules]
+# k2.toml's power laws on the run clock
+t0 = 100_000
+lr = { v0 = 2e-5, p = 0.3, lo = 5e-6 }
+clip_ratio = { v0 = 0.2, p = 0.2, lo = 0.1 }
+entropy_weight = { v0 = 1e-3, p = 0.5, lo = 1e-4 }
