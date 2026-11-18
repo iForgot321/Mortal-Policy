@@ -13,7 +13,12 @@ that clock, and `train_online.py` refuses an anchor other than the snapshot's. T
 
 Everything else is kept: the weights, the optimizers, the critic and the global step.
 
-    python tools/fleet/stage_init.py SNAPSHOT OUT.pth [--new-anchor]
+With `--from-policy`, the source is a policy checkpoint that isn't a trainer's state (a student,
+`train_students.py`: weights and config only), and the copy is a trainer's first state: those
+weights, the network the config names, step 0 and a fresh AMP scaler; no optimizer, clock or
+anchor state, so `train_online.py` starts from it as from an offline checkpoint (D68's B0s).
+
+    python tools/fleet/stage_init.py SNAPSHOT OUT.pth [--new-anchor | --from-policy]
 
 OUT is written read-only and never overwritten; its sha256 is printed.
 """
@@ -21,6 +26,7 @@ import argparse
 import hashlib
 import os
 import sys
+import time
 
 import torch
 
@@ -37,6 +43,21 @@ def stage(state, new_anchor=False):
     return {k: v for k, v in state.items() if k not in drop}, dropped
 
 
+# torch.amp.GradScaler's defaults, as an enabled scaler saves them before its first step
+FRESH_SCALER = {'scale': 65536.0, 'growth_factor': 2.0, 'backoff_factor': 0.5, 'growth_interval': 2000,
+                '_growth_tracker': 0}
+
+
+def from_policy(state, source_sha256=None):
+    """A trainer's first state from a policy checkpoint's weights (the module docstring)."""
+    cfg = state['config']
+    resnet = {k: cfg['resnet'][k] for k in ('conv_channels', 'num_blocks', 'norm') if k in cfg['resnet']}
+    return {'mortal': state['mortal'], 'policy_net': state['policy_net'],
+            'config': {'control': {'version': cfg['control']['version'], 'online': False}, 'resnet': resnet},
+            'scaler': dict(FRESH_SCALER), 'steps': 0, 'timestamp': time.time(),
+            'best_perf': {'avg_rank': 4.0, 'avg_pt': -135.0}, 'from_policy': source_sha256}
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, 'rb') as f:
@@ -45,12 +66,17 @@ def sha256(path):
     return h.hexdigest()
 
 
-def write(src, out, new_anchor=False):
-    """Write `src`'s staged copy to `out` (read-only; an existing `out` is refused). Returns
-    (the staged state, the keys dropped)."""
+def write(src, out, new_anchor=False, policy=False):
+    """Write `src`'s staged copy (or, with `policy`, the trainer state made from it) to `out`
+    (read-only; an existing `out` is refused). Returns (the state written, the keys dropped)."""
     if os.path.exists(out):
         raise FileExistsError(f'{out} exists; a stage init is never overwritten')
-    state, dropped = stage(load_checkpoint(src), new_anchor)
+    if policy:
+        loaded = load_checkpoint(src)
+        state = from_policy(loaded, sha256(src))
+        dropped = sorted(k for k in loaded if k not in state)
+    else:
+        state, dropped = stage(load_checkpoint(src), new_anchor)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     torch.save(state, out + '.tmp')
     os.chmod(out + '.tmp', 0o444)
@@ -64,8 +90,12 @@ def main(argv=None):
     p.add_argument('out')
     p.add_argument('--new-anchor', action='store_true',
                    help="drop the KL anchor's state too (the new run anchors to another policy)")
+    p.add_argument('--from-policy', action='store_true',
+                   help="the source is a policy's weights (a student), not a trainer's snapshot")
     a = p.parse_args(argv)
-    state, dropped = write(a.snapshot, a.out, a.new_anchor)
+    if a.new_anchor and a.from_policy:
+        p.error('--from-policy makes a first state: it has no anchor to drop')
+    state, dropped = write(a.snapshot, a.out, a.new_anchor, a.from_policy)
     print(f'{a.out}: global step {state["steps"]:,}; dropped {", ".join(dropped) or "nothing"}')
     if 'kl_anchor' in state:
         anchor = state['kl_anchor']

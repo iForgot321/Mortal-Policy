@@ -90,3 +90,29 @@ def test_the_init_is_read_only_and_never_overwritten(snapshot, tmp_path):
         stage_init.write(src, out)
     assert stage_init.main([src, str(tmp_path / 'cli.pth'), '--new-anchor']) == 0
     assert 'kl_anchor' not in load_checkpoint(str(tmp_path / 'cli.pth'))
+
+
+def test_a_student_becomes_a_trainers_first_state(tmp_path):
+    """D68's B0s start from the students, whose files hold weights and config only
+    (train_students.py); train_online.py needs a scaler, a step count and its best_perf."""
+    from torch.amp import GradScaler
+    src = tmp_path / 'student.pth'
+    torch.manual_seed(4)
+    brain = Brain(version=5, conv_channels=32, num_blocks=1, Norm='GN')
+    torch.save({'config': {'control': {'version': 5}, 'resnet': {'conv_channels': 32, 'num_blocks': 1, 'norm': 'GN'}},
+                'mortal': brain.state_dict(), 'policy_net': CategoricalPolicy().state_dict(), 'heads': {'x': torch.ones(1)},
+                'steps': 1_142_584, 'presentations': 2_340_000_000, 'teachers': ['bc', 'awr']}, src)
+    out = tmp_path / 'init.pth'
+    state, dropped = stage_init.write(str(src), str(out), policy=True)
+    assert dropped == ['heads', 'presentations', 'teachers']
+    got = load_checkpoint(str(out))
+    assert got['steps'] == 0 and got['config']['control'] == {'version': 5, 'online': False}
+    assert got['from_policy'] == stage_init.sha256(str(src))
+    assert all(torch.equal(got['mortal'][k], v) for k, v in brain.state_dict().items())
+    assert 'optimizer' not in got and 'schedule_origin' not in got and 'kl_anchor' not in got
+    # what the online trainer does with it: an enabled scaler loads it, the clock starts at 0
+    GradScaler('cpu', enabled=True).load_state_dict(got['scaler'])
+    assert schedules.origin(got, got['steps']) == 0
+    assert not os.stat(out).st_mode & (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+    with pytest.raises(FileExistsError):
+        stage_init.write(str(src), str(out), policy=True)
