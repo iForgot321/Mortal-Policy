@@ -770,6 +770,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Cost:** ≈ $680–735 for the four runs (fleets ≈ $630–690, two B0s ≈ $20, the final measures on an eval box ≈ $25), inside the ≈ $785 left of the early-research cap; ≈ $1.02–1.08K with the third seeds.
 - **T1's opponents aren't decided here:** a fixed table, the latest champion or a pool of past champions (RL-5) is weighed after the curves.
 - **Reopen if:** in-run re-anchoring can't be made to work (then each stage runs as its own run from a staged snapshot, `tools/fleet/stage_init.py`), or the first stage's KL settles far outside the band at the start coefficient.
+- **The controller's hold (2026-11-18, `experiments/size-curves.md`; not a new decision):** 100 windows of 400 steps at the start and after each re-anchor, chosen by the user ("Go with option 1"). With `k2.toml`'s 5, the coefficient reached its 0.01 floor ≈ 10–15 min into every stage (as at the start of `k2b`, `k2v5` and `release-b`), so the start and the carry above would have changed nothing.
 
 ## Cut list (v1 items removed, and what would bring each back)
 

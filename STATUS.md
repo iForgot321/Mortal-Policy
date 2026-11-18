@@ -39,7 +39,7 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
   +0.0140; BC s1's EMA weights beat No-SP A by +0.0226.
 - **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65, D68), with T1's
   re-anchoring. The code they need is done and smoke-tested (2026-11-18, below). What's left is
-  the controller's hold (the user), the stage checks and the scripts, then the rental.
+  the stage checks and the scripts, then the rental.
 
 Phase 0 is exited (D55). In Phase 1 the SL substrate is built: teachers done, two students
 qualified. The early research has met G0's Select conditions; T1 and D31's curves run on
@@ -161,10 +161,8 @@ C: at 57 GB free.
   scripts.
 - The rental itself: the B0s, then the two batches, need the user's yes on a live quote.
 
-**Waiting on the user:** the controller's hold after each re-anchor (`experiments/size-curves.md`,
-"Open"). With `k2.toml`'s 5 windows, the coefficient hits its floor ≈ 10–15 min into every stage, as
-in every run so far, so D68's start of 0.11 and its carry change nothing. Proposed:
-`hold_windows = 100`.
+**Decided by the user:** the controller's hold after each re-anchor is 100 windows ("Go with option
+1"; `experiments/size-curves.md`). With `k2.toml`'s 5, the coefficient hit its floor ≈ 10–15 min into
+every stage, as in every run so far, so D68's start of 0.11 and its carry would change nothing.
 
-**Next:** the user's answer on the hold, then the stage checks and the scripts. Then the quote for
-the B0s and the first batch.
+**Next:** the stage checks and the scripts, then the quote for the B0s and the first batch.

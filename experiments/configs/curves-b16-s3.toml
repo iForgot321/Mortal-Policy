@@ -6,7 +6,7 @@
 #   - [resnet] b16c256; the student as the opponent (baseline.train/test) and the first anchor;
 #   - the soak's learner settings (dataset.num_workers 4, control.num_threads 4);
 #   - [policy.kl_anchor]: D68's controller (start 0.11, tolerance 1.25, factor 1.5, floor 0.01,
-#     ceiling 10), re-anchored at each stage by the watcher.
+#     ceiling 10, hold 100 windows), re-anchored at each stage by the watcher.
 #
 # Init: the size's B0 `full` without its run clock (tools/fleet/stage_init.py), so the schedules
 #   start at t = 0. The B0: this size's seed-1 config with --set critic.warmup=true, from
@@ -166,7 +166,9 @@ coef = 0.11
 target = 0.02
 target_growth = 0.0
 adapt_every = 400
-hold_windows = 5
+# no cut before the KL first reaches target / tolerance or 40K steps pass, at the start and after
+# each re-anchor (the KL starts again from ≈ 0; experiments/size-curves.md, the user 2026-11-18)
+hold_windows = 100
 tolerance = 1.25
 factor = 1.5
 coef_min = 0.01

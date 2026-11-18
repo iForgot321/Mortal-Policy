@@ -36,7 +36,7 @@ period or the hosts.
 | Opponents | 3 frozen copies of the run's starting student |
 | Schedules | `k2.toml`'s, on the run clock, not restarted at a re-anchor: LR 2e-5 · (1 + t/100K)^−0.3 (floor 5e-6), clip 0.2 · (1 + t/100K)^−0.2 (floor 0.1), entropy 1e-3 · (1 + t/100K)^−0.5 (floor 1e-4) |
 | Anchor | Stage 1: the starting student, target 0.02 nats. Every 72 box-hours (24 h) the current weights become the anchor: 4 stages |
-| KL controller | Adaptive, start 0.11 (`k2v5`'s settled coefficient on v5), tolerance 1.25, factor 1.5, floor 0.01, ceiling 10; the coefficient carries across re-anchors |
+| KL controller | Adaptive, start 0.11 (`k2v5`'s settled coefficient on v5), tolerance 1.25, factor 1.5, floor 0.01, ceiling 10, every 400 steps; the coefficient carries across re-anchors. **Hold 100 windows:** at the start and after each re-anchor it isn't cut before the KL first reaches 0.016 or 40K steps pass (below) |
 
 ## Checks while a run trains
 
@@ -149,10 +149,10 @@ Where each item stands (2026-11-18; nothing rented):
      workstation by the watcher at each re-anchor, and downing the run when one fires;
    - the launch, B0 and measure scripts.
    - The configs are written: `experiments/configs/curves-{b12,b16}-s{1,2,3}.toml` (`k2-v5.toml`
-     with the table's settings). The two students are now frozen inputs that every box checks
-     (`tools/fleet/frozen.sha256`).
+     with the table's settings, the hold included). The two students are now frozen inputs that
+     every box checks (`tools/fleet/frozen.sha256`).
 
-### Open: the controller right after each re-anchor
+### The controller right after each re-anchor (decided 2026-11-18)
 
 The KL to a new anchor starts at ≈ 0, below the band's floor (target / 1.25 = 0.016).
 
@@ -173,11 +173,12 @@ avoid.
 At the coefficient `k2v5` settled on (0.114), its KL relaxed from 0.028 to 0.016 with a time
 constant of ≈ 8K steps. The climb back from 0 should take a few times that.
 
-**Proposed: `hold_windows = 100`.** The coefficient may still rise, but it isn't cut before the KL
-first reaches 0.016 or 40K steps have passed (≈ 1.5–2 h). The cost: the first part of each stage
-may run tighter than the target if 0.11 holds the KL below the band. This is a config value; the
-code resets the hold at each re-anchor either way. The user decides before the pre-registration is
-fixed.
+**Decided: `hold_windows = 100`** (the user, 2026-11-18: "Go with option 1", of three: this, `k2.toml`'s
+5 windows, or a controller acting every 4,000 steps). The coefficient may still rise, but it isn't
+cut before the KL first reaches 0.016 or 40K steps have passed (≈ 1.5–2 h); then the controller
+acts every 400 steps as in every run so far. The cost: the first part of each stage may run
+tighter than the target if 0.11 holds the KL below the band. The code resets the hold at each
+re-anchor; the six configs carry the value.
 
 ## Cost
 
