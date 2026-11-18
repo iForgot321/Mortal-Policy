@@ -38,8 +38,8 @@ champion** (the tie rule: A and B are level). Paired against `soak-a` full on 40
 - The control (D66): distillation beats it at b8c192 (T-std pass, +0.0075); it beats No-SP A by
   +0.0140; BC s1's EMA weights beat No-SP A by +0.0226.
 - **Next by the plan:** b12c256 and b16c256 go to D31's curves (D65, D68), with T1's
-  re-anchoring. The code they need is done and smoke-tested, the stage checks included
-  (2026-11-18, below). What's left is the scripts, then the rental.
+  re-anchoring. Everything they need is built and tested (2026-11-18, below); the rental waits
+  for the user's yes.
 
 Phase 0 is exited (D55). In Phase 1 the SL substrate is built: teachers done, two students
 qualified. The early research has met G0's Select conditions; T1 and D31's curves run on
@@ -143,9 +143,15 @@ C: at 57 GB free.
   `experiments/curves_stage_check.py` on the workstation at each re-anchor and downs the run on
   `stop`. It runs the drift limits, then the 10K-set stop check (lab block `curves-boundary`).
 - **The controller's hold:** 100 windows, the user's choice (below).
+- **The scripts** (`d21ea3a`, `ce4965f`): `curves_b0.sh`, `curves_launch.sh`, `curves_batch.sh`,
+  `curves_measure_chain.sh`, `curves_reading.py` (the rule as code), `curves_token_check.py`, and
+  `curves_chain.sh`, which runs it all with a gate at each step. The B0 inits are made.
 
 **Verified**
-- `env -u MORTAL_CFG pytest tests/`: 228 passed, 5 skipped (23 new). No Rust change.
+- `env -u MORTAL_CFG pytest tests/`: 237 passed, 5 skipped (32 new). No Rust change.
+- **Live quote** (2026-11-18, nothing rented): one B0 fleet ≈ $1.51/h; six boxes at once
+  ≈ $3.68/h. That's ≈ $745–750 for the curves in all, inside the cap; only 7 allowlisted machines
+  were on offer within $1.00/h.
 - The check's drift half ran on the smoke's snapshots (reverse KL 0.0166, agreement 94.9% from
   the student). The lab measure was stubbed: a real one would create the block and fix its size.
 - The bare arena plays b12c256 at ≈ 48K and b16c256 at ≈ 42K hanchan/h on the 3060, so a 10K-set
@@ -165,8 +171,7 @@ C: at 57 GB free.
 
 **Not done**
 - The token's check on a box (with the B0s).
-- The launch, B0 and measure scripts.
-- The rental itself: the B0s, then the two batches, need the user's yes on a live quote.
+- The rental itself: the chain (B0s, two batches, eval box) needs the user's yes on the quote.
 
 **Decided by the user:** the controller's hold after each re-anchor is 100 windows ("Go with option
 1"; `experiments/size-curves.md`). With `k2.toml`'s 5, the coefficient hit its floor ≈ 10–15 min into
@@ -175,4 +180,5 @@ every stage, as in every run so far, so D68's start of 0.11 and its carry would 
 **Planned:** the final measures play on one eval box after batch 2. An eval box holding the lab
 registry would hold up the workstation's stop checks, and the reading needs all four runs anyway.
 
-**Next:** the launch, B0 and measure scripts, then the quote for the B0s and the first batch.
+**Next:** the user's yes, then `setsid -f bash experiments/curves_chain.sh` (the note's Launch
+section). The pre-registration is fixed at that yes.
