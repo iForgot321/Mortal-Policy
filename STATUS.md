@@ -116,8 +116,13 @@ The teachers' training states (the only source of their EMA) are in
    targeted deletion; 90.7 GB): the two doubling estimates, the anchor-release pilot's six measures,
    the soak's three tracking measures, and the engine arms' halfway checks, V sweep and `v-cql03`.
    Each run keeps its registry row, `games.npz` and `panel.json`. The Linux disk dropped to 182 GB
-   used; **C: rose only from 6.5 to 12 GB**, so the rest is still held by the disk file. To return
-   it: `sudo fstrim -av` (needs the user's password), and if that doesn't move C:, a compaction.
+   used; **C: rose only from 6.5 to 12 GB**, so the rest is still held by the disk file
+   (`ext4.vhdx`, 278 GiB, not sparse). `fstrim` won't help: `/` is mounted with `discard`, so the
+   blocks were trimmed on delete. Only a compaction returns the ≈ 95 GiB, from an admin PowerShell
+   with nothing running: `wsl --shutdown`, then `Optimize-VHD -Path <vhdx> -Mode Full` (or
+   diskpart's `compact vdisk`), where `<vhdx>` is
+   `C:\Users\Peiyan\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc\LocalState\ext4.vhdx`.
+   Docker Desktop's unused data disk holds another 46 GiB.
 1. *(Approved, recorded so it isn't asked again:)* the eval box for the students' qualification
    when they exist (2026-11-11, `experiments/students-s1.md`); the eval box for the pilot's measures
    (2026-11-12); no rerun of AWR vs BC on the EMA weights (the user: skip).
