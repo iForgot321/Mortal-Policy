@@ -13,7 +13,8 @@
     reanchor   make a snapshot the learner's KL anchor from now on (D68; `watch --reanchor` does it
                at every budget snapshot before `full`)
     watch      health and pull in a loop; restart dead processes; --replace replaces lost boxes;
-               --budget-box-hours: budget snapshots (D49), then down at the budget
+               --budget-box-hours: budget snapshots (D49), then down at the budget; --stage-check:
+               D68's check at each re-anchor, down on 'stop'
     down       pull, revoke and destroy boxes (all, or --name); --after delays it (the watchdog)
     deadline   arm every box's own hard deadline (box_deadline.py), an hour after the watchdog's
     status     the run state and the cost so far
@@ -1001,8 +1002,9 @@ def reanchor(run, label):
     learner = run.boxes.get('learner')
     if not learner or not learner.get('ip'):
         raise FleetError('no learner to re-anchor')
+    # `previous`: the anchor of the stage this snapshot ends (None: the run's first anchor)
     req = {'label': label, 'file': box_snapshot(run, label), 'sha256': snap['sha256'], 'steps': snap['steps'],
-           'issued': now_iso()}
+           'issued': now_iso(), 'previous': (run.data.get('anchor') or {}).get('label')}
     write_reanchor(run, learner, req)
     with run.lock:
         run.data['anchor'] = req
@@ -1421,6 +1423,74 @@ def anchor_alert(run, threshold, hours=2.0, now=None):
     return mean
 
 
+def first_anchor(run):
+    """The run's first KL anchor on the workstation: `policy.kl_anchor.state_file`, else the
+    frozen opponent (`baseline.train.state_file`), as mortal/kl_anchor.py defaults."""
+    _, cfg = load_config(REPO / run.data['config'])
+    return cfg.get('policy', {}).get('kl_anchor', {}).get('state_file') or cfg['baseline']['train']['state_file']
+
+
+def check_running(pid, marker):
+    """Whether `pid` is still the check whose command line holds `marker` (its verdict file): after
+    a reboot a pid can belong to anything."""
+    try:
+        return marker.encode() in Path(f'/proc/{pid}/cmdline').read_bytes()
+    except OSError:
+        return False
+
+
+def stage_check(run, cmd, launch=launch_detached, max_tries=2):
+    """D68's check at each stage boundary (experiments/size-curves.md). For each re-anchor request,
+    run `cmd --ckpt <the new snapshot> --anchor <the stage's anchor> --anchor-label L --label <its
+    label> --out <run dir>/stage-check-<label>.json` detached on the workstation
+    (experiments/curves_stage_check.py). Returns 'stop' when a verdict file says so (each verdict
+    is read once), else None. A check that died without a verdict is relaunched until it has been
+    started `max_tries` times, then reported; an 'error' verdict is reported. Neither stops the
+    run: only a pre-registered limit does."""
+    if not cmd:
+        return None
+    checks = run.data.setdefault('stage_checks', {})
+    stop = None
+    for req in run.data.get('anchors', []):
+        label, prev = req['label'], req.get('previous')
+        st = checks.get(label)
+        out = run.dir / f'stage-check-{label}.json'
+        if st and (st.get('verdict') or st.get('failed')):
+            continue
+        if st and out.exists():
+            res = json.loads(out.read_text())
+            with run.lock:
+                st['verdict'], st['fired'] = res['verdict'], res.get('fired', [])
+                run.save()
+            drift, measure = res.get('drift') or {}, res.get('measure') or {}
+            run.event('stage_check', label=label, anchor=prev or 'start', verdict=res['verdict'],
+                      fired=','.join(res.get('fired', [])) or '-', rkl=drift.get('rkl'), agreement=drift.get('agreement'),
+                      entropy=drift.get('entropy'), du=measure.get('du'), ci=measure.get('ci'), error=res.get('error'))
+            stop = stop or ('stop' if res['verdict'] == 'stop' else None)
+            continue
+        if st and check_running(st['pid'], str(out)):
+            continue
+        if st and st['tries'] >= max_tries:
+            with run.lock:
+                st['failed'] = now_iso()
+                run.save()
+            run.event('stage_check_failed', label=label, tries=st['tries'],
+                      note=f'no verdict; see {run.dir.name}/stage-check-{label}.log; run it by hand')
+            continue
+        snaps = run.data['snapshots']
+        anchor = str(REPO / snaps[prev]['path']) if prev else first_anchor(run)
+        argv = [*shlex.split(cmd), '--ckpt', str(REPO / snaps[label]['path']), '--anchor', anchor,
+                '--anchor-label', prev or 'student', '--label', label, '--out', str(out)]
+        pid = launch(argv, run.dir / f'stage-check-{label}.log')
+        tries = (st or {}).get('tries', 0) + 1
+        with run.lock:
+            checks[label] = {'pid': pid, 'started': now_iso(), 'tries': tries, 'argv': argv}
+            run.save()
+        run.event('stage_check_started' if tries == 1 else 'stage_check_relaunched', label=label, pid=pid,
+                  anchor=prev or 'start', tries=tries)
+    return stop
+
+
 # ---------------------------------------------------------------- commands
 
 def git_commit(allow_dirty):
@@ -1584,7 +1654,7 @@ def cmd_watch(a):
     run.event('watch', interval=a.interval, replace=a.replace, max_hours=a.max_hours, max_dollars=a.max_dollars,
               budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None,
               early_check=a.early_check, early_check_at=a.early_check_at if a.early_check else None,
-              anchor_alert=a.anchor_alert, reanchor=a.reanchor)
+              anchor_alert=a.anchor_alert, reanchor=a.reanchor, stage_check=a.stage_check)
     while True:
         with run.locked():
             if not run.boxes:
@@ -1678,6 +1748,11 @@ def cmd_watch(a):
                 last_pull = time.time()
                 anchor_alert(run, a.anchor_alert)
                 reanchor_status(run)
+            # D68: the check at each stage boundary; a 'stop' verdict downs the run
+            if stage_check(run, a.stage_check) == 'stop':
+                run.event('stage_check_stop', cost=round(cost(run), 2))
+                down(run)
+                return 0
             # D59: the G0 retry's early check; a 'stop' verdict downs the run
             if early_check(run, a.early_check, a.early_check_at) == 'stop':
                 run.event('early_check_stop', label=a.early_check_at, cost=round(cost(run), 2))
@@ -1925,6 +2000,9 @@ def main(argv=None):
                                                       "over 2 h, crosses this (nats; an alert, never a stop)")
     s.add_argument('--reanchor', action='store_true',
                    help="D68: each --snapshot-at snapshot becomes the learner's KL anchor as it is taken")
+    s.add_argument('--stage-check', help="D68: after each re-anchor request run this command (with --ckpt, "
+                                         "--anchor, --anchor-label, --label and --out added) on the workstation, "
+                                         "and down the run on a 'stop' verdict (experiments/curves_stage_check.py)")
     s = p('down', cmd_down, 'pull, revoke and destroy')
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')

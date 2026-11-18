@@ -649,7 +649,12 @@ def test_reanchor_writes_a_checked_request_beside_the_state_file(tmp_path, monke
     assert fleet.reanchor_path(run) == str(path)
     assert json.loads(path.read_text()) == req
     assert req['file'] == box_copy and req['sha256'] == sha and req['steps'] == 4200
-    assert fleet.Run.load('t').data['anchor'] == req and [r['label'] for r in run.data['anchors']] == ['p25']
+    assert req['previous'] is None  # the stage it ends anchored to the run's first anchor
+    run.data['snapshots']['p50'] = dict(run.data['snapshots']['p25'], label='p50')
+    with open(fleet.box_snapshot(run, 'p50'), 'wb') as f:
+        f.write(b'p25 weights')
+    assert fleet.reanchor(run, 'p50')['previous'] == 'p25'  # the stage check's table (curves_stage_check.py)
+    assert [r['label'] for r in fleet.Run.load('t').data['anchors']] == ['p25', 'p50']
     events = [json.loads(line)['kind'] for line in (run.dir / 'events.jsonl').read_text().splitlines()]
     assert events[-1] == 'reanchor_requested'
 
