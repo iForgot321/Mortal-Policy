@@ -112,10 +112,12 @@ The teachers' training states (the only source of their EMA) are in
 
 ## Waiting on the user
 
-0. **The disk (2026-11-17): C: has 6.8 GB free,** below the lab's 10 GB start limit. The lab's game logs
-   are 144.5 GB in 49 runs (`workdir/lab/*/logs`); each run's results stay in its `games.npz` and
-   `panel.json`. Deleting logs needs the user's yes; nothing writes much until then.
-
+0. **The disk (2026-11-17):** the game logs of 19 finished lab runs were deleted (the user: the
+   targeted deletion; 90.7 GB): the two doubling estimates, the anchor-release pilot's six measures,
+   the soak's three tracking measures, and the engine arms' halfway checks, V sweep and `v-cql03`.
+   Each run keeps its registry row, `games.npz` and `panel.json`. The Linux disk dropped to 182 GB
+   used; **C: rose only from 6.5 to 12 GB**, so the rest is still held by the disk file. To return
+   it: `sudo fstrim -av` (needs the user's password), and if that doesn't move C:, a compaction.
 1. *(Approved, recorded so it isn't asked again:)* the eval box for the students' qualification
    when they exist (2026-11-11, `experiments/students-s1.md`); the eval box for the pilot's measures
    (2026-11-12); no rerun of AWR vs BC on the EMA weights (the user: skip).
