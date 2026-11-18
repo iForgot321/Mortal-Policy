@@ -259,3 +259,21 @@ batch runs.
 
 T1's opponents (a fixed table, the latest champion, or a pool of past champions, RL-5) are weighed
 after the curves. No search, no mixed tables, no family-C confirmation.
+
+## Progress (2026-11-18)
+
+- **The chain launched at 10:04 UTC** (the user's yes, "Whole chain"; log `workdir/fleet/curves-chain.log`).
+- **Most B0 actor setups failed**, on a racy test of mine: `setup_box.sh` runs the suite on every
+  box. It read a new process's command line before the process had exec'd (fixed in `2267735`).
+  10 of the 11 actor setups that ran failed; both learners passed.
+  - The B0s came up with 1 and 0 actors. The missing actors were provisioned by hand between
+    10:53 and 11:11, and the machines the failures had marked bad were cleared.
+  - The hour each B0 spent short of actors is left out of its 12-box-hour budget: 2.66 and 2.63
+    box-hours (`fleet.py exclude`). The cost still counts it.
+- **`server.py`'s token, checked on boxes: passes on both fleets.** Through an actor's tunnel, a
+  `submit_param` and a `drain` without the token were both denied, the learner logged both
+  refusals, and the actors were getting the trainer's parameters.
+- **Hosts:**
+  - `curves-b12-b0`: learner Ryzen 9 5950X, actors EPYC 7713 and 7742, $1.53/h;
+  - `curves-b16-b0`: learner EPYC 7713, actors Threadripper PRO 5995WX and EPYC 7B12, $1.30/h.
+- **Next:** each B0's `full` ≈ 15:15 UTC, then the B0 rule and batch 1, by the chain.
