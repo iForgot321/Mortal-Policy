@@ -21,7 +21,7 @@ source "$(dirname "$0")/curves_common.sh"
 STUDENT=$STUDENTS/ema-$NET.pth
 B0_INIT=workdir/curves/b0-init-$NET.pth
 INIT=workdir/curves/init-$NET.pth
-HOURS=5  # 12 box-hours on 3 boxes, and setup
+HOURS=6  # 12 box-hours on 3 boxes, setup and a replacement
 UP="--run $RUN --config experiments/configs/curves-$SIZE-s1.toml --init $B0_INIT --actors 2 --procs 2
     --hard-hours 8 --set critic.warmup=true --verify"
 WATCH=(--replace --allow-zen2 --budget-box-hours 12 --snapshot-at 0.5)

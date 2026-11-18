@@ -175,7 +175,9 @@ Where each item stands (2026-11-18; nothing rented):
    - A dry run on the smoke's snapshots read drift against the student (reverse KL 0.0166,
      agreement 94.9%), with the lab measure stubbed: a real one would create the
      `curves-boundary` block, whose first use fixes its size.
-8. **Not built yet:** the launch, B0 and measure scripts.
+8. **The scripts: done** (below, "Launch"), with tests of the reading rule and of the quote
+   logic against a stand-in `fleet.py`. The B0 inits exist: `workdir/curves/b0-init-b12c256.pth`
+   (`cd65fca1…`) and `b0-init-b16c256.pth` (`8abf7aaa…`).
    - The configs are written: `experiments/configs/curves-{b12,b16}-s{1,2,3}.toml` (`k2-v5.toml`
      with the table's settings, the hold included). The two students are now frozen inputs that
      every box checks (`tools/fleet/frozen.sha256`).
@@ -208,15 +210,46 @@ acts every 400 steps as in every run so far. The cost: the first part of each st
 tighter than the target if 0.11 holds the KL below the band. The code resets the hold at each
 re-anchor; the six configs carry the value.
 
+## Launch
+
+One detached chain runs everything, each step gated on the one before
+(`experiments/curves_chain.sh`):
+
+```bash
+setsid -f bash experiments/curves_chain.sh >> workdir/fleet/curves-chain.log 2>&1 < /dev/null
+```
+
+1. **Both B0s at once** (`curves_b0.sh b12|b16`): 12 box-hours each, then the token's box check.
+2. **The B0 rule and the inits** (`curves_b0.sh SIZE --finish`): a failed rule stops the chain.
+3. **Batch 1, then batch 2** (`curves_launch.sh RUN`), each batch's second run starting 3 min after
+   the first: each run runs `watch --budget-box-hours 288 --snapshot-at 0.25,0.5,0.75 --reanchor
+   --stage-check …`. A run that ends without `full` stops the chain for the user.
+4. **The final measures and the reading** (`curves_measure_chain.sh`, `curves_reading.py` →
+   `workdir/lab/curves-reading.json`). Batch 3 isn't started by the chain.
+
+**Limits** (`experiments/curves_common.sh`; the user, 2026-11-18: "the budget is flexible, so if
+availability is limited feel free to use a more expensive box"):
+- **$1.00/h per box**, held for every box a run rents, retries and replacements included.
+- **$2.80/h per fleet** on the live quote, re-quoted every 15 min for up to 6 h.
+- **Dollar stop:** each watcher stops its run at 1.25 × the quote over the run, ≈ $220 per run and
+  ≈ $11 per B0 at today's quote.
+
+**After a workstation restart:** `bash experiments/curves_launch.sh RUN --resume` (or
+`curves_b0.sh SIZE --resume`) for each live run, then relaunch the chain. It skips finished steps
+and waits on live runs.
+
 ## Cost
 
-| Part | Estimate |
-|---|---|
-| Four fleets, 1,152 box-hours | ≈ $630–690 |
-| Two B0s | ≈ $20 |
-| Final measures, 12 × 40K sets on an eval box | ≈ $25 |
-| **Total** | **≈ $680–735**, inside the ≈ $785 left of the early-research cap |
-| If close: two more runs and their measures | + ≈ $340 |
+| Part | Estimate | At the live quote (2026-11-18) |
+|---|---|---|
+| Four fleets, 1,152 box-hours | ≈ $630–690 | ≈ $705 (six boxes at once ≈ $3.68/h, ≈ $0.61 per box-hour) |
+| Two B0s | ≈ $20 | ≈ $15–20 (one fleet ≈ $1.51/h) |
+| Final measures, 12 × 40K sets on an eval box | ≈ $25 | ≈ $25 |
+| **Total** | **≈ $680–735** | **≈ $745–750**, inside the ≈ $785 left of the early-research cap |
+| If close: two more runs and their measures | + ≈ $340 | |
+
+Only 7 allowlisted machines were offered within $1.00/h when quoted, so prices may move up while
+the runs rent; the dollar stops hold each run near its own quote.
 
 Time: ≈ half a day for the B0s, then two 4-day batches; ≈ 9 days with the measures, ≈ 13 if a third
 batch runs.

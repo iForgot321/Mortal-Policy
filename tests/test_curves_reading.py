@@ -148,5 +148,6 @@ def test_rent_refuses_a_quote_above_the_fleet_limit_and_a_missing_one(tmp_path):
 
 
 def test_the_curves_scripts_parse():
-    for name in ('curves_common.sh', 'curves_b0.sh', 'curves_launch.sh', 'curves_batch.sh', 'curves_measure_chain.sh'):
+    for name in ('curves_common.sh', 'curves_b0.sh', 'curves_launch.sh', 'curves_batch.sh', 'curves_measure_chain.sh',
+                 'curves_chain.sh'):
         subprocess.run(['bash', '-n', os.path.join(ROOT, 'experiments', name)], check=True)
