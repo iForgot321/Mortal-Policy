@@ -10,6 +10,8 @@
     health     probe every box; exit 1 if any is not ok/warn
     pull       copy the learner's run dir (checkpoints, tensorboard) and every box's logs back here
     snapshot   freeze the learner's checkpoint under a label, pull it, make it read-only
+    reanchor   make a snapshot the learner's KL anchor from now on (D68; `watch --reanchor` does it
+               at every budget snapshot before `full`)
     watch      health and pull in a loop; restart dead processes; --replace replaces lost boxes;
                --budget-box-hours: budget snapshots (D49), then down at the budget
     down       pull, revoke and destroy boxes (all, or --name); --after delays it (the watchdog)
@@ -903,7 +905,7 @@ def snapshot(run, label):
     if not learner or not learner.get('ip'):
         raise FleetError('no learner to snapshot')
     state_file = box_paths(run)['state_file']
-    snap = f'{BOX_ROOT}/{BOX_DIR}/snapshots/{run.name}-{label}.pth'
+    snap = box_snapshot(run, label)
     out = remote(run, learner, f'''mkdir -p {BOX_DIR}/snapshots
 [ -f {snap} ] || {{ cp {state_file} {snap}.tmp && mv {snap}.tmp {snap}; }}
 sha256sum {snap} | cut -d' ' -f1
@@ -932,15 +934,112 @@ sha256sum {snap} | cut -d' ' -f1
 
 
 def push_state(run, learner):
-    """A replacement learner continues from the last pulled checkpoint, if there is one."""
+    """A replacement learner continues from the last pulled checkpoint, if there is one, and on
+    the run's current KL anchor: the pulled checkpoint may predate the re-anchor, so the anchor's
+    snapshot and the request go too (the trainer ignores a request it has already acted on)."""
     state_file = box_paths(run)['state_file']
     local = run.dir / 'learner-run' / os.path.basename(state_file)
     if not local.exists():
         run.log('no pulled checkpoint; the learner starts from the run init', learner['name'])
-        return
-    remote(run, learner, f'mkdir -p {os.path.dirname(state_file)}\n')
-    retry(rsync, run, learner, [str(local), f'root@{learner["ip"]}:{state_file}'])
-    run.event('pushed_state', learner['name'], age_s=round(time.time() - local.stat().st_mtime))
+    else:
+        remote(run, learner, f'mkdir -p {os.path.dirname(state_file)}\n')
+        retry(rsync, run, learner, [str(local), f'root@{learner["ip"]}:{state_file}'])
+        run.event('pushed_state', learner['name'], age_s=round(time.time() - local.stat().st_mtime))
+    req = run.data.get('anchor')
+    if req:
+        snap = REPO / run.data['snapshots'][req['label']]['path']
+        remote(run, learner, f'mkdir -p {os.path.dirname(req["file"])}\n')
+        retry(rsync, run, learner, [str(snap), f'root@{learner["ip"]}:{req["file"]}'])
+        write_reanchor(run, learner, req)
+        run.event('pushed_anchor', learner['name'], label=req['label'], sha256=req['sha256'][:16])
+
+
+# ---------------------------------------------------------------- re-anchoring (D64, D68)
+
+def box_snapshot(run, label):
+    """Where snapshot() leaves the learner's own copy of a snapshot."""
+    return f'{BOX_ROOT}/{BOX_DIR}/snapshots/{run.name}-{label}.pth'
+
+
+def reanchor_path(run):
+    """The trainer's request file on the learner (mortal/kl_anchor.py: request_path)."""
+    return os.path.join(os.path.dirname(box_paths(run)['state_file']), 'reanchor.json')
+
+
+def write_reanchor(run, learner, req):
+    """Write the request on the learner once the file it names is there with its sha256."""
+    f = shlex.quote(req['file'])
+    remote(run, learner, f'[ -f {f} ] || {{ echo "no {f} on the learner" >&2; exit 1; }}\n'
+                         f'[ "$(sha256sum {f} | cut -d" " -f1)" = {req["sha256"]} ] || '
+                         f'{{ echo "{f}: sha256 differs from the snapshot\'s" >&2; exit 1; }}\n', timeout=120)
+    put(run, learner, reanchor_path(run), json.dumps(req) + '\n')
+
+
+def reanchor(run, label):
+    """D68: from now on the learner's KL anchor is the `label` snapshot (the copy on the box,
+    checked against the snapshot's sha256). The trainer picks the request up at its next save
+    and keeps its coefficient (mortal/kl_anchor.py); `reanchor_status` confirms it from the
+    pulled log."""
+    snap = run.data.get('snapshots', {}).get(label)
+    if not snap:
+        raise FleetError(f'no snapshot {label} to re-anchor to')
+    learner = run.boxes.get('learner')
+    if not learner or not learner.get('ip'):
+        raise FleetError('no learner to re-anchor')
+    req = {'label': label, 'file': box_snapshot(run, label), 'sha256': snap['sha256'], 'steps': snap['steps'],
+           'issued': now_iso()}
+    write_reanchor(run, learner, req)
+    with run.lock:
+        run.data['anchor'] = req
+        run.data.setdefault('anchors', []).append(dict(req))
+        run.save()
+    run.event('reanchor_requested', label=label, steps=snap['steps'], sha256=snap['sha256'][:16])
+    return req
+
+
+def reanchor_status(run, now=None, pending_after_s=1800):
+    """After a pull: the trainer's log (learner-run/reanchor.jsonl) against the last request.
+    Logs `reanchored` or `reanchor_failed` once, or `reanchor_pending` once if neither has come
+    back `pending_after_s` after the request. Returns 'done', 'failed', 'pending' or None."""
+    req = run.data.get('anchor')
+    if not req or req.get('confirmed') or req.get('failed'):
+        return None
+    path = run.dir / 'learner-run' / 'reanchor.jsonl'
+    for line in (path.read_text().splitlines() if path.exists() else []):
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # a line being written as it was pulled
+        if rec.get('sha256') != req['sha256']:
+            continue
+        done = 'reanchor' in rec
+        with run.lock:
+            req['confirmed' if done else 'failed'] = now_iso()
+            run.save()
+        if done:
+            run.event('reanchored', label=req['label'], stage=rec.get('stage'), at_steps=rec.get('steps'),
+                      coef=rec.get('coef'))
+            return 'done'
+        run.event('reanchor_failed', label=req['label'], error=repr(str(rec.get('error'))[:300]))
+        return 'failed'
+    now = time.time() if now is None else now
+    waited = now - datetime.fromisoformat(req['issued']).timestamp()
+    if waited > pending_after_s and not req.get('pending_reported'):
+        with run.lock:
+            req['pending_reported'] = now_iso()
+            run.save()
+        run.event('reanchor_pending', label=req['label'], waited_s=round(waited))
+    return 'pending'
+
+
+def due_anchor(run, fractions):
+    """The budget snapshot the anchor should be now: the latest one before `full`, if it isn't
+    the current anchor already. Only the latest: one that was missed is skipped, not replayed."""
+    snaps = run.data.get('snapshots', {})
+    labels = [snapshot_label(f) for f in sorted(fractions) if f < 1 and snapshot_label(f) in snaps]
+    if not labels or (run.data.get('anchor') or {}).get('label') == labels[-1]:
+        return None
+    return labels[-1]
 
 
 # ---------------------------------------------------------------- health
@@ -1448,6 +1547,15 @@ def cmd_snapshot(a):
     return 0
 
 
+def cmd_reanchor(a):
+    run = Run.load(a.run)
+    with run.locked():
+        req = reanchor(run, a.label)
+    print(f'requested: anchor {req["label"]} ({req["sha256"][:12]}, step {req["steps"]:,}); the trainer '
+          'picks it up at its next save (learner-run/reanchor.jsonl after a pull)')
+    return 0
+
+
 def cmd_watch(a):
     run = Run.load(a.run)
     deadline = time.time() + a.max_hours * 3600 if a.max_hours else None
@@ -1458,7 +1566,7 @@ def cmd_watch(a):
     run.event('watch', interval=a.interval, replace=a.replace, max_hours=a.max_hours, max_dollars=a.max_dollars,
               budget_box_hours=a.budget_box_hours, snapshot_at=a.snapshot_at if a.budget_box_hours else None,
               early_check=a.early_check, early_check_at=a.early_check_at if a.early_check else None,
-              anchor_alert=a.anchor_alert)
+              anchor_alert=a.anchor_alert, reanchor=a.reanchor)
     while True:
         with run.locked():
             if not run.boxes:
@@ -1526,6 +1634,13 @@ def cmd_watch(a):
                             snapshot(run, label)
                         except FleetError as e:
                             run.event('snapshot_failed', label=label, error=repr(str(e)[:300]))
+                # D68: every budget snapshot before `full` becomes the anchor; a failed request
+                # is retried on the next pass
+                if a.reanchor and (label := due_anchor(run, fractions)):
+                    try:
+                        reanchor(run, label)
+                    except FleetError as e:
+                        run.event('reanchor_request_failed', label=label, error=repr(str(e)[:300]))
                 if used >= a.budget_box_hours and 'full' not in run.data.get('snapshots', {}):
                     try:
                         snapshot(run, 'full')
@@ -1544,6 +1659,7 @@ def cmd_watch(a):
                     run.log(f'pull failed: {e}')
                 last_pull = time.time()
                 anchor_alert(run, a.anchor_alert)
+                reanchor_status(run)
             # D59: the G0 retry's early check; a 'stop' verdict downs the run
             if early_check(run, a.early_check, a.early_check_at) == 'stop':
                 run.event('early_check_stop', label=a.early_check_at, cost=round(cost(run), 2))
@@ -1648,6 +1764,11 @@ def cmd_status(a):
         print(f'  budget excludes {x["from"]} to {x["to"]}: {x["box_hours"]:.1f} box-hours ({x["reason"]})')
     for s in d.get('snapshots', {}).values():
         print(f'  snapshot {s["label"]:<5} step {s["steps"]:,} at {s["box_hours"]} box-hours: {s["path"]} ({s["sha256"][:12]})')
+    if d.get('anchor'):
+        r = d['anchor']
+        state = ('picked up ' + r['confirmed'] if r.get('confirmed') else 'REFUSED ' + r['failed'] if r.get('failed')
+                 else 'not yet confirmed')
+        print(f'  anchor: {r["label"]} ({r["sha256"][:12]}), requested {r["issued"]}, {state}')
     if d.get('watchdog'):
         print(f'  watchdog pid {d["watchdog"]["pid"]}, deadline {d["watchdog"]["deadline"]}')
     print(f'  {box_hours(run):.1f} box-hours, ${cost(run):.2f} so far (+ bandwidth); '
@@ -1763,6 +1884,8 @@ def main(argv=None):
     p('pull', cmd_pull, 'copy results back')
     s = p('snapshot', cmd_snapshot, "freeze the learner's checkpoint under a label")
     s.add_argument('--label', required=True)
+    s = p('reanchor', cmd_reanchor, "make a snapshot the learner's KL anchor from now on (D68)")
+    s.add_argument('--label', required=True, help='a snapshot of this run')
     s = p('watch', cmd_watch, 'health, pull and recovery in a loop')
     s.add_argument('--interval', type=int, default=300, help='seconds between checks')
     s.add_argument('--grace', type=float, default=10, help='minutes a box may be lost before replacement')
@@ -1780,6 +1903,8 @@ def main(argv=None):
     s.add_argument('--early-check-at', default='p25', help='the snapshot label the early check waits for')
     s.add_argument('--anchor-alert', type=float, help="log an event when the trainer's anchor/kl, averaged "
                                                       "over 2 h, crosses this (nats; an alert, never a stop)")
+    s.add_argument('--reanchor', action='store_true',
+                   help="D68: each --snapshot-at snapshot becomes the learner's KL anchor as it is taken")
     s = p('down', cmd_down, 'pull, revoke and destroy')
     s.add_argument('--name', action='append')
     s.add_argument('--no-pull', action='store_true')

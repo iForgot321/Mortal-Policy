@@ -584,3 +584,126 @@ def test_rsync_resumes_dropped_transfers(tmp_path, monkeypatch):
     assert argv[0] == 'rsync' and '--partial-dir=.rsync-partial' in argv and '--timeout=120' in argv
     assert '--partial' not in argv  # a plain --partial would leave a torn file under the real name
     assert argv[-2:] == ['a', 'b']
+
+
+# ---------------------------------------------------------------- re-anchoring (D64, D68)
+
+def reanchor_run(tmp_path, monkeypatch):
+    """A run with a learner and a p25 snapshot, its box under tmp_path/box, and fakes that run
+    each remote script with bash here and copy instead of rsync."""
+    import hashlib
+    import shutil
+    monkeypatch.setattr(fleet, 'RUNS', tmp_path / 'runs')
+    monkeypatch.setattr(fleet, 'BOX_ROOT', str(tmp_path / 'box'))
+    monkeypatch.setattr(fleet, 'REPO', tmp_path)
+    run = fleet.Run('t')
+    run.dir.mkdir(parents=True)
+    snap = run.dir / 'snapshots' / 'p25.pth'
+    snap.parent.mkdir()
+    snap.write_bytes(b'p25 weights')
+    sha = hashlib.sha256(snap.read_bytes()).hexdigest()
+    (tmp_path / 'experiments' / 'configs').mkdir(parents=True)
+    shutil.copy(P0, tmp_path / 'experiments' / 'configs' / 'p0.toml')
+    run.data = {'config': 'experiments/configs/p0.toml', 'boxes': {'learner': {
+        'name': 'learner', 'role': 'learner', 'instance': 7, 'ip': '192.0.2.1', 'ssh_port': 22,
+        'created_ts': 0, 'dph': 0.5}}, 'retired': [],
+        'snapshots': {'p25': {'label': 'p25', 'sha256': sha, 'steps': 4200, 'path': 'runs/t/snapshots/p25.pth'}}}
+    run.save()
+    scripts = []
+
+    def fake_remote(run_, box, script, timeout=300, check=True):
+        scripts.append(script)
+        p = subprocess.run(['bash', '-c', 'set -euo pipefail\n' + script], capture_output=True, text=True)
+        if check and p.returncode:
+            raise fleet.FleetError(p.stderr)
+        return p
+
+    def fake_rsync(run_, box, args, timeout=1800):
+        src, dst = args[-2], args[-1].split(':', 1)[-1]
+        shutil.copy(src.split(':', 1)[-1], dst)
+    monkeypatch.setattr(fleet, 'remote', fake_remote)
+    monkeypatch.setattr(fleet, 'rsync', fake_rsync)
+    return run, sha, scripts
+
+
+def test_reanchor_writes_a_checked_request_beside_the_state_file(tmp_path, monkeypatch):
+    import json
+    run, sha, scripts = reanchor_run(tmp_path, monkeypatch)
+    with pytest.raises(fleet.FleetError, match='no snapshot p50'):
+        fleet.reanchor(run, 'p50')
+    with pytest.raises(fleet.FleetError, match='no .*on the learner'):
+        fleet.reanchor(run, 'p25')  # the box has no copy of p25
+    box_copy = fleet.box_snapshot(run, 'p25')
+    os.makedirs(os.path.dirname(box_copy))
+    with open(box_copy, 'wb') as f:
+        f.write(b'torn')
+    with pytest.raises(fleet.FleetError, match='sha256 differs'):
+        fleet.reanchor(run, 'p25')
+    assert 'anchor' not in run.data
+    with open(box_copy, 'wb') as f:
+        f.write(b'p25 weights')
+    req = fleet.reanchor(run, 'p25')
+    # where mortal/kl_anchor.py looks: beside the trainer's state file
+    path = tmp_path / 'box' / 'workdir' / 'p0' / 'reanchor.json'
+    assert fleet.reanchor_path(run) == str(path)
+    assert json.loads(path.read_text()) == req
+    assert req['file'] == box_copy and req['sha256'] == sha and req['steps'] == 4200
+    assert fleet.Run.load('t').data['anchor'] == req and [r['label'] for r in run.data['anchors']] == ['p25']
+    events = [json.loads(line)['kind'] for line in (run.dir / 'events.jsonl').read_text().splitlines()]
+    assert events[-1] == 'reanchor_requested'
+
+
+def test_reanchor_status_reads_the_trainers_log(tmp_path, monkeypatch):
+    import json
+    run, sha, _ = reanchor_run(tmp_path, monkeypatch)
+    assert fleet.reanchor_status(run) is None  # nothing requested
+    run.data['anchor'] = {'label': 'p25', 'sha256': sha, 'issued': '2026-11-18T00:00:00+00:00'}
+    t0 = datetime.fromisoformat('2026-11-18T00:00:00+00:00').timestamp()
+    assert fleet.reanchor_status(run, now=t0 + 60) == 'pending'
+    log = run.dir / 'learner-run' / 'reanchor.jsonl'
+    log.parent.mkdir()
+    log.write_text(json.dumps({'reanchor': 'p25', 'sha256': 'other'}) + '\n{"torn')
+    assert fleet.reanchor_status(run, now=t0 + 3600) == 'pending'
+    assert fleet.reanchor_status(run, now=t0 + 7200) == 'pending'
+    events = lambda: [json.loads(line) for line in (run.dir / 'events.jsonl').read_text().splitlines()]  # noqa: E731
+    assert [e['kind'] for e in events()].count('reanchor_pending') == 1  # reported once
+    log.write_text(json.dumps({'reanchor': 'p25', 'sha256': sha, 'stage': 2, 'steps': 4400, 'coef': 0.11}) + '\n')
+    assert fleet.reanchor_status(run, now=t0 + 7300) == 'done'
+    assert events()[-1]['kind'] == 'reanchored' and events()[-1]['at_steps'] == 4400
+    assert run.data['anchor']['confirmed'] and fleet.reanchor_status(run) is None
+    run.data['anchor'] = {'label': 'p50', 'sha256': 'f' * 64, 'issued': '2026-11-18T00:00:00+00:00'}
+    log.write_text(json.dumps({'reanchor_failed': 'p50', 'sha256': 'f' * 64, 'error': 'sha256'}) + '\n')
+    assert fleet.reanchor_status(run) == 'failed' and events()[-1]['kind'] == 'reanchor_failed'
+
+
+def test_the_anchor_due_is_the_latest_budget_snapshot_before_full():
+    run = fleet.Run.__new__(fleet.Run)
+    fr = [0.25, 0.5, 0.75]
+    run.data = {'snapshots': {}}
+    assert fleet.due_anchor(run, fr) is None
+    run.data['snapshots'] = {'p25': {}}
+    assert fleet.due_anchor(run, fr) == 'p25'
+    run.data['anchor'] = {'label': 'p25'}
+    assert fleet.due_anchor(run, fr) is None
+    run.data['snapshots'].update(p50={}, p75={})  # p50 was missed: only the latest
+    assert fleet.due_anchor(run, fr) == 'p75'
+    run.data['snapshots']['full'] = {}
+    run.data['anchor'] = {'label': 'p75'}
+    assert fleet.due_anchor(run, fr + [1.0]) is None  # `full` ends the run, it never anchors
+
+
+def test_a_replacement_learner_gets_the_current_anchor(tmp_path, monkeypatch):
+    import json
+    run, sha, _ = reanchor_run(tmp_path, monkeypatch)
+    fleet.push_state(run, run.boxes['learner'])  # no checkpoint pulled, no anchor: nothing to push
+    assert not (tmp_path / 'box' / 'workdir' / 'p0' / 'reanchor.json').exists()
+    run.data['anchor'] = {'label': 'p25', 'file': fleet.box_snapshot(run, 'p25'), 'sha256': sha, 'steps': 4200,
+                          'issued': fleet.now_iso()}
+    (run.dir / 'learner-run').mkdir()
+    (run.dir / 'learner-run' / 'mortal.pth').write_bytes(b'pulled state')
+    fleet.push_state(run, run.boxes['learner'])
+    assert (tmp_path / 'box' / 'workdir' / 'p0' / 'mortal.pth').read_bytes() == b'pulled state'
+    with open(fleet.box_snapshot(run, 'p25'), 'rb') as f:
+        assert f.read() == b'p25 weights'
+    req = json.loads((tmp_path / 'box' / 'workdir' / 'p0' / 'reanchor.json').read_text())
+    assert req['sha256'] == sha and req['file'] == fleet.box_snapshot(run, 'p25')
