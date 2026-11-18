@@ -1,8 +1,9 @@
-# D31's actor-size curves: the pre-registration (draft, 2026-11-18)
+# D31's actor-size curves: the pre-registration (fixed 2026-11-18)
 
-**Status: draft.** The design is D68 (the user, 2026-11-18: "Update the plan based on the default
-recommendation"). It becomes fixed when the user approves the rental with a live quote, and nothing
-here is changed after the first run starts. Exploratory. Nothing has run.
+**Status: fixed** (2026-11-18). The design is D68 (the user: "Update the plan based on the default
+recommendation"), with the controller's hold the user chose ("Go with option 1"). The user approved
+the rental at the live quote, ≈ $745–750 for the whole chain ("Whole chain"). Nothing here is
+changed after the first run starts. Exploratory.
 
 ## The question
 

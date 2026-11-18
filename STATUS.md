@@ -171,7 +171,6 @@ C: at 57 GB free.
 
 **Not done**
 - The token's check on a box (with the B0s).
-- The rental itself: the chain (B0s, two batches, eval box) needs the user's yes on the quote.
 
 **Decided by the user:** the controller's hold after each re-anchor is 100 windows ("Go with option
 1"; `experiments/size-curves.md`). With `k2.toml`'s 5, the coefficient hit its floor ≈ 10–15 min into
@@ -180,5 +179,8 @@ every stage, as in every run so far, so D68's start of 0.11 and its carry would 
 **Planned:** the final measures play on one eval box after batch 2. An eval box holding the lab
 registry would hold up the workstation's stop checks, and the reading needs all four runs anyway.
 
-**Next:** the user's yes, then `setsid -f bash experiments/curves_chain.sh` (the note's Launch
-section). The pre-registration is fixed at that yes.
+**Approved (the user, 2026-11-18, "Whole chain"):** the curves at the live quote, ≈ $745–750 (both
+B0s, two batches, the eval box). The pre-registration is fixed. Batch 3 still needs its own yes.
+
+**Next:** the chain runs (`workdir/fleet/curves-chain.log`); after a restart, the note's Launch
+section has the resume path.
