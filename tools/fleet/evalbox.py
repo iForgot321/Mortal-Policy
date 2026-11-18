@@ -202,9 +202,10 @@ def cmd_up(a):
     # this rental's limit, for its provisioning retries too (fleet.py: pick_offer)
     run.data['max_dph'] = a.max_dph
     offer = F.pick_offer(run, a.machine, a.allow_zen2)
-    print('price limit: ' + (f'${a.max_dph:.3f}/h, retries included' if a.max_dph is not None else 'none'))
+    # the offer first: chains read the quote from the first line
     print(f'machine {offer["machine_id"]}  ${offer["dph_total"]:.3f}/h  {offer.get("geolocation")}  '
           f'{offer.get("cpu_name")}  ({offer.get("cpu_cores_effective", 0):.0f} cores)')
+    print('price limit: ' + (f'${a.max_dph:.3f}/h, retries included' if a.max_dph is not None else 'none'))
     if not a.yes:
         print('rerun with --yes to rent')
         return 0
