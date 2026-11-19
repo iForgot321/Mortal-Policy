@@ -56,3 +56,5 @@
 {"family": "B", "start": 1001560000, "count": 100000, "run_id": "20261117-204544-T-std", "purpose": "T-std verdict", "block": null, "time": "2026-11-17T20:45:44+00:00"}
 {"family": "A", "start": 114200, "count": 20000, "run_id": "20261117-212358-measure", "purpose": "fixed-N measurement", "block": null, "time": "2026-11-17T21:23:58+00:00"}
 {"family": "B", "start": 1001660000, "count": 100000, "run_id": "20261117-221715-T-std", "purpose": "T-std verdict", "block": null, "time": "2026-11-17T22:17:15+00:00"}
+{"family": "A", "start": 134200, "count": 10000, "run_id": "20261119-082213-measure", "purpose": "D68 stop check at a stage boundary (experiments/size-curves.md; exploratory)", "block": "curves-boundary", "time": "2026-11-19T08:22:13-07:00"}
+{"family": "A", "start": 134200, "count": 10000, "run_id": "20261119-091301-measure", "purpose": "D68 stop check at a stage boundary (experiments/size-curves.md; exploratory)", "block": "curves-boundary", "time": "2026-11-19T09:13:01-07:00", "reused": true}

@@ -58,3 +58,5 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261117-204544-T-std | exploratory | students-s1 control: distilled b8c192 vs the control (EMA both), T-std | T-std | B [1001560000, +100000) | 14000 | +0.0075 |  | +3.33 | pass | -0.0124 | +0.71 | yes | 5c3389ca+dirty |
 | 20261117-212358-measure | exploratory | students-s1 control: the control (EMA) vs No-SP A, 20K measure | measure | A [114200, +20000) | 20000 | +0.0140 | [+0.0093, +0.0186] |  | measured | -0.0174 | +1.49 | yes | 5c3389ca+dirty |
 | 20261117-221715-T-std | exploratory | students-s1 control: BC s1 (EMA) vs No-SP A, T-std | T-std | B [1001660000, +100000) | 5000 | +0.0226 |  | +7.53 | pass | -0.0276 | +2.39 | yes | 5c3389ca+dirty |
+| 20261119-082213-measure | exploratory | curves boundary: curves-b12-s1 p25 at 3x student | measure | A [134200, +10000) | 10000 | +0.0061 | [-0.0002, +0.0125] |  | measured | -0.0055 | +0.63 | yes | bf17e60a+dirty |
+| 20261119-091301-measure | exploratory | curves boundary: curves-b16-s1 p25 at 3x student | measure | A [134200, +10000) | 10000 | +0.0061 | [-0.0005, +0.0125] |  | measured | -0.0071 | +0.59 | yes | bf17e60a+dirty |
