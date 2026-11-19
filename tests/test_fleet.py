@@ -744,3 +744,26 @@ def test_every_box_of_a_run_stays_within_its_price_limit(monkeypatch):
         fleet.pick_offer(run, machine=11)  # a pinned machine too
     assert fleet.pick_offer(run, machine=12)['id'] == 3
     assert fleet.within_limit(offers, None) == offers
+
+
+def test_new_registry_rows_dont_block_a_rental(tmp_path, monkeypatch):
+    """A run's stage checks write lab registry rows while it trains; `up` and `provision` must
+    still rent (2026-11-19), and any other change must still be committed first."""
+    repo = tmp_path / 'repo'
+    (repo / 'lab' / 'registry').mkdir(parents=True)
+    (repo / 'lab' / 'registry' / 'runs.jsonl').write_text('{}\n')
+    (repo / 'code.py').write_text('x = 1\n')
+    git = lambda *a: subprocess.run(['git', *a], cwd=repo, check=True, capture_output=True)  # noqa: E731
+    git('init', '-q')
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init')
+    git('add', '.')
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'files')
+    monkeypatch.setattr(fleet, 'REPO', repo)
+    assert fleet.git_commit(False)
+    (repo / 'lab' / 'registry' / 'runs.jsonl').write_text('{}\n{"run_id": "new"}\n')
+    (repo / 'lab' / 'registry' / 'ablation.md').write_text('a new table\n')
+    assert fleet.git_commit(False)  # registry rows only
+    (repo / 'code.py').write_text('x = 2\n')
+    with pytest.raises(fleet.FleetError, match='code.py'):
+        fleet.git_commit(False)
+    assert fleet.git_commit(True).endswith('-dirty')

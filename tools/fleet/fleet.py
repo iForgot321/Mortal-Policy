@@ -1494,9 +1494,15 @@ def stage_check(run, cmd, launch=launch_detached, max_tries=2):
 # ---------------------------------------------------------------- commands
 
 def git_commit(allow_dirty):
-    dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=REPO, capture_output=True, text=True).stdout
+    """The commit the boxes get, refusing a working tree that is dirty outside lab/registry/
+    unless `allow_dirty`. New registry rows are left out, as evalbox.py does: a run's stage checks
+    write them while it trains, and no box code reads them (2026-11-19: a hand provision of a
+    curves actor was refused for two such rows, and batch 2's `up` would have been)."""
+    out = subprocess.run(['git', 'status', '--porcelain'], cwd=REPO, capture_output=True, text=True).stdout
+    dirty = [line for line in out.splitlines() if not line[3:].startswith('lab/registry/')]
     if dirty and not allow_dirty:
-        raise FleetError('the working tree is dirty and boxes get it as is: commit first (or --allow-dirty)')
+        raise FleetError('the working tree is dirty and boxes get it as is: commit first (or --allow-dirty)\n'
+                         + '\n'.join(dirty[:10]))
     return subprocess.run(['git', 'describe', '--always', '--dirty', '--abbrev=12'], cwd=REPO,
                           capture_output=True, text=True).stdout.strip()
 
