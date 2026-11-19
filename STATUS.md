@@ -182,5 +182,16 @@ registry would hold up the workstation's stop checks, and the reading needs all 
 **Approved (the user, 2026-11-18, "Whole chain"):** the curves at the live quote, ≈ $745–750 (both
 B0s, two batches, the eval box). The pre-registration is fixed. Batch 3 still needs its own yes.
 
-**Next:** the chain runs (`workdir/fleet/curves-chain.log`); after a restart, the note's Launch
-section has the resume path.
+**Progress (2026-11-19 18:20 UTC):**
+- Both B0s passed and batch 1 has run since 2026-11-18 15:20 UTC.
+- At p25 both stage checks said continue: +0.0061 vs 3× student for each size, CIs just
+  touching 0; drift ≈ 0.0175, agreement 95%.
+- Stage 1's controller held the target. After the first re-anchor its 40K-step hold ran out
+  below the band and the coefficient fell to the floor (reported in the note; the
+  pre-registration stays fixed).
+- One degraded actor was replaced by hand. `f52ecf5` lets rentals ignore new registry rows;
+  without it batch 2's `up` would have failed.
+- Details in the note's progress sections.
+
+**Next:** the chain runs (`workdir/fleet/curves-chain.log`): p50 ≈ 2026-11-20 15:30 UTC, batch 1's
+`full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path.

@@ -277,3 +277,45 @@ after the curves. No search, no mixed tables, no family-C confirmation.
   - `curves-b12-b0`: learner Ryzen 9 5950X, actors EPYC 7713 and 7742, $1.53/h;
   - `curves-b16-b0`: learner EPYC 7713, actors Threadripper PRO 5995WX and EPYC 7B12, $1.30/h.
 - **Next:** each B0's `full` ≈ 15:15 UTC, then the B0 rule and batch 1, by the chain.
+
+## Progress (2026-11-19): batch 1 past its first boundary
+
+- **The B0s passed their rule** (2026-11-18 15:19 UTC; `experiments/b0_check.py`):
+  - b12c256: 595 windows, explained variance by third 0.0077 / 0.0110 / 0.0122, final window
+    monotone;
+  - b16c256: 266 windows, 0.0056 / 0.0089 / 0.0099, final window monotone.
+  - $7.59 and $6.53. The inits: `init-b12c256.pth` (`0d656f38…`), `init-b16c256.pth` (`c0111cca…`).
+- **Batch 1 rented at 15:20 UTC:** `curves-b12-s1` at $1.74/h (quote $1.93), `curves-b16-s1` at
+  $2.30/h (quote $2.30). Dollar stops $232 and $276.
+- **p25 (72 box-hours, 2026-11-19 ≈ 15:25 UTC):**
+  - the snapshots were re-anchored within 1 and 6 min (b12 at step 1,395,600, b16 at
+    1,151,600), coefficient 0.11 carried;
+  - **both stage checks: continue.**
+
+  | Run | Reverse KL to the student | Agreement | Entropy (of the student's) | p25 vs 3× student, 10K sets |
+  |---|---|---|---|---|
+  | `curves-b12-s1` | 0.0176 | 95.2% | 0.490 (95%) | +0.0061 [−0.0002, +0.0125] (`20261119-082213-measure`) |
+  | `curves-b16-s1` | 0.0175 | 94.7% | 0.487 (94%) | +0.0061 [−0.0005, +0.0125] (`20261119-091301-measure`) |
+
+- **The controller:**
+  - **Stage 1 behaved as designed.** From 0, the KL reached the band within ≈ 20K steps at
+    0.11, with one step up to 0.165 and back. It then held at 0.019–0.020 for the rest of the
+    stage.
+  - **Stage 2 didn't.** After the re-anchor the KL climbed more slowly, at the lower LR (run
+    clock t ≈ 1.2–1.4M). The 40K-step hold ran out with the KL at ≈ 0.008, below the band, so the
+    coefficient fell to its 0.01 floor within 2,400 steps. The KL then overshot to 0.025 by
+    ≈ 95K steps, and the coefficient is climbing back: 0.076 in b12, 0.051 in b16, 120K steps in.
+    That's the pattern the hold was meant to prevent, and stages 3 and 4 will likely repeat it.
+  - The pre-registration is fixed, so it stays. It's reported here, and with each run's curve in
+    the reading.
+- **Hosts:**
+  - `curves-b16-s1` lost actor1 at 14:24 UTC; the watcher replaced it by 14:44.
+  - `curves-b12-s1`'s actor2 (machine 15136) slowed from 81.6K to 33.6K games/h over 90 min,
+    with 0% GPU at the probe. The health check still called it ok, so it was replaced by hand
+    (18:09–18:17 UTC) and its machine marked bad for the run.
+- **Two operational fixes:**
+  - The stage checks' registry rows had made the tree dirty, which `fleet.py provision` and `up`
+    refused. They now leave `lab/registry/` out of the check, as `evalbox.py` does (`f52ecf5`).
+    Batch 2's `up` would otherwise have failed after six hours of quotes.
+  - The rows themselves: `f7d40c2`.
+- **Spend so far:** B0s $14.12, batch 1 $108 at 80 box-hours. Batch 1 projects to ≈ $370–390.
