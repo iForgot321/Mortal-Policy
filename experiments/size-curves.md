@@ -319,3 +319,16 @@ after the curves. No search, no mixed tables, no family-C confirmation.
     Batch 2's `up` would otherwise have failed after six hours of quotes.
   - The rows themselves: `f7d40c2`.
 - **Spend so far:** B0s $14.12, batch 1 $108 at 80 box-hours. Batch 1 projects to ≈ $370–390.
+
+## Progress (2026-11-20): a workstation restart, and p50 late
+
+- **The workstation restarted at 07:26 UTC** (00:26 local), killing the chain, both watchers and
+  both watchdogs. The six boxes trained on unsupervised for ≈ 9 h.
+  - Found at 16:36 UTC: watchers and watchdogs resumed (`curves_launch.sh RUN --resume`, same
+    stops and deadlines), and the chain relaunched; it found batch 1 live and waits on it.
+- **p50 came ≈ 4 box-hours late:** at 147.87 box-hours (b12, step 2,560,800) and 147.76 (b16,
+  step 2,237,200), against 144.
+  - Stage 2 ran ≈ 76 box-hours, so stage 3 will run ≈ 68 (p75 stays at 216).
+  - The reading counts each snapshot's actual box-hours (`curves_reading.py`), so p50's
+    6-box-day reading is at ≈ 6.16.
+  - Both re-anchored to p50, and both stage checks (p50 against 3× p25) started 16:38 UTC.

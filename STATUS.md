@@ -193,5 +193,10 @@ B0s, two batches, the eval box). The pre-registration is fixed. Batch 3 still ne
   without it batch 2's `up` would have failed.
 - Details in the note's progress sections.
 
-**Next:** the chain runs (`workdir/fleet/curves-chain.log`): p50 ≈ 2026-11-20 15:30 UTC, batch 1's
+**2026-11-20:** the workstation restarted at 07:26 UTC, and every supervisor died. The boxes
+trained on unsupervised until 16:36 UTC, when the watchers, watchdogs and chain were resumed. So
+p50 came ≈ 4 box-hours late (147.8 box-hours); both runs re-anchored to it, and its stage checks
+started 16:38.
+
+**Next:** the chain runs (`workdir/fleet/curves-chain.log`): p75 ≈ 2026-11-21 15:30 UTC, batch 1's
 `full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path.
