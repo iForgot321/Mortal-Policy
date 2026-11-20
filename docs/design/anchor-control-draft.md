@@ -113,6 +113,64 @@ processes, 288 box-hours, snapshots at 72 / 144 / 216 / 288, and the stage check
    curves' scripts (`curves_launch.sh`, generalized to these run names), and their measures.
 5. The pre-registration (`experiments/anchor-control.md`) with a live quote, for the user's yes.
 
+## Simulation (2026-11-20, batch 1's traces; branch `d69-anchor-control`)
+
+`experiments/anchor_control_sim.py` (output `workdir/lab/anchor-control-sim.json`) fits the
+noisy-spring model to `curves-b12-s1` and `curves-b16-s1`, stages 1–3 (stage 3 partial).
+
+**The fit:**
+- a common pull k = 25.1, and a drive D per stage: 1.34e-6, 4.44e-7, 2.47e-7 per step;
+- the record's window-to-window noise is ≈ 1.1% in log;
+- the residual is 0.21 in log: one D per stage misses the changes within a stage.
+- A first version tied D to the LR by a power law and used the residual as noise. It put the
+  drafted controller on its floor in stage 1, where the record never has it, and was replaced.
+
+**Closed loop, the drafted controller against the record:**
+
+| | Simulated | Recorded (b12 / b16) |
+|---|---|---|
+| Stage 2, floor windows | 126 | 129 / 132 |
+| Stage 2, coefficient at the end | 0.0506 | 0.0506 / 0.0506 |
+| Stage 2, windows in the band | 94% | 94% / 94% |
+| Stage 1, floor windows; end coefficient | 22; 0.17 | 0; 0.11 (the model's weakest stage: the fast start from the student) |
+
+**The record itself: the drafted controller's transients are small.**
+- Stage 2 was in the band for 94% of its windows in both runs. It sat below the band for the first
+  ≈ 65K steps (6% of the stage), on the floor for 4–5% of windows, and above the band for
+  0.1–0.2%.
+- Stage 3, still running (≈ 750 windows): 69–73% in the band so far, the floor at 32–48%.
+
+**The candidates** (worst case over stages and 5 noise seeds):
+
+| Setting | In band | Into the band by | Floor windows | KL max |
+|---|---|---|---|---|
+| Drafted (×1.5, hold 100) | ≥ 93% | ≤ 7% of a stage | 126–328 per stage | 0.0260 |
+| **C1: H 25,000, kp 2.0, kd 0** | **≥ 92%** | **≤ 8%** | **0** | **0.0233** |
+| C1: H 25,000, kp 0.5 | ≥ 89% | ≤ 11% | 0 | 0.0252 |
+| C1: H 100,000 (the draft's example) | ≥ 64–68% | ≤ 32–36% | 0 | 0.0225–0.0234 (too slow for each stage's needs) |
+| **C2: ema 5e-4** (lag ≈ 800K steps) | **≥ 96%** | **≤ 4%** (the run's start only) | (the penalty often at its floor; the moving anchor holds the band) | **0.0265** |
+| C2: ema 2e-3 or more | 0–96% | — | — | the anchor catches up too fast; the KL falls out of the band |
+
+- **Robustness:**
+  - At twice the fitted drive, C1 and C2 both do better.
+  - At half the drive, C1 is in the band ≥ 84%, enters by 16% and reaches its floor, but never
+    rises above the band (KL max 0.0223). The drafted controller is on the floor for 1,888 windows.
+  - So for C1, overshoot, not floor time, is the measure that matters.
+- **Proposed parameters:**
+  - **C1:** horizon 25,000, kp 2.0, kd 0, p_clip 0.2. The derivative term made no difference.
+  - **C2:** ema 5e-4, the curves' controller, and a tie of c_SL ≈ 0.008. That tie's own resting
+    KL to the student is ≈ 0.10 at the run's last LR, two-thirds of the 0.15 stop limit.
+
+**What it means for the pilot.** Over a stage, C1 changes little but the transients:
+- In the record, the drafted controller lost ≈ 6% of stage 2 to its floor-and-overshoot, and
+  never went much above the band.
+- C1 removes that transient, but a strength difference from ≈ 6% of each stage is unlikely to
+  exceed S, the curves' seed spread, so the pilot probably can't measure C1's effect.
+- C2 changes the anchoring itself: no resets, and a trust region that moves continuously. That
+  is the substantive question.
+
+The fit is refitted with batch 2's traces before the pre-registration is fixed.
+
 ## Cost and time
 
 - **Runs:** ≈ 576 box-hours, ≈ $350–440 at batch 1's prices.
