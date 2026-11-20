@@ -155,6 +155,9 @@ Each package is a bounded comparison of a coherent set of changes. Its box-day c
 - Reverse KL(π_θ ‖ π_SL), exact over the legal mask, computed on a frozen copy on the learner.
 - Target 0.02 nats/decision at the start. Anchor **decay** is part of the schedule; LuckyJ reached its flexible style without human data (`01` §6).
 - **A constant target doesn't compound (D64).** `k2b` held 0.02 nats to its frozen initialization for the whole run: the coefficient settled in the first tenth, the second half of the budget bought +0.0025, and the soak's 48 h more bought nothing measurable. T1 doesn't scale that recipe. The anchor-release pilot (`experiments/anchor-release.md`, 2026-11-15) found both a rising target and re-anchoring beat the fixed anchor's continuation at both tables (≈ +0.011 at the training table, +0.004–0.006 at the held-out one); they tied, and by the rule **T1 re-anchors to each new champion**.
+- **The controller, tested before T1 (D69).**
+  - In D31's curves the ×1.5-per-400-steps controller outran the KL. After each re-anchor the KL started again from ≈ 0, the step-counted hold ran out below the band, and the coefficient fell to its floor before the KL could answer (`experiments/size-curves.md`).
+  - The anchor-control pilot tests a damped controller (C1) and a soft, moving-average anchor with a weak tie to the student (C2) against the curves' recipe (`docs/design/anchor-control-draft.md`); T1 runs the winner.
 
 ### 5.2 Confirmation (needed before a result counts toward a rung)
 
@@ -184,7 +187,7 @@ c = 1[π/b > 1−ε] · 1[y_a − mean_legal(y) > −l_th]    if A < 0
 
 | Tranche | Weeks | Fleet | Release rule |
 |---|---|---|---|
-| **T1** | 10–12 | Eval, learner, 3 actors | Released at G0, once D64's critic check and anchor-release pilot are done |
+| **T1** | 10–12 | Eval, learner, 3 actors | Released at G0, once D64's critic check and anchor-release pilot are done and D69's anchor-control pilot has read |
 | **T2** | 13–15 | Eval, learner, **dedicated candidate learner**, 4 actors | End-of-T1 champion beats start-of-T1 champion (T-std), no severe population-panel regression, **and** the search pilot's belief stage has reported (D32) |
 | **T3** | 16–18 | Same as T2 | Same rule, applied to T2 |
 

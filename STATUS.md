@@ -75,8 +75,8 @@ re-anchoring (D64, D68).
 - **D64 is satisfied:** the critic isn't the lever (`experiments/critic-ceiling.md`: K1 explains
   13.7% of the kyoku's GRP-Δu, supervised critics 8.4–9.0%), and re-anchoring beats the fixed
   anchor (above). D31's curves: two seeds per size, a third when close, 24 h stages (D65, D68).
-- **Early-research spend:** ≈ $1.41K of the $2.2K cap with this pilot ($173.62), which leaves ≈ $785
-  for D65's curves (≈ $630–690).
+- **Early-research spend:** ≈ $1.41K before the curves (≈ $780–815 at batch 1's prices). D69 raised
+  the cap from $2.2K to $2.7K for the anchor-control pilot (≈ $370–460).
 - The observation is v5 from G0 on (D61); its checks and its recipe check pass
   (`experiments/v5-switch.md`).
 
@@ -86,7 +86,7 @@ Parked (the user, 2026-10-21).
 **riichi.dev (`07`):** adapter, supervisor and daily summary built. The validation game and the
 100K-game parity test pass. Ranked play waits for π_SL (the user, 2026-10-12).
 
-**Spend:** ≈ $1.45K of ≈ $14.3K, summed from the notes' figures; there is no ledger total.
+**Spend:** ≈ $1.45K before the curves, of ≈ $14.8K (D69; $14.3K before), summed from the notes' figures; there is no ledger total.
 
 ## Frozen artifacts (read-only; never overwrite)
 
@@ -198,5 +198,14 @@ trained on unsupervised until 16:36 UTC, when the watchers, watchdogs and chain 
 p50 came ≈ 4 box-hours late (147.8 box-hours); both runs re-anchored to it, and its stage checks
 started 16:38.
 
+**D69 (the user, 2026-11-20):** an anchor-control pilot runs between the curves and T1:
+- C1, a damped KL controller; C2, a soft (moving-average) anchor with a weak tie to the student;
+- each against the curves' recipe on the selected size, the curves' seeds as the comparator;
+- the early-research cap goes from $2.2K to $2.7K.
+
+The design draft is `docs/design/anchor-control-draft.md`. The code, a $0 simulation fitted to the
+curves' KL traces, and the smoke runs come before its rental, which needs its own yes.
+
 **Next:** the chain runs (`workdir/fleet/curves-chain.log`): p75 ≈ 2026-11-21 15:30 UTC, batch 1's
-`full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path.
+`full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path. Meanwhile,
+D69's code and simulation (workstation-only, nothing rented).

@@ -772,6 +772,35 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Reopen if:** in-run re-anchoring can't be made to work (then each stage runs as its own run from a staged snapshot, `tools/fleet/stage_init.py`), or the first stage's KL settles far outside the band at the start coefficient.
 - **The controller's hold (2026-11-18, `experiments/size-curves.md`; not a new decision):** 100 windows of 400 steps at the start and after each re-anchor, chosen by the user ("Go with option 1"). With `k2.toml`'s 5, the coefficient reached its 0.01 floor ≈ 10–15 min into every stage (as at the start of `k2b`, `k2v5` and `release-b`), so the start and the carry above would have changed nothing.
 
+**D69 (2026-11-20): an anchor-control pilot runs between D31's curves and T1: a damped KL controller, and a soft (moving-average) anchor with a weak tie to the student, each against the curves' recipe.** Amends `00`'s early research (a fifth item), G0's "Start T1" and the Phase 1 budget (the early-research cap from $2.2K to $2.7K), and `05` §5.1 (the KL anchor) and §6 (T1's release). Decided by the user ("Add tests for 1 and 2 to the plan before T1, feel free to increase the budget accordingly", 2026-11-20), after a review of the literature on KL controllers and moving anchors.
+- **Why:**
+  - **D68's controller outruns the KL it steers.**
+    - It multiplies or divides the coefficient by 1.5 every 400 steps.
+    - The KL answers over tens of thousands of steps: its relaxation time grows as 1/(LR × coefficient), ≈ 8K steps at `k2v5`'s settings and several times that by the curves' later stages.
+    - After each re-anchor the KL starts again from ≈ 0. At stages 2 and 3 of `curves-b12-s1` and `curves-b16-s1` it was still at 0.007–0.008 when the 40K-step hold ran out, and the coefficient fell to its 0.01 floor within 2,400 steps.
+    - The KL then climbed to the band's top (0.025) over ≈ 50–90K steps, and the coefficient overshot on the way back up (to 0.076 and 0.051 in stage 2), then settled at 0.0506 (`experiments/size-curves.md`, Progress).
+    - In effect the anchor acts as a ceiling at ≈ 0.025, not a spring at 0.02, and how much of each stage it spends loose depends on the LR and the stage's start.
+  - **The literature has two standard fixes.**
+    - Slow, proportional or PID control of the coefficient: Ziegler et al. 2019's adaptive KL controller, Lagrangian dual ascent (MPO, SAC's temperature, Suphx's entropy coefficient), and Stooke, Achiam & Abbeel 2020's PID Lagrangian. The last is aimed at exactly the overshoot the plain multiplier update shows.
+    - A moving anchor with no reset transient: TR-DPO's soft reference update, Magnetic Mirror Descent's magnet, and Elastic Reset's moving average with a tie to the initial model.
+  - **Neither has been tried here.** T1 scales one recipe for 3 weeks, and its tranche gate compares champions, not controllers.
+- **What:**
+  - **Two candidates, each changing one thing against the curves' recipe** (D68: P1 + K2, v5, the curves' schedules, 1 learner + 2 actors × 2 processes, 288 box-hours):
+    1. **C1, a damped controller:** the curves' hard re-anchoring every 72 box-hours, with the ×1.5-per-window rule and its step-counted hold replaced by a slow proportional (Ziegler-style, or PID) update of the coefficient.
+    2. **C2, a soft anchor:** the anchor is a moving average of the policy's own weights, updated every window. There are no re-anchors. There is also a weak fixed penalty toward the starting student, and the curves' controller.
+  - **Where:** the size D31's curves select (D16), from that size's curves init. One run each, both at once (paired, as a curves batch).
+  - **The comparator:** that size's curves runs (two seeds, or three), on the same init and the same box-hours. Their final measures share the block `curves` deals, so every candidate measure pairs with each curves seed.
+  - **Reading** (fixed in the pilot's pre-registration, before it runs):
+    - a candidate passes if its `full` against three copies of the student beats the curves seeds' mean by more than D68's S (the within-size spread, floored at 0.0043);
+    - both pass: the larger;
+    - neither: T1 runs the curves' recipe.
+    - Reported: the held-out table (3× BC s1), the KL's time in the band, floor episodes and the drift from the student.
+  - **Before it runs** ($0): the two mechanisms in code, with tests and a workstation smoke. Their free parameters (C1's horizon and gains, C2's averaging rate and tie strength) are set by a simulation fitted to the curves' recorded KL traces. The pre-registration is then fixed with a live quote and the user's yes.
+  - The curves' stage checks and drift limits apply to both. C2, having no stages, takes its stop checks at the same 72-box-hour snapshots, each against the previous one.
+- **Cost:** ≈ 576 box-hours, ≈ $350–440 at batch 1's prices, plus ≈ $20 of final measures. The early-research cap rises by $0.5K to $2.7K, which also covers the curves' overrun past their quote (≈ $780–815 at batch 1's prices). The Phase 1 row becomes ≈ $3.7K, and the plan ≈ $13.2K + $1.6K reserve ≈ $14.8K. The rental still needs its own yes on a live quote (D24).
+- **Time:** after the curves' reading (≈ 2026-11-28): ≈ 4 days of runs and ≈ 1 day of measures. T1 starts ≈ 5–6 days later than it would have.
+- **Reopen if:** the curves end without a size decision (then the pilot runs on b12c256, the cheaper net); a candidate's smoke or simulation shows it can't hold the band; or the user wants T1 started first (then the pilot becomes a T1 candidate-lane test, `05` §6).
+
 ## Cut list (v1 items removed, and what would bring each back)
 
 | Item (v1) | Status | Reason | Re-entry trigger |
@@ -795,6 +824,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D14b:** the held-out-by-time window, if the coverage audit (`04a` §5) moves it from 2025-07-01 → 2026-01-23.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
 - **D16:** the student net size (`03` §4.1 + `04` §6), between b12c256 and b16c256 (`experiments/students-s1.md`). By D31's curves, two RL seeds per size and a third when close (D65, D68), on re-anchoring (D64, D68).
+- **D69a:** T1's anchor control: the curves' recipe, C1 (a damped controller) or C2 (a soft anchor with a weak tie to the student), by D69's pilot.
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
 - **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are. **Resolved by D67** (2026-11-11): the real EMA weights (`ema-from-state.pth`).
