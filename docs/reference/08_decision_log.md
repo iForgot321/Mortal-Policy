@@ -800,6 +800,16 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **Cost:** ≈ 576 box-hours, ≈ $350–440 at batch 1's prices, plus ≈ $20 of final measures. The early-research cap rises by $0.5K to $2.7K, which also covers the curves' overrun past their quote (≈ $780–815 at batch 1's prices). The Phase 1 row becomes ≈ $3.7K, and the plan ≈ $13.2K + $1.6K reserve ≈ $14.8K. The rental still needs its own yes on a live quote (D24).
 - **Time:** after the curves' reading (≈ 2026-11-28): ≈ 4 days of runs and ≈ 1 day of measures. T1 starts ≈ 5–6 days later than it would have.
 - **Reopen if:** the curves end without a size decision (then the pilot runs on b12c256, the cheaper net); a candidate's smoke or simulation shows it can't hold the band; or the user wants T1 started first (then the pilot becomes a T1 candidate-lane test, `05` §6).
+- **Amended 2026-11-20: the pilot tests C2 alone, and C1 goes into T1 without a strength test** (the user: "C2 only; C1 into T1", the recommended option).
+  - **Why:** the simulation (`experiments/anchor_control_sim.py`, `docs/design/anchor-control-draft.md`), fitted to batch 1's traces and checked against the record, and the record itself:
+    - the drafted controller's floor-and-overshoot cost ≈ 6% of stage 2, which stayed in the band for 94% of its windows;
+    - C1 removes that transient (in the simulation: ≥ 92% in the band, no floor, KL max 0.0233), but a strength effect that small is unlikely to exceed S, so the pilot couldn't measure it.
+    - C2 changes the scheme itself.
+  - **The pilot:** C2 against the curves' recipe on the selected size (ema 5e-4, the curves' controller, a tie of ≈ 0.008; refitted on batch 2's traces first), one run of 288 box-hours, ≈ $185–230 with its measures.
+  - **T1:**
+    - C2 as tested, if it passes;
+    - otherwise the curves' re-anchoring with C1's controller (mode `'proportional'`, horizon 25,000, kp 2.0, kd 0, p_clip 0.2), an engineering change justified by the simulation and not by a strength test.
+  - **The early-research cap** is $2.5K, not $2.7K: the plan ≈ $13.0K + $1.6K reserve ≈ $14.6K.
 
 ## Cut list (v1 items removed, and what would bring each back)
 
@@ -824,7 +834,7 @@ Every major decision, with its rationale, evidence and **what would reopen it**.
 - **D14b:** the held-out-by-time window, if the coverage audit (`04a` §5) moves it from 2025-07-01 → 2026-01-23.
 - **D13a:** whether Mahjong Soul Throne data enters as a Phase 1 ablation (`04a` §9).
 - **D16:** the student net size (`03` §4.1 + `04` §6), between b12c256 and b16c256 (`experiments/students-s1.md`). By D31's curves, two RL seeds per size and a third when close (D65, D68), on re-anchoring (D64, D68).
-- **D69a:** T1's anchor control: the curves' recipe, C1 (a damped controller) or C2 (a soft anchor with a weak tie to the student), by D69's pilot.
+- **D69a:** T1's anchor control, by D69's pilot (amended): C2 (a soft anchor with a weak tie to the student) if it passes, else the curves' re-anchoring with C1's damped controller.
 - **D17:** AWR vs BC as the teacher objective (`04` §5). Both are trained at full scale; the T-std winner gets the second seed. **Resolved 2026-11-05 by the pre-registered T-std** (`experiments/teacher-ab-tstd.md`, `20261105-105720-T-std`): AWR s1 vs BC s1 (EMA weights) fails at 6,500 sets, Δu −0.0007 ≈ [−0.009, +0.008], so **BC**.
 - **D17a:** H100 vs a 4090 with ≥ 48 vCPU for teacher runs (narrowed by D50). **Resolved by D62** (2026-10-29): Hyperstack RTX A6000s.
 - **D63a:** which weights of BC s1 and AWR s1 the ensemble and the best single teacher are. **Resolved by D67** (2026-11-11): the real EMA weights (`ema-from-state.pth`).

@@ -1,9 +1,13 @@
 # D69's anchor-control pilot: design draft (2026-11-20)
 
 **Status: draft.** Decided in outline by D69 (the user, 2026-11-20: "Add tests for 1 and 2 to the
-plan before T1, feel free to increase the budget accordingly"). It becomes
-`experiments/anchor-control.md`, pre-registered, once the open parameters below are set by the
-simulation. It runs after the user's yes on a live quote. Exploratory. Nothing has run.
+plan before T1, feel free to increase the budget accordingly"). **Amended the same day** after
+the simulation (below), by the user: "C2 only; C1 into T1".
+- The pilot tests C2 alone.
+- C1 goes into T1, without a strength test, if C2 doesn't pass.
+
+It becomes `experiments/anchor-control.md`, pre-registered, once C2's parameters are refitted on
+batch 2's traces. It runs after the user's yes on a live quote. Exploratory. Nothing has run.
 
 ## The question
 
@@ -38,11 +42,12 @@ its distance from the anchor.
 
 ## The candidates
 
-Each changes one thing against the curves' recipe. Everything else is the curves': P1 + K2, v5,
+Each changes one thing against the curves' recipe. **Since the amendment only C2 runs in the
+pilot.** C1 is kept here as the design T1 adopts if C2 doesn't pass. Everything else is the curves': P1 + K2, v5,
 `k2.toml`'s schedules on the run clock, the size's curves init, 1 learner + 2 actors × 2
 processes, 288 box-hours, snapshots at 72 / 144 / 216 / 288, and the stage checks and drift limits.
 
-### C1, a damped controller (hard re-anchoring kept)
+### C1, a damped controller (hard re-anchoring kept): for T1, not run in the pilot
 
 - **The rule,** every 400-step window, after Ziegler et al. (2019), as TRL and TorchRL implement it:
 
@@ -81,13 +86,12 @@ processes, 288 box-hours, snapshots at 72 / 144 / 216 / 288, and the stage check
   once, paired like a curves batch.
 - **The comparator:** that size's curves runs, two seeds (or three), at the same 288 box-hours.
 - **The measures** (on an eval box, 40,000 sets each on family A block `curves`, so each pairs
-  with every curves seed's measures): each candidate's `full` and p50 against three copies of the
-  student, and its `full` against three copies of BC s1. Six measures.
+  with every curves seed's measures): C2's `full` and p50 against three copies of the student,
+  and its `full` against three copies of BC s1. Three measures.
 - **The reading:**
-  - D = the candidate's Δu (`full` vs 3× student) − the mean of the curves seeds' Δu;
-  - **a candidate passes if D > S**, D68's within-size spread (floored at 0.0043);
-  - both pass: the larger D, if the two differ by more than S; otherwise C1, the smaller change;
-  - neither passes: T1 runs the curves' recipe.
+  - D = C2's Δu (`full` vs 3× student) − the mean of the curves seeds' Δu;
+  - **C2 passes if D > S**, D68's within-size spread (floored at 0.0043): then T1 runs C2 as tested;
+  - otherwise T1 runs the curves' re-anchoring with C1's controller (horizon 25,000, kp 2.0).
 - **Reported, not deciding:**
   - D's 95% interval, from the curves' seed spread and the lab's noise;
   - the 6-box-day reading;
@@ -97,20 +101,22 @@ processes, 288 box-hours, snapshots at 72 / 144 / 216 / 288, and the stage check
 
 ## Before the rental
 
-1. **Code** (`mortal/kl_anchor.py`, `train_online.py`):
-   - C1's controller mode;
-   - C2's moving-average anchor, updated on the learner every window and saved with the trainer's
-     state, plus the fixed second penalty;
-   - tests for each, as for re-anchoring (`tests/test_kl_anchor.py`).
+1. **Code: done** (branch `d69-anchor-control`, `2ccb2f3`; merged into `main` after batch 2 is
+   down, since a replacement box gets this checkout's working tree):
+   - `mortal/kl_anchor.py`: C1's `'proportional'` mode, and C2's moving average (`ema`), saved
+     with the trainer's state;
+   - `train_online.py`: the moving-average update, and the tie (`[policy.kl_tie]`);
+   - 5 new tests; the suite passes (243).
 2. **The simulation** ($0, the workstation):
    - fit the noisy-spring model to all four curves runs' recorded traces (stages 1–4 by then);
    - choose C1's H (and gains) and C2's β and c_SL. The aim: at every stage's LR the simulated KL
      enters the band within 10% of a stage and stays in it for ≥ 80% of windows, with no floor
      episode;
    - report the fit and the choice.
-3. **Smoke runs** of both on the workstation (`experiments/curves_smoke.py`'s pattern).
-4. **Configs and launch:** two configs from the selected size's curves config, launched with the
-   curves' scripts (`curves_launch.sh`, generalized to these run names), and their measures.
+3. **A smoke run** of C2 on the workstation (`experiments/curves_smoke.py`'s pattern), and of C1
+   before T1.
+4. **Config and launch:** one config from the selected size's curves config, launched with the
+   curves' scripts (`curves_launch.sh`, generalized to this run name), and its measures.
 5. The pre-registration (`experiments/anchor-control.md`) with a live quote, for the user's yes.
 
 ## Simulation (2026-11-20, batch 1's traces; branch `d69-anchor-control`)
@@ -173,9 +179,9 @@ The fit is refitted with batch 2's traces before the pre-registration is fixed.
 
 ## Cost and time
 
-- **Runs:** ≈ 576 box-hours, ≈ $350–440 at batch 1's prices.
-- **Final measures:** ≈ $20.
-- **The early-research cap** rises to $2.7K (D69).
+- **The run:** 288 box-hours, ≈ $175–220 at batch 1's prices.
+- **Final measures:** ≈ $10.
+- **The early-research cap** rises to $2.5K (D69, amended).
 - **Time:** after the curves' reading (≈ 2026-11-28), ≈ 4 days of runs and ≈ 1 day of measures.
   T1 starts ≈ 5–6 days later.
 

@@ -4,7 +4,7 @@
 - It supersedes all six v1 documents in `mahjong/`. The reasons are in `mahjong/REVIEW.md` and `mahjong/PRO_APPROACH.md`.
 - The 2026-10-01 revision adopts `mahjong/REVIEW_V2_STRATEGY.md` (research strategy) and `mahjong/REVIEW_V2.md` (correctness). The changes are logged as D28–D42 in `08_decision_log.md`.
 
-**Budget basis:** **$10–15K total compute, cloud only**, with no hardware purchase (D21). After the D42 reallocation and D69's anchor-control pilot, the plan spends about $13.2K and holds about $1.6K in reserve: ≈ $14.8K, near the top of the basis.
+**Budget basis:** **$10–15K total compute, cloud only**, with no hardware purchase (D21). After the D42 reallocation and D69's anchor-control pilot, the plan spends about $13.0K and holds about $1.6K in reserve: ≈ $14.6K, near the top of the basis.
 
 **Purpose:** this is the entry point and the source of truth for **sequencing, gates, success criteria and budget**. Every other file supplies implementation detail. Where they conflict, this file wins on *what happens, when, and at what cost*, and the stage file wins on *how*. It is written so future sessions, human or Claude, can resume without re-deriving context.
 
@@ -94,7 +94,7 @@ Displayed ratings drift with SD ≈ 36–44 points (`07` §2).
 | Phase | Weeks | Fleet | Cost |
 |---|---|---|---|
 | **0** Foundations | 1–3 | 1 dev/eval box; benchmark rentals; **2 pilot quick students** for A/A′ (D41); Mahjax spike | ≈ $0.6K |
-| **1** SL substrate + **early research** | 4–9 | SL substrate (eval box, teachers, student candidates) ≈ $1.0K. Early research **capped at $2.7K** (D69; $2.2K before): engine arms, actor-size curves, fleet soak, search pilot, anchor-control pilot. | ≈ $3.7K |
+| **1** SL substrate + **early research** | 4–9 | SL substrate (eval box, teachers, student candidates) ≈ $1.0K. Early research **capped at $2.5K** (D69; $2.2K before): engine arms, actor-size curves, fleet soak, search pilot, anchor-control pilot. | ≈ $3.5K |
 | *Gate G0: Select* | 9 | — | — |
 | **2** Select and scale (tranches) | 10–18 | **T1** (wk 10–12): 5 boxes (eval, learner, 3 actors), ≈ $1.4K. **T2** (wk 13–15) and **T3** (wk 16–18): 7 boxes (eval, learner, **candidate learner**, 4 actors), ≈ $1.9K each. **T2 and T3 are released only by D30.** | ≈ $5.2K |
 | *Gate G1* | 18 | — | — |
@@ -102,7 +102,7 @@ Displayed ratings drift with SD ≈ 36–44 points (`07` §2).
 | *Gate G2* | 25 | — | — |
 | **4** Campaign + products (3 months budgeted) | 25+ | 1 deploy box, plus bursts for blunder mining | ≈ $1.5K |
 | **Reserve** | — | Overruns, G0 retry, extra seeds, learner upgrade | ≈ $1.6K |
-| **Total** | | | **≈ $13.2K planned + $1.6K reserve ≈ $14.8K** (D69) |
+| **Total** | | | **≈ $13.0K planned + $1.6K reserve ≈ $14.6K** (D69) |
 
 **Unreleased tranche money returns to the reserve.** If T2 or T3 is not released, that spend moves to diagnosis, inference search, or the reserve, by decision-log entry.
 
@@ -156,7 +156,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 - Student candidates: the two smallest nets that pass T-NI against the best single teacher.
 - riichi.dev smoke deploy of the best student. This is the **incumbent** (L1).
 
-**Early research** (weeks 4–9, capped at $2.7K since D69; `05` §2, `06` §0):
+**Early research** (weeks 4–9, capped at $2.5K since D69; `05` §2, `06` §0):
 1. **Learning-engine comparison** (D29), at matched box-days (3 boxes × 6 days per arm-seed), from the pilot quick students and a quick CQL model:
    - P0 released + fixes ×1;
    - P1 + package K1 ×2;
@@ -168,11 +168,10 @@ These counts are tracked separately as generated games, consumed samples and cha
    - policy only, oracle search, belief search;
    - the oracle stage reports by G0;
    - the belief stage reports **before T2's release**.
-5. **Anchor-control pilot** (D69), after the curves' reading, on the size they select. Two candidates, each against the curves' recipe at its 288 box-hours, with the curves' seeds as the comparator:
-   - C1, a damped (proportional or PID) KL controller, with the curves' hard re-anchoring;
-   - C2, a soft anchor (a moving average of the policy) with a weak tie to the student.
-
-   ≈ $370–460.
+5. **Anchor-control pilot** (D69, amended), after the curves' reading, on the size they select:
+   - C2, a soft anchor (a moving average of the policy) with a weak tie to the student, against the curves' recipe at its 288 box-hours, with the curves' seeds as the comparator;
+   - ≈ $185–230.
+   - C1, a damped KL controller, goes into T1 untested for strength, if C2 doesn't pass.
 
 ### Gate G0: Select (week 9)
 
@@ -188,7 +187,7 @@ These counts are tracked separately as generated games, consumed samples and cha
 ### Phase 2: Select and scale (weeks 10–18)
 
 **T1 (weeks 10–12)**
-- Scale the selected engine on the selected actor. K2's fixed anchor isn't scaled: `k2b` stopped improving at it (D64). T1 runs the anchor-release mechanism D64's pilot selects, with the critic its check settles, and the anchor control D69's pilot selects (the curves' recipe, a damped controller, or a soft anchor).
+- Scale the selected engine on the selected actor. K2's fixed anchor isn't scaled: `k2b` stopped improving at it (D64). T1 runs the anchor-release mechanism D64's pilot selects, with the critic its check settles, and the anchor control D69's pilot selects (C2's soft anchor if it passes, else re-anchoring with C1's damped controller).
 - **Final-student check:** the engine applied to the final student must pass T-std against that student (D41).
 - Discovery packages K2 and K3 run within their box-day caps (`05` §5.1).
 

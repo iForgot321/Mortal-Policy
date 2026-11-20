@@ -76,7 +76,7 @@ re-anchoring (D64, D68).
   13.7% of the kyoku's GRP-Δu, supervised critics 8.4–9.0%), and re-anchoring beats the fixed
   anchor (above). D31's curves: two seeds per size, a third when close, 24 h stages (D65, D68).
 - **Early-research spend:** ≈ $1.41K before the curves (≈ $780–815 at batch 1's prices). D69 raised
-  the cap from $2.2K to $2.7K for the anchor-control pilot (≈ $370–460).
+  the cap from $2.2K to $2.5K for the anchor-control pilot (≈ $185–230).
 - The observation is v5 from G0 on (D61); its checks and its recipe check pass
   (`experiments/v5-switch.md`).
 
@@ -86,7 +86,7 @@ Parked (the user, 2026-10-21).
 **riichi.dev (`07`):** adapter, supervisor and daily summary built. The validation game and the
 100K-game parity test pass. Ranked play waits for π_SL (the user, 2026-10-12).
 
-**Spend:** ≈ $1.45K before the curves, of ≈ $14.8K (D69; $14.3K before), summed from the notes' figures; there is no ledger total.
+**Spend:** ≈ $1.45K before the curves, of ≈ $14.6K (D69; $14.3K before), summed from the notes' figures; there is no ledger total.
 
 ## Frozen artifacts (read-only; never overwrite)
 
@@ -198,13 +198,17 @@ trained on unsupervised until 16:36 UTC, when the watchers, watchdogs and chain 
 p50 came ≈ 4 box-hours late (147.8 box-hours); both runs re-anchored to it, and its stage checks
 started 16:38.
 
-**D69 (the user, 2026-11-20):** an anchor-control pilot runs between the curves and T1:
-- C1, a damped KL controller; C2, a soft (moving-average) anchor with a weak tie to the student;
-- each against the curves' recipe on the selected size, the curves' seeds as the comparator;
-- the early-research cap goes from $2.2K to $2.7K.
-
-The design draft is `docs/design/anchor-control-draft.md`. The code, a $0 simulation fitted to the
-curves' KL traces, and the smoke runs come before its rental, which needs its own yes.
+**D69 (the user, 2026-11-20; amended the same day):** an anchor-control pilot runs between the
+curves and T1.
+- It tests **C2**, a soft (moving-average) anchor with a weak tie to the student, against the
+  curves' recipe on the selected size, with the curves' seeds as the comparator (≈ $185–230).
+- If C2 doesn't pass, T1 re-anchors with **C1**, a damped controller, untested for strength.
+- The early-research cap is $2.5K.
+- Done ($0): the code on branch `d69-anchor-control` (merged after batch 2; 243 tests pass), and
+  the simulation fitted to batch 1's KL traces. It reproduces stage 2 (94% in the band) and
+  proposes C1 horizon 25K, kp 2, and C2 ema 5e-4 with a tie of ≈ 0.008.
+- Left: a refit on batch 2's traces, a smoke run, the config, and the rental's yes. Design:
+  `docs/design/anchor-control-draft.md`.
 
 **Next:** the chain runs (`workdir/fleet/curves-chain.log`): p75 ≈ 2026-11-21 15:30 UTC, batch 1's
 `full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path. Meanwhile,

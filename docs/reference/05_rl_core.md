@@ -157,7 +157,8 @@ Each package is a bounded comparison of a coherent set of changes. Its box-day c
 - **A constant target doesn't compound (D64).** `k2b` held 0.02 nats to its frozen initialization for the whole run: the coefficient settled in the first tenth, the second half of the budget bought +0.0025, and the soak's 48 h more bought nothing measurable. T1 doesn't scale that recipe. The anchor-release pilot (`experiments/anchor-release.md`, 2026-11-15) found both a rising target and re-anchoring beat the fixed anchor's continuation at both tables (≈ +0.011 at the training table, +0.004–0.006 at the held-out one); they tied, and by the rule **T1 re-anchors to each new champion**.
 - **The controller, tested before T1 (D69).**
   - In D31's curves the ×1.5-per-400-steps controller outran the KL. After each re-anchor the KL started again from ≈ 0, the step-counted hold ran out below the band, and the coefficient fell to its floor before the KL could answer (`experiments/size-curves.md`).
-  - The anchor-control pilot tests a damped controller (C1) and a soft, moving-average anchor with a weak tie to the student (C2) against the curves' recipe (`docs/design/anchor-control-draft.md`); T1 runs the winner.
+  - The anchor-control pilot (D69, amended) tests a soft, moving-average anchor with a weak tie to the student (C2) against the curves' recipe (`docs/design/anchor-control-draft.md`).
+  - T1 runs C2 if it passes. Otherwise T1 runs re-anchoring with a damped controller (C1: proportional, horizon 25K, kp 2), which the simulation fitted to the curves' traces shows removes the floor and the overshoot.
 
 ### 5.2 Confirmation (needed before a result counts toward a rung)
 
