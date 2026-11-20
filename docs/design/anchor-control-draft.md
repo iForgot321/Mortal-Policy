@@ -51,7 +51,7 @@ processes, 288 box-hours, snapshots at 72 / 144 / 216 / 288, and the stage check
 
 - **What it does:** this is an integral controller on log c, with the error capped at ±20%. With
   H ≈ 100K steps, a window changes the coefficient by at most 0.08%, and a stage start at KL 0
-  lowers it by ≈ 3% over 40K steps, not to the floor.
+  lowers it by ≈ 8% over 40K steps, not to the floor.
 - **No hold** is needed.
 - **Optional damping terms** (a PID form): a proportional term on e and a derivative term on its
   change. They're added only if the simulation shows the plain rule overshoots.
