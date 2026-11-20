@@ -332,3 +332,14 @@ after the curves. No search, no mixed tables, no family-C confirmation.
   - The reading counts each snapshot's actual box-hours (`curves_reading.py`), so p50's
     6-box-day reading is at ≈ 6.16.
   - Both re-anchored to p50, and both stage checks (p50 against 3× p25) started 16:38 UTC.
+- **p50's stage checks: both continue** (p50 against 3× p25, 10K sets):
+
+  | Run | p50 vs 3× p25 | Reverse KL to the student (mean, median) | Agreement |
+  |---|---|---|---|
+  | `curves-b12-s1` | +0.0104 [+0.0039, +0.0169] | 0.0430, 0.0138 | 92.8% |
+  | `curves-b16-s1` | +0.0063 [−0.0004, +0.0130] | 0.0428, 0.0143 | 92.8% |
+
+- **Stage 3's controller repeated stage 2's pattern.** At +36K steps the KL was 0.0073 (b12)
+  and 0.0071 (b16), so the 40K-step hold ran out below the band. The coefficient went from
+  0.0506 to its floor, and the KL climbed on at ≈ 0.0002 per 1K steps: 0.022 / 0.021 at
+  +110–120K (19:20 UTC).
