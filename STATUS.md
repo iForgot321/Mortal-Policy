@@ -210,6 +210,11 @@ curves and T1.
 - Left: a refit on batch 2's traces, a smoke run, the config, and the rental's yes. Design:
   `docs/design/anchor-control-draft.md`.
 
-**Next:** the chain runs (`workdir/fleet/curves-chain.log`): p75 ≈ 2026-11-21 15:30 UTC, batch 1's
-`full` ≈ 11-22 15:30. After a restart, the note's Launch section has the resume path. Meanwhile,
+**2026-11-21:** p75's stage checks both said continue (`experiments/size-curves.md`). The
+workstation restarted at ≈ 23:04 UTC; the watchers' last polls were 22:51 and 22:55, so the runs went
+≈ 10–15 min unsupervised and missed no boundary. Both runs' watchers and watchdogs (same deadlines and
+dollar stops) and the chain were resumed at 23:05–23:08 UTC; both fleets poll healthy.
+
+**Next:** the chain runs (`workdir/fleet/curves-chain.log`): batch 1's `full` ≈ 11-22 15:30 UTC
+(watchdog deadlines 11-23 01:19 / 01:22), then batch 2. After a restart, the note's Launch section has the resume path. Meanwhile,
 D69's code and simulation (workstation-only, nothing rented).
