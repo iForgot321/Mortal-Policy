@@ -62,3 +62,5 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261119-091301-measure | exploratory | curves boundary: curves-b16-s1 p25 at 3x student | measure | A [134200, +10000) | 10000 | +0.0061 | [-0.0005, +0.0125] |  | measured | -0.0071 | +0.59 | yes | bf17e60a+dirty |
 | 20261120-093801-measure | exploratory | curves boundary: curves-b12-s1 p50 at 3x p25 | measure | A [134200, +10000) | 10000 | +0.0104 | [+0.0039, +0.0169] |  | measured | -0.0104 | +1.09 | yes | 1be9ddeb+dirty |
 | 20261120-102945-measure | exploratory | curves boundary: curves-b16-s1 p50 at 3x p25 | measure | A [134200, +10000) | 10000 | +0.0063 | [-0.0004, +0.0130] |  | measured | -0.0078 | +0.61 | yes | 1be9ddeb+dirty |
+| 20261121-082052-measure | exploratory | curves boundary: curves-b12-s1 p75 at 3x p50 | measure | A [134200, +10000) | 10000 | +0.0017 | [-0.0050, +0.0082] |  | measured | -0.0057 | +0.12 | yes | 46859525+dirty |
+| 20261121-091324-measure | exploratory | curves boundary: curves-b16-s1 p75 at 3x p50 | measure | A [134200, +10000) | 10000 | +0.0006 | [-0.0061, +0.0071] |  | measured | +0.0032 | +0.10 | yes | 46859525+dirty |

@@ -343,3 +343,15 @@ after the curves. No search, no mixed tables, no family-C confirmation.
   and 0.0071 (b16), so the 40K-step hold ran out below the band. The coefficient went from
   0.0506 to its floor, and the KL climbed on at ≈ 0.0002 per 1K steps: 0.022 / 0.021 at
   +110–120K (19:20 UTC).
+- **p75 (216 box-hours, 2026-11-21 ≈ 15:20 UTC):** both re-anchored; **both stage checks:
+  continue.** Stage 3 gained little:
+
+  | Run | p75 vs 3× p50 | Reverse KL to the student (mean, median) | Agreement | Entropy (of the student's) |
+  |---|---|---|---|---|
+  | `curves-b12-s1` | +0.0017 [−0.0050, +0.0082] (`20261121-082052-measure`) | 0.0719, 0.0251 | 91.3% | 0.387 (75%) |
+  | `curves-b16-s1` | +0.0006 [−0.0061, +0.0071] (`20261121-091324-measure`) | 0.0685, 0.0249 | 91.3% | 0.383 (74%) |
+
+  - **The entropy is nearing its 70% stop limit:** 95% at p25, 74–75% at p75. Batch 1's last
+    stage has no check (its `full` goes to the final measures).
+  - Batch 2's p75 check could fire on it, and then the chain stops for the user. That outcome is
+    as pre-registered.
