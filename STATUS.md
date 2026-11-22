@@ -226,6 +226,18 @@ downed them: `curves-b12-s1` at 15:22 UTC, $152.54, step 4,703,600, `full.pth` `
 read-only, their hashes match the records, and Vast lists 0 instances. The chain ended at 15:28 at
 the gate. **Nothing is rented.**
 
-**Next:** batch 2 waits for the user's go (the command is in the note's Launch section). The final measures and the reading come after
+**Option B's diagnostics on batch 1's `full`s** (2026-11-22, exploratory, outside the
+pre-registration, $0; `experiments/size-curves.md`, last section):
+- **Entropy at `full`:** 67.3% (b12) and 67.2% (b16) of the students', below the stage checks'
+  70% limit. Reverse KL (0.094, 0.090) and agreement (90.4%, 90.5%) are inside theirs.
+- **Gain since p50 (`full` vs 3× p50):** b12 +0.0085 [+0.0015, +0.0155]; b16 +0.0051
+  [−0.0018, +0.0120].
+- **Total gain vs 3× student, the training table:** +0.0294 and +0.0244.
+- **Head-to-head:** b16 vs 3× b12, +0.0018 [−0.0054, +0.0088].
+- **The triage's rule gives option C** (both runs agree): don't run batch 2 as is; an amendment
+  to D68 needs an `08` entry first. Not acted on.
+
+**Next:** the user's call on batch 2 (options A or C of the 2026-11-22 triage). If it's A, the
+command is in the note's Launch section. The final measures and the reading come after
 batch 2. After a restart, the note's Launch section has the resume path. Meanwhile, D69's code and
 simulation (workstation-only, nothing rented).
