@@ -364,3 +364,53 @@ after the curves. No search, no mixed tables, no family-C confirmation.
     stage has no check (its `full` goes to the final measures).
   - Batch 2's p75 check could fire on it, and then the chain stops for the user. That outcome is
     as pre-registered.
+
+## Progress (2026-11-22): batch 1's `full`, and option B's diagnostics
+
+- **Batch 1 reached `full`** at 288 box-hours and its watchers downed it: `curves-b12-s1` at
+  15:22 UTC ($152.54, step 4,703,600), `curves-b16-s1` at 15:28 ($210.05, step 3,941,200).
+  - The chain stopped at its new batch-2 gate (the user, 2026-11-22: batch 2 only with
+    `curves_chain.sh --batch2`). Nothing is rented.
+
+### Exploratory diagnostics, outside the pre-registration
+
+Option B of the 2026-11-22 review's triage (the user): free workstation checks on both `full`s
+before batch 2 is decided.
+- **Nothing here is part of D68's reading.** `curves_reading.py` reads `curves: …` rows and the
+  `curves` block, and neither is touched. These rows are `curves diag: …`.
+- **Method** (`experiments/curves_diag.py`; `workdir/lab/curves-diag/report.json`):
+  - **Drift:** `rl_drift.py` on the students' states. It reproduces p75's stage-check numbers
+    exactly.
+  - **Measures:** 10K sets each on block `curves-boundary`, the stage checks' deals, with AMP on
+    and no logs.
+  - **Paired differences:** per set against the stage-check rows, with the lab's set-level
+    bootstrap.
+
+| | `curves-b12-s1` | `curves-b16-s1` |
+|---|---|---|
+| Drift at `full`: reverse KL, agreement | 0.094, 90.4% | 0.090, 90.5% |
+| Entropy at `full` (of the student's) | 0.3475 (**67.3%**) | 0.3478 (**67.2%**) |
+| Gain since p50: `full` vs 3× p50 | **+0.0085 [+0.0015, +0.0155]** (`20261122-115844`) | +0.0051 [−0.0018, +0.0120] (`20261122-124849`) |
+| Stage 4's gain: `full`@p50 − p75@p50, paired | +0.0068 [−0.0015, +0.0152] | +0.0045 [−0.0038, +0.0128] |
+| Total gain: `full` vs 3× student | +0.0294 [+0.0222, +0.0364] (`20261122-143910`) | +0.0244 [+0.0171, +0.0316] (`20261122-152757`) |
+| Gain after p25: `full`@student − p25@student, paired | +0.0233 [+0.0142, +0.0323] | +0.0183 [+0.0094, +0.0275] |
+
+**Head-to-head:** b16 `full` vs 3× b12 `full` is +0.0018 [−0.0054, +0.0088]
+(`20261122-134657`), with positive meaning b16 is stronger. The sizes can't be told apart at 10K
+sets.
+
+- **Entropy crossed the stage checks' 70% limit during stage 4,** from 74–75% at p75 to 67% at
+  `full`. Batch 1's last stage has no check, so nothing fired. Reverse KL and agreement stay
+  inside their limits.
+- **Stage 4 gained more than stage 3** (+0.0068 / +0.0045 against +0.0017 / +0.0006), but
+  neither stage's gain excludes 0 on its own. The gain since p50 excludes 0 for b12 only.
+- **Pairing with the stage checks barely narrows the intervals.** The per-set correlation is
+  0.23 for stage 4 and 0.11–0.13 for the gain after p25.
+- **The gains are measured at the training table.** 3× student is the runs' training opponent
+  (`baseline.train`), so these numbers say nothing about other tables.
+
+**The triage's rule** (the user's, not acted on here): option A, batch 2 as pre-registered,
+needs entropy at `full` ≥ 70% and a gain since p50 with a lower bound above 0, for both runs.
+**Neither run meets both**: both fail on entropy, and b16 also on its bound. So the rule gives
+**option C**, with both runs agreeing: don't run batch 2 as is, and enter any amendment to D68
+in the decision log first. The call is the user's.
