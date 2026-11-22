@@ -151,3 +151,55 @@ def test_the_curves_scripts_parse():
     for name in ('curves_common.sh', 'curves_b0.sh', 'curves_launch.sh', 'curves_batch.sh', 'curves_measure_chain.sh',
                  'curves_chain.sh'):
         subprocess.run(['bash', '-n', os.path.join(ROOT, 'experiments', name)], check=True)
+
+
+# The chain's batch-2 gate (the user, 2026-11-22): the real script against a stub tree whose launcher
+# marks each run done at once and whose measures only record that they ran
+STUB_LAUNCH = '''run=$1
+mkdir -p workdir/fleet/runs/$run
+echo '{"boxes": {}, "snapshots": {"full": {}}}' > workdir/fleet/runs/$run/fleet.json
+echo "launch $run" >> calls.txt
+'''
+
+
+def run_chain(tmp_path, *args, done=('curves-b12-s1', 'curves-b16-s1')):
+    exp = tmp_path / 'experiments'
+    exp.mkdir(exist_ok=True)
+    (exp / 'curves_chain.sh').write_text(open(os.path.join(ROOT, 'experiments', 'curves_chain.sh')).read())
+    (exp / 'curves_launch.sh').write_text(STUB_LAUNCH)
+    (exp / 'curves_measure_chain.sh').write_text('echo measures >> calls.txt\n')
+    (tmp_path / 'workdir/curves').mkdir(parents=True, exist_ok=True)
+    (tmp_path / 'workdir/fleet/runs/eval').mkdir(parents=True, exist_ok=True)
+    for net in ('b12c256', 'b16c256'):
+        (tmp_path / f'workdir/curves/init-{net}.pth').write_text('')
+    for run in done:
+        d = tmp_path / 'workdir/fleet/runs' / run
+        d.mkdir(parents=True, exist_ok=True)
+        (d / 'fleet.json').write_text('{"boxes": {}, "snapshots": {"full": {}}}')
+    (tmp_path / 'calls.txt').write_text('')
+    p = subprocess.run(['bash', str(exp / 'curves_chain.sh'), *args], capture_output=True, text=True,
+                       env={**os.environ, 'CHAIN_GAP': '0'}, timeout=60)
+    return p.returncode, p.stdout + p.stderr, (tmp_path / 'calls.txt').read_text().splitlines()
+
+
+def test_the_chain_stops_after_batch_1_without_the_go(tmp_path):
+    rc, out, calls = run_chain(tmp_path)
+    assert rc == 0 and "batch 2 waits for the user's go" in out and 'batch 1: done' in out
+    assert calls == []  # nothing rented, no measures
+
+
+def test_the_chain_runs_batch_2_and_the_measures_on_the_go(tmp_path):
+    rc, out, calls = run_chain(tmp_path, '--batch2')
+    assert rc == 0 and 'ALL DONE' in out
+    assert calls == ['launch curves-b12-s2', 'launch curves-b16-s2', 'measures']
+
+
+def test_a_launched_batch_2_goes_on_without_the_flag(tmp_path):
+    # a relaunch after a restart while batch 2 runs: its first run is already done, the second not yet rented
+    rc, out, calls = run_chain(tmp_path, done=('curves-b12-s1', 'curves-b16-s1', 'curves-b12-s2'))
+    assert rc == 0 and calls == ['launch curves-b16-s2', 'measures']
+
+
+def test_the_chain_refuses_an_unknown_argument(tmp_path):
+    rc, out, calls = run_chain(tmp_path, '--batch3')
+    assert rc == 2 and 'usage' in out and calls == []

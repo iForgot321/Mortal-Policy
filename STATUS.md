@@ -180,7 +180,8 @@ every stage, as in every run so far, so D68's start of 0.11 and its carry would 
 registry would hold up the workstation's stop checks, and the reading needs all four runs anyway.
 
 **Approved (the user, 2026-11-18, "Whole chain"):** the curves at the live quote, ≈ $745–750 (both
-B0s, two batches, the eval box). The pre-registration is fixed. Batch 3 still needs its own yes.
+B0s, two batches, the eval box). The pre-registration is fixed. Batch 3 still needs its own yes,
+and since 2026-11-22 batch 2 waits for the user's go before it starts (below).
 
 **Progress (2026-11-19 18:20 UTC):**
 - Both B0s passed and batch 1 has run since 2026-11-18 15:20 UTC.
@@ -215,6 +216,12 @@ workstation restarted at ≈ 23:04 UTC; the watchers' last polls were 22:51 and 
 ≈ 10–15 min unsupervised and missed no boundary. Both runs' watchers and watchdogs (same deadlines and
 dollar stops) and the chain were resumed at 23:05–23:08 UTC; both fleets poll healthy.
 
+**2026-11-22 (the user): batch 2 doesn't start by itself.** The chain now ends after batch 1
+(`experiments/curves_chain.sh`; batch 2 only with `--batch2`, or when a batch-2 run is already live
+or done). Relaunched with the gate at 10:08 UTC; 4 new tests, the suite passes (242, 5 skipped).
+
 **Next:** the chain runs (`workdir/fleet/curves-chain.log`): batch 1's `full` ≈ 11-22 15:30 UTC
-(watchdog deadlines 11-23 01:19 / 01:22), then batch 2. After a restart, the note's Launch section has the resume path. Meanwhile,
-D69's code and simulation (workstation-only, nothing rented).
+(watchdog deadlines 11-23 01:19 / 01:22). Then the chain ends: batch 2 waits for the user's go
+(the command is in the note's Launch section). The final measures and the reading come after
+batch 2. After a restart, the note's Launch section has the resume path. Meanwhile, D69's code and
+simulation (workstation-only, nothing rented).

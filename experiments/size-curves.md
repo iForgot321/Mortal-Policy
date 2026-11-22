@@ -222,7 +222,9 @@ setsid -f bash experiments/curves_chain.sh >> workdir/fleet/curves-chain.log 2>&
 
 1. **Both B0s at once** (`curves_b0.sh b12|b16`): 12 box-hours each, then the token's box check.
 2. **The B0 rule and the inits** (`curves_b0.sh SIZE --finish`): a failed rule stops the chain.
-3. **Batch 1, then batch 2** (`curves_launch.sh RUN`), each batch's second run starting 3 min after
+3. **Batch 1, then batch 2 on the user's go** (`curves_launch.sh RUN`; the user, 2026-11-22: batch 2
+   doesn't start by itself; the chain ends after batch 1 unless it's run with `--batch2`), each
+   batch's second run starting 3 min after
    the first: each run runs `watch --budget-box-hours 288 --snapshot-at 0.25,0.5,0.75 --reanchor
    --stage-check …`. A run that ends without `full` stops the chain for the user.
 4. **The final measures and the reading** (`curves_measure_chain.sh`, `curves_reading.py` →
@@ -237,7 +239,14 @@ availability is limited feel free to use a more expensive box"):
 
 **After a workstation restart:** `bash experiments/curves_launch.sh RUN --resume` (or
 `curves_b0.sh SIZE --resume`) for each live run, then relaunch the chain. It skips finished steps
-and waits on live runs.
+and waits on live runs. Once a batch-2 run is live or done, the relaunch goes on through batch 2
+without `--batch2`.
+
+**Batch 2's go** (after batch 1's `full`, on the user's word):
+
+```bash
+setsid -f bash experiments/curves_chain.sh --batch2 >> workdir/fleet/curves-chain.log 2>&1 < /dev/null
+```
 
 ## Cost
 
