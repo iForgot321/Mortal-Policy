@@ -220,8 +220,12 @@ dollar stops) and the chain were resumed at 23:05–23:08 UTC; both fleets poll 
 (`experiments/curves_chain.sh`; batch 2 only with `--batch2`, or when a batch-2 run is already live
 or done). Relaunched with the gate at 10:08 UTC; 4 new tests, the suite passes (242, 5 skipped).
 
-**Next:** the chain runs (`workdir/fleet/curves-chain.log`): batch 1's `full` ≈ 11-22 15:30 UTC
-(watchdog deadlines 11-23 01:19 / 01:22). Then the chain ends: batch 2 waits for the user's go
-(the command is in the note's Launch section). The final measures and the reading come after
+**Batch 1 is done (2026-11-22):** both runs reached `full` at 288 box-hours and their watchers
+downed them: `curves-b12-s1` at 15:22 UTC, $152.54, step 4,703,600, `full.pth` `9900c3e4…`;
+`curves-b16-s1` at 15:28 UTC, $210.05, step 3,941,200, `74f19671…`. The snapshots are local and
+read-only, their hashes match the records, and Vast lists 0 instances. The chain ended at 15:28 at
+the gate. **Nothing is rented.**
+
+**Next:** batch 2 waits for the user's go (the command is in the note's Launch section). The final measures and the reading come after
 batch 2. After a restart, the note's Launch section has the resume path. Meanwhile, D69's code and
 simulation (workstation-only, nothing rented).
