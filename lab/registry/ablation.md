@@ -69,3 +69,5 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261122-134657-measure | exploratory | curves diag: curves-b16-s1 full at 3x curves-b12-s1 full | measure | A [134200, +10000) | 10000 | +0.0018 | [-0.0054, +0.0088] |  | measured | -0.0001 | +0.23 | yes | 255ada1d+dirty |
 | 20261122-143910-measure | exploratory | curves diag: curves-b12-s1 full at 3x student | measure | A [134200, +10000) | 10000 | +0.0294 | [+0.0222, +0.0364] |  | measured | -0.0351 | +2.91 | yes | 255ada1d+dirty |
 | 20261122-152757-measure | exploratory | curves diag: curves-b16-s1 full at 3x student | measure | A [134200, +10000) | 10000 | +0.0244 | [+0.0171, +0.0316] |  | measured | -0.0282 | +2.42 | yes | 255ada1d+dirty |
+| 20261123-022327-measure | exploratory | curves diag: curves-b12-s1 full at 3x No-SP A | measure | A [144200, +20000) | 20000 | +0.0496 | [+0.0447, +0.0546] |  | measured | -0.0660 | +4.93 | yes | a9682c7a+dirty |
+| 20261123-034926-measure | exploratory | curves diag: b12c256 student at 3x No-SP A | measure | A [144200, +20000) | 20000 | +0.0270 | [+0.0222, +0.0317] |  | measured | -0.0370 | +2.73 | yes | a9682c7a+dirty |
