@@ -236,3 +236,18 @@ that seat as the arena masks it.
      run with 12 and leave CPU for the bot.
    - The deployed version will be the student. The adapter's legality doesn't depend on the
      network, but a short self-play run with the student goes before its first ranked game.
+
+## The v5 student's self-play check (2026-11-23): pass
+
+Before the student's first riichi.dev game (the 2026-11-22 review, finding M6: the adapter's
+parity had been shown on v4 only). b12c256, EMA weights
+(`workdir/secure/runs/students-s1/box/students-s1/ema-b12c256.pth`, obs v5), FP32 as deployed,
+on the workstation.
+
+- 100 riichienv games in step mode, the adapter in all four seats, seeds 300,000–300,099, full
+  checks (observation tensors against a libriichi `PlayerState` at every request), 4 workers,
+  214 s.
+- **62,316 requests: 0 observation mismatches, 0 fallbacks, 0 adapter failures.**
+- Report `workdir/riichidev/parity-v5-b12c256-100.json`; log beside it.
+- Not yet done for the student: a game on the server. A new bot's validation game would be the
+  first (unranked); ranked play still needs its `08` entry.
