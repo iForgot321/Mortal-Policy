@@ -442,3 +442,24 @@ among those with more than one legal action.
   Sharpening without a flip matters for training's sampling and the entropy limit only.
 - **Not measured:** how much the flips matter. There is no value weighting, and the states are
   the students' own decisions, not those the later snapshots reach.
+
+**Per decision** (`experiments/curves_flips.py`, true FP32; `workdir/lab/curves-diag/flips.json`;
+2026-11-23). The rates match the table above exactly, so the changes aren't numerics.
+
+| | b12: stage 3 | b12: stage 4 | b16: stage 3 | b16: stage 4 |
+|---|---|---|---|---|
+| Decisions changed | 766 (4.9%) | 702 (4.5%) | 780 (5.1%) | 701 (4.6%) |
+| The earlier snapshot's gap between the two moves (median) | 0.105 | 0.111 | 0.111 | 0.110 |
+| … under 0.05 / 0.05–0.2 / 0.2–0.5 / over 0.5 | 27 / 46 / 23 / 3% | 25 / 49 / 22 / 4% | 27 / 45 / 24 / 5% | 27 / 43 / 26 / 4% |
+| The later snapshot's gap for its new move (median) | 0.126 | 0.137 | 0.123 | 0.122 |
+
+- **Moderately close calls, rarely reversals.** Over all decisions, the top move's lead is 0.85–0.91
+  (median), and only 11% of decisions are within 0.2. Yet ≈ 72–74% of the changes come from that
+  11%, and only 3–5% of them reverse a move preferred by over 0.5. These aren't coin flips: the
+  median gap is ≈ 0.11 before the change and ≈ 0.12–0.14 after it.
+- **The late stages oscillate.** 248 (b12) and 257 (b16) decisions changed in both stages: 35–37%
+  of stage 4's changes, against 4.5% of decisions overall. Of those, 217 and 229 (87–89%) went
+  back to p50's move. So about a third of stage 4's changes undid stage 3's.
+- **The net movement is small.** Stage 4 restored the student's move on 259 / 266 decisions and
+  left it on 392 / 389. The net, ≈ 0.8% of decisions, is the drop in agreement with the student;
+  the gross change is 4.5%.
