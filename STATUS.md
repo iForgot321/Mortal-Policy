@@ -238,6 +238,9 @@ pre-registration, $0; `experiments/size-curves.md`, last section):
   ≥ a third of those were decisions stage 3 had already changed. ≈ 93% are discards.
   Per decision (`curves_flips.py`): 87–89% of the decisions changed in both stages went back to
   p50's move; ≈ 3/4 of the changes are moderately close calls (lead < 0.2), 3–5% reversals.
+- **Off-table transfer** (b12, 3× No-SP A, 20K sets each; bands fixed before play): `full` −
+  student = +0.0227 [+0.0164, +0.0290], 77% of the training table's gain, so it **carries**,
+  narrowly. p50 already had 79% of it; `full` − p50 = +0.0047 [−0.0015, +0.0107].
 - **The triage's rule gives option C** (both runs agree): don't run batch 2 as is; an amendment
   to D68 needs an `08` entry first. Not acted on.
 
