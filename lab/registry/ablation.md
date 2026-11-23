@@ -71,3 +71,4 @@ Generated from `runs.jsonl` by `python -m lab table`; do not edit by hand. Δ av
 | 20261122-152757-measure | exploratory | curves diag: curves-b16-s1 full at 3x student | measure | A [134200, +10000) | 10000 | +0.0244 | [+0.0171, +0.0316] |  | measured | -0.0282 | +2.42 | yes | 255ada1d+dirty |
 | 20261123-022327-measure | exploratory | curves diag: curves-b12-s1 full at 3x No-SP A | measure | A [144200, +20000) | 20000 | +0.0496 | [+0.0447, +0.0546] |  | measured | -0.0660 | +4.93 | yes | a9682c7a+dirty |
 | 20261123-034926-measure | exploratory | curves diag: b12c256 student at 3x No-SP A | measure | A [144200, +20000) | 20000 | +0.0270 | [+0.0222, +0.0317] |  | measured | -0.0370 | +2.73 | yes | a9682c7a+dirty |
+| 20261123-051222-measure | exploratory | curves diag: curves-b12-s1 p50 at 3x No-SP A | measure | A [144200, +20000) | 20000 | +0.0449 | [+0.0401, +0.0498] |  | measured | -0.0529 | +4.60 | yes | 08af8f84+dirty |
