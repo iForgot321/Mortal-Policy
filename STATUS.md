@@ -234,6 +234,8 @@ pre-registration, $0; `experiments/size-curves.md`, last section):
   [−0.0018, +0.0120].
 - **Total gain vs 3× student, the training table:** +0.0294 and +0.0244.
 - **Head-to-head:** b16 vs 3× b12, +0.0018 [−0.0054, +0.0088].
+- **Stage-to-stage drift:** stage 4 flipped 4.5% of the top actions (stage 3: 4.9–5.1%), and
+  ≥ a third of those were decisions stage 3 had already changed. ≈ 93% are discards.
 - **The triage's rule gives option C** (both runs agree): don't run batch 2 as is; an amendment
   to D68 needs an `08` entry first. Not acted on.
 
