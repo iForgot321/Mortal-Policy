@@ -409,6 +409,34 @@ sets.
 - **The gains are measured at the training table.** 3× student is the runs' training opponent
   (`baseline.train`), so these numbers say nothing about other tables.
 
+### Stage-to-stage drift (exploratory, 2026-11-22)
+
+`rl_drift.py` with each earlier snapshot as the reference, on the students' states (outputs in
+`workdir/lab/curves-diag/stage-drift-*.txt`). A flip is a decision whose top action changed,
+among those with more than one legal action.
+
+| | b12: p50 → p75 | b12: p75 → `full` | b12: p50 → `full` | b16: p50 → p75 | b16: p75 → `full` | b16: p50 → `full` |
+|---|---|---|---|---|---|---|
+| Flips | 4.9% | 4.5% | 6.4% | 5.1% | 4.6% | 6.5% |
+| KL(new ‖ old), mean / median | 0.025 / 0.006 | 0.022 / 0.004 | 0.045 / 0.013 | 0.023 / 0.006 | 0.021 / 0.004 | 0.042 / 0.011 |
+| Entropy, old → new | 0.438 → 0.387 | 0.387 → 0.348 | | 0.432 → 0.383 | 0.383 → 0.348 | |
+
+- **Stage 4 moved as much as stage 3:** about the same flip rate (4.5% against 4.9–5.1%) and
+  the same sharpening (entropy −9 to −10% against −11 to −12%). Its larger lab gain (+0.0068 /
+  +0.0045 against +0.0017 / +0.0006) didn't come from more movement, and neither stage's gain
+  excludes 0 on its own.
+- **The late stages partly churn.** p50 → `full` flipped 6.4–6.5%, well under the two stages'
+  sum (9.4–9.7%). So between a third and two-thirds of stage 4's flips fell on decisions that
+  stage 3 had already changed; the overlap is at least half the 3.0–3.2 pp gap and at most all of
+  it. Some of those went back to p50's action, and the rest moved to a third one.
+- **The flips are discards:** about 93% of stage 4's (≈ 650 of ≈ 700 per run). Discards are
+  ≈ 78% of these decisions, so flips are concentrated in them. Riichi, call and pass decisions
+  flipped 1–6% each, a few to about 20 decisions per kind.
+- **The lab plays greedy** (`lab/arena.py`), so the lab gains come from the flips alone.
+  Sharpening without a flip matters for training's sampling and the entropy limit only.
+- **Not measured:** how much the flips matter. There is no value weighting, and the states are
+  the students' own decisions, not those the later snapshots reach.
+
 **The triage's rule** (the user's, not acted on here): option A, batch 2 as pre-registered,
 needs entropy at `full` ≥ 70% and a gain since p50 with a lower bound above 0, for both runs.
 **Neither run meets both**: both fail on entropy, and b16 also on its bound. So the rule gives
