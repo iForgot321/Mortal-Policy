@@ -52,3 +52,15 @@ def test_the_descriptions_are_never_the_readings_or_the_stage_checks():
     assert descs[:2] == ['curves diag: curves-b12-s1 full at 3x p50', 'curves diag: curves-b16-s1 full at 3x p50']
     argv = cd.lab_argv('c.pth', 'a.pth', descs[0])
     assert argv[argv.index('--block') + 1] == 'curves-boundary' and '--no-logs' in argv and '--no-amp' not in argv
+
+
+def test_the_offtable_bands_and_names():
+    ref = 0.0294  # half: 0.0147
+    assert cd.band([0.016, 0.030], ref) == 'carries'
+    assert cd.band([-0.002, 0.014], ref) == 'specific'
+    assert cd.band([0.010, 0.024], ref) == 'ambiguous'
+    t = cd.offtable()
+    assert set(t) == {f'{m}@{x}' for m in ('full', 'student', 'p50') for x in ('nosp', 'bc')}
+    assert all(d.startswith('curves diag: ') for d, _, _ in t.values())
+    assert len({d for d, _, _ in t.values()}) == 6
+    assert t['full@nosp'][2] == t['student@nosp'][2] == t['p50@nosp'][2]  # one table, the same opponents

@@ -5,6 +5,13 @@ pre-registration (`experiments/size-curves.md`); nothing here is read by `curves
     python experiments/curves_diag.py drift    # drift of p75 (a reproduction) and full from the student
     python experiments/curves_diag.py play     # the five lab measures, one at a time
     python experiments/curves_diag.py report   # the paired differences, the table and the rule
+    python experiments/curves_diag.py play-offtable NAME...   # off-table measures (OFFTABLE), in order
+    python experiments/curves_diag.py report-offtable
+
+The off-table measures (2026-11-23) play b12's student and snapshots at tables the runs never trained
+against, 20,000 sets each on a family-A block of their own, `curves-offtable`, so every pair in it is
+on the same deals. Their reading bands are fixed in `experiments/size-curves.md` before any of them
+plays.
 
 `play` runs detached and records its PID:
 
@@ -41,7 +48,18 @@ SETS = 10_000
 PURPOSE = 'option B diagnostic before batch 2 (exploratory; not the pre-registered reading)'
 PREFIX = 'curves diag: '
 MIN_ENTROPY_FRACTION = csc.MIN_ENTROPY_FRACTION  # 0.70, the stage checks' limit
-H2H = ('curves-b16-s1', 'curves-b12-s1')  # b16 full at 3x b12 full: positive means b16 is stronger
+H2H = ('curves-b16-s1', 'curves-b12-s1')
+OFF_BLOCK = 'curves-offtable'
+OFF_SETS = 20_000
+OFF_PURPOSE = 'off-table transfer of curves batch 1 (exploratory; not the pre-registered reading)'
+TABLES = {  # label: (checkpoint, its frozen sha256)
+    'No-SP A': ('workdir/sp-ablation/nosp-a/nosp-a-final.pth',
+                '498aabc83c34291c0028107fc7cee6f3ac0e662bc37fba79b66b558306418054'),
+    'BC-s1 EMA': ('workdir/teacher/teacher-bc-s1/ema-from-state.pth',  # STATUS's frozen table; the
+                  '59d9463626125707f329355d515aa27ac2572d385906e336694047bd4b5f586f'),  # qualification's rows
+}
+OFF_RUN = 'curves-b12-s1'
+REFERENCE = f'{PREFIX}{OFF_RUN} full at 3x student'  # the training table's total gain (+0.0294)  # b16 full at 3x b12 full: positive means b16 is stronger
 
 
 def run_dir(run):
@@ -90,6 +108,30 @@ def lab_argv(challenger, champion, desc):
             '--package', 'K2', '--horizon', 'H', '--description', desc, '--purpose', PURPOSE]
 
 
+def offtable():
+    """name: (description, challenger, champion). `full`, the student and p50 of b12 at each table."""
+    out = {}
+    for short, label in (('nosp', 'No-SP A'), ('bc', 'BC-s1 EMA')):
+        table = os.path.join(ROOT, TABLES[label][0])
+        out[f'full@{short}'] = (f'{PREFIX}{OFF_RUN} full at 3x {label}', snap(OFF_RUN, 'full'), table)
+        out[f'student@{short}'] = (f'{PREFIX}b12c256 student at 3x {label}', student(OFF_RUN), table)
+        out[f'p50@{short}'] = (f'{PREFIX}{OFF_RUN} p50 at 3x {label}', snap(OFF_RUN, 'p50'), table)
+    return out
+
+
+def check_tables():
+    for label, (rel, want) in TABLES.items():
+        if sha256(os.path.join(ROOT, rel)) != want:
+            raise SystemExit(f'{label}: {rel} does not match its frozen sha256')
+
+
+def band(ci, reference):
+    """The off-table bands (fixed before play): the gain carries if its 95% interval is entirely
+    above half the training table's, is specific to the student if entirely below, else ambiguous."""
+    half = 0.5 * reference
+    return 'carries' if ci[0] > half else 'specific' if ci[1] < half else 'ambiguous'
+
+
 def check_snapshots():
     for run in RUNS:
         for label in ('p25', 'p50', 'p75', 'full'):
@@ -136,6 +178,56 @@ def cmd_play(_):
             csc.say(f'FAILED {desc}: {type(e).__name__}: {e}')
     csc.say(f'END play: {len(failed)} failed' + (f' ({"; ".join(failed)})' if failed else ''))
     return 1 if failed else 0
+
+
+def cmd_play_offtable(args):
+    os.makedirs(OUT_DIR, exist_ok=True)
+    with open(PIDFILE, 'w') as f:
+        f.write(f'{os.getpid()}\n')
+    check_snapshots()
+    check_tables()
+    table = offtable()
+    unknown = [n for n in args.names if n not in table]
+    if unknown:
+        raise SystemExit(f'unknown measures {unknown}; known: {sorted(table)}')
+    failed = []
+    for name in args.names:
+        desc, challenger, champion = table[name]
+        argv = [sys.executable, '-m', 'lab', 'measure', '--challenger', challenger, '--champion', champion,
+                '--sets', str(OFF_SETS), '--family', 'A', '--block', OFF_BLOCK, '--no-logs', '--arm', 'P1',
+                '--package', 'K2', '--horizon', 'H', '--description', desc, '--purpose', OFF_PURPOSE]
+        try:
+            row = csc.play_measure(argv, desc)
+            res = row['result']
+            csc.say(f'{desc}: {row["run_id"]}, du {res["mean"]:+.4f} [{res["ci"][0]:+.4f}, {res["ci"][1]:+.4f}]')
+        except Exception as e:  # noqa: BLE001 - the next measure still plays
+            failed.append(desc)
+            csc.say(f'FAILED {desc}: {type(e).__name__}: {e}')
+    csc.say(f'END play-offtable: {len(failed)} failed' + (f' ({"; ".join(failed)})' if failed else ''))
+    return 1 if failed else 0
+
+
+def cmd_report_offtable(_):
+    rows = csc_rows()
+    ref = rows[REFERENCE]['result']['mean']
+    got = {name: rows.get(desc) for name, (desc, _, _) in offtable().items()}
+    out = {'reference': {'description': REFERENCE, 'du': ref}, 'measures': {}, 'pairs': {},
+           'note': 'exploratory, outside the pre-registration'}
+    for name, r in got.items():
+        if r is not None:
+            out['measures'][name] = direct(r)
+    for short in ('nosp', 'bc'):
+        full, stud, p50 = got[f'full@{short}'], got[f'student@{short}'], got[f'p50@{short}']
+        if full and stud:
+            d = paired(full, stud)
+            out['pairs'][f'full-student@{short}'] = {**d, 'share_of_training_table': d['du'] / ref,
+                                                     'band': band(d['ci'], ref)}
+        if full and p50:
+            out['pairs'][f'full-p50@{short}'] = paired(full, p50)
+    path = os.path.join(OUT_DIR, 'offtable.json')
+    with open(path, 'w') as f:
+        json.dump(out, f, indent=1)
+    print(json.dumps(out, indent=1))
 
 
 def scores(row):
@@ -218,9 +310,11 @@ def csc_rows():
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('cmd', choices=('drift', 'play', 'report'))
+    p.add_argument('cmd', choices=('drift', 'play', 'report', 'play-offtable', 'report-offtable'))
+    p.add_argument('names', nargs='*', help='play-offtable: the measures, in order (offtable())')
     args = p.parse_args(argv)
-    return {'drift': cmd_drift, 'play': cmd_play, 'report': cmd_report}[args.cmd](args) or 0
+    return {'drift': cmd_drift, 'play': cmd_play, 'report': cmd_report, 'play-offtable': cmd_play_offtable,
+            'report-offtable': cmd_report_offtable}[args.cmd](args) or 0
 
 
 if __name__ == '__main__':
