@@ -490,3 +490,28 @@ against? The gain is `full` vs 3× student, +0.0294 [+0.0222, +0.0364].
   - `full` at 3× BC s1 is one of the pre-registered final measures. It is reported, not deciding,
     and is played on the `curves` block. Measuring it here, on other deals, is a peek, not a
     change to the reading.
+
+**Results** (2026-11-23; `workdir/lab/curves-diag/offtable.json`). Everything is at 3× No-SP A,
+20K sets per measure, on the same deals:
+
+| | Δu [95% CI] | Row |
+|---|---|---|
+| b12 `full` | +0.0496 [+0.0447, +0.0546] | `20261123-022327` |
+| b12 p50 | +0.0449 [+0.0401, +0.0498] | `20261123-051222` |
+| b12's starting student | +0.0270 [+0.0222, +0.0317] | `20261123-034926` |
+| **D = `full` − student**, paired | **+0.0227 [+0.0164, +0.0290]**, 77% of +0.0294 | |
+| p50 − student, paired | +0.0180 [+0.0117, +0.0241] | |
+| `full` − p50, paired | +0.0047 [−0.0015, +0.0107] | |
+
+- **The gain carries** by the band fixed above, though narrowly: D's lower bound +0.0164 is
+  just above 0.0147. Most of RL's gain over the student isn't specific to the student, at least
+  at this table. So single-opponent overfitting looks milder than the review's C1 feared.
+- **Most of it was in place at p50:** p50 has 79% of `full`'s off-table gain. The second half
+  of the run added +0.0047, which doesn't exclude 0. That matches the training table, where the
+  late stages also gained little and noisily (stage 3 +0.0017, stage 4 +0.0068, each
+  inconclusive).
+- **The comparison isn't exact.** At the training table, the gain since p50 was measured at
+  3× p50 (+0.0085), not at 3× student, so the two late-stage numbers come from different
+  tables.
+- **By the order fixed above, this ends the test.** BC s1 was the step for an ambiguous result.
+  It remains open as a second, stronger table: a few hours per measure on the 3060.
