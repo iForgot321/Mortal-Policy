@@ -463,3 +463,30 @@ among those with more than one legal action.
 - **The net movement is small.** Stage 4 restored the student's move on 259 / 266 decisions and
   left it on 392 / 389. The net, ≈ 0.8% of decisions, is the drop in agreement with the student;
   the gross change is 4.5%.
+
+### Off-table transfer (exploratory; fixed 2026-11-23, before any of it plays)
+
+**The question:** does b12's gain at the training table hold at tables the runs never trained
+against? The gain is `full` vs 3× student, +0.0294 [+0.0222, +0.0364].
+
+- **The tables:**
+  - first, 3× No-SP A, an independent v5 BC student (b8c192) outside the teachers' lineage;
+  - second, only if needed, 3× BC s1 (EMA). It is one of the student's own teachers, so an
+    exploit of the student could partly carry to it.
+- **The measures:** family A, block `curves-offtable` (new), 20,000 sets each, AMP on, no logs
+  (`experiments/curves_diag.py play-offtable`). Every measure in the block is on the same deals.
+- **D** = `full` − student at the same table, paired per set. Its share is D ÷ 0.0294.
+- **The bands** (`curves_diag.band`), against half the training table's gain (0.0147):
+  - **carries:** D's 95% interval is entirely above 0.0147;
+  - **specific to the student:** it is entirely below;
+  - **ambiguous:** otherwise.
+- **The order:**
+  1. `full` and the student at 3× No-SP A.
+  2. If the gain *carries*: p50 at 3× No-SP A, to ask whether the late stages' gain carries too.
+     If *ambiguous*: `full` and the student at 3× BC s1. If *specific*: stop and report.
+- **Caveats:**
+  - The reference +0.0294 has its own ±0.007.
+  - A table's strength can change Δu's scale whether or not the policy overfits.
+  - `full` at 3× BC s1 is one of the pre-registered final measures. It is reported, not deciding,
+    and is played on the `curves` block. Measuring it here, on other deals, is a peek, not a
+    change to the reading.
