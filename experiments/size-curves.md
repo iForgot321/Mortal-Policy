@@ -409,6 +409,12 @@ sets.
 - **The gains are measured at the training table.** 3× student is the runs' training opponent
   (`baseline.train`), so these numbers say nothing about other tables.
 
+**The triage's rule** (the user's, not acted on here): option A, batch 2 as pre-registered,
+needs entropy at `full` ≥ 70% and a gain since p50 with a lower bound above 0, for both runs.
+**Neither run meets both**: both fail on entropy, and b16 also on its bound. So the rule gives
+**option C**, with both runs agreeing: don't run batch 2 as is, and enter any amendment to D68
+in the decision log first. The call is the user's.
+
 ### Stage-to-stage drift (exploratory, 2026-11-22)
 
 `rl_drift.py` with each earlier snapshot as the reference, on the students' states (outputs in
@@ -436,9 +442,3 @@ among those with more than one legal action.
   Sharpening without a flip matters for training's sampling and the entropy limit only.
 - **Not measured:** how much the flips matter. There is no value weighting, and the states are
   the students' own decisions, not those the later snapshots reach.
-
-**The triage's rule** (the user's, not acted on here): option A, batch 2 as pre-registered,
-needs entropy at `full` ≥ 70% and a gain since p50 with a lower bound above 0, for both runs.
-**Neither run meets both**: both fail on entropy, and b16 also on its bound. So the rule gives
-**option C**, with both runs agreeing: don't run batch 2 as is, and enter any amendment to D68
-in the decision log first. The call is the user's.
