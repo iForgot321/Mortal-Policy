@@ -224,6 +224,8 @@ def cmd_report_offtable(_):
                                                      'band': band(d['ci'], ref)}
         if full and p50:
             out['pairs'][f'full-p50@{short}'] = paired(full, p50)
+        if p50 and stud:
+            out['pairs'][f'p50-student@{short}'] = paired(p50, stud)
     path = os.path.join(OUT_DIR, 'offtable.json')
     with open(path, 'w') as f:
         json.dump(out, f, indent=1)
